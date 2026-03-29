@@ -8,9 +8,15 @@ import { logError, logWarn } from "@/lib/ops/logger";
 export type PaymentInitializationInput = {
   email: string;
   amount: number;
+  currency?: string;
   reference: string;
   callbackUrl: string;
   metadata?: Record<string, unknown>;
+  splitConfig?: {
+    subaccount?: string;
+    transactionCharge?: number;
+    bearer?: string;
+  };
 };
 
 export async function initializePayment(input: PaymentInitializationInput) {
@@ -34,9 +40,17 @@ export async function initializePayment(input: PaymentInitializationInput) {
     body: JSON.stringify({
       email: input.email,
       amount: Math.round(input.amount * 100),
+      currency: input.currency,
       reference: input.reference,
       callback_url: input.callbackUrl,
       metadata: input.metadata,
+      ...(input.splitConfig?.subaccount
+        ? {
+            subaccount: input.splitConfig.subaccount,
+            transaction_charge: Math.round(input.splitConfig.transactionCharge ?? 0),
+            bearer: input.splitConfig.bearer ?? "subaccount",
+          }
+        : {}),
     }),
   });
 
@@ -114,10 +128,10 @@ export function verifyPaystackSignature(rawBody: string, signature?: string | nu
   return hash === signature;
 }
 
-export function createReceiptFromPayment(reference: string, amount: number) {
+export function createReceiptFromPayment(reference: string, amount: number, currency = "NGN") {
   return {
     receiptNumber: `RCT-${reference.toUpperCase()}`,
     totalAmount: amount,
-    currency: "NGN",
+    currency,
   };
 }

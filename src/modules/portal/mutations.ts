@@ -7,6 +7,7 @@ import { featureFlags } from "@/lib/env";
 import { findFirstForTenant, rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import type { ReservationCreateInput } from "@/lib/validations/reservations";
 import type { SavedPropertyMutationInput } from "@/lib/validations/saved-properties";
+import { requireCompanyPlanAccess } from "@/modules/billing/service";
 import { createTransactionForReservation } from "@/modules/transactions/mutations";
 
 type ScopedFindFirstDelegate = { findFirst: (args?: unknown) => Promise<unknown> };
@@ -140,6 +141,8 @@ export async function createReservationForBuyer(
       status: "ACTIVE",
     };
   }
+
+  await requireCompanyPlanAccess(context, "TRANSACTIONS");
 
   const property = (await findFirstForTenant(
     prisma.property as ScopedFindFirstDelegate,

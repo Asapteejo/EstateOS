@@ -6,6 +6,14 @@ import { properties } from "../src/modules/properties/demo-data";
 const prisma = new PrismaClient();
 
 async function main() {
+  await prisma.billingEvent.deleteMany();
+  await prisma.splitSettlement.deleteMany();
+  await prisma.commissionRecord.deleteMany();
+  await prisma.companyPaymentProviderAccount.deleteMany();
+  await prisma.companyBillingSettings.deleteMany();
+  await prisma.companySubscription.deleteMany();
+  await prisma.commissionRule.deleteMany();
+  await prisma.plan.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.receipt.deleteMany();
   await prisma.payment.deleteMany();
@@ -66,6 +74,46 @@ async function main() {
       slug: "lagos-hq",
       city: "Lagos",
       state: "Lagos",
+    },
+  });
+
+  await prisma.plan.create({
+    data: {
+      code: "growth",
+      slug: "growth-monthly",
+      name: "Growth",
+      description: "Monthly operating plan for one real estate company with transaction workflows enabled.",
+      interval: "MONTHLY",
+      priceAmount: 150000,
+      currency: "NGN",
+      isActive: true,
+      isPublic: true,
+      canBeGranted: true,
+      featureFlags: {
+        TRANSACTIONS: true,
+        ADMIN_OPERATIONS: true,
+        BILLING_OVERVIEW: true,
+      },
+    },
+  });
+
+  const growthAnnualPlan = await prisma.plan.create({
+    data: {
+      code: "growth",
+      slug: "growth-annual",
+      name: "Growth",
+      description: "Annual operating plan for one real estate company with transaction workflows enabled.",
+      interval: "ANNUAL",
+      priceAmount: 1500000,
+      currency: "NGN",
+      isActive: true,
+      isPublic: true,
+      canBeGranted: true,
+      featureFlags: {
+        TRANSACTIONS: true,
+        ADMIN_OPERATIONS: true,
+        BILLING_OVERVIEW: true,
+      },
     },
   });
 
@@ -146,6 +194,83 @@ async function main() {
         roleId: superAdminRole.id,
       },
     ],
+  });
+
+  const companyCommissionRule = await prisma.commissionRule.create({
+    data: {
+      companyId: company.id,
+      name: "Default transaction commission",
+      code: "default-transaction-commission",
+      feeType: "FLAT",
+      flatAmount: 25000,
+      currency: "NGN",
+      notes: "Applies even when the tenant plan was granted manually.",
+    },
+  });
+
+  await prisma.companyBillingSettings.create({
+    data: {
+      companyId: company.id,
+      defaultCurrency: "NGN",
+      transactionProvider: "PAYSTACK",
+      subscriptionProvider: "STRIPE",
+      requireActivePlanForTransactions: true,
+      requireActivePlanForAdminOps: false,
+      defaultCommissionRuleId: companyCommissionRule.id,
+      notes: "Pilot billing configuration",
+    },
+  });
+
+  await prisma.companyPaymentProviderAccount.create({
+    data: {
+      companyId: company.id,
+      provider: "PAYSTACK",
+      displayName: "Acme Realty Paystack settlement",
+      accountReference: "ACME-PAYSTACK-SETTLEMENT",
+      subaccountCode: "ACCT_demo_acme",
+      settlementCurrency: "NGN",
+      settlementCountry: "NG",
+      status: "ACTIVE",
+      supportsTransactionSplit: true,
+      supportsSubscriptions: false,
+      isDefaultPayout: true,
+    },
+  });
+
+  const currentSubscription = await prisma.companySubscription.create({
+    data: {
+      companyId: company.id,
+      planId: growthAnnualPlan.id,
+      status: "GRANTED",
+      interval: "ANNUAL",
+      isCurrent: true,
+      startsAt: new Date("2026-01-01T00:00:00.000Z"),
+      endsAt: new Date("2027-01-01T00:00:00.000Z"),
+      grantedByUserId: admin.id,
+      grantReason: "Pilot launch support by EstateOS superadmin.",
+      billingProvider: "MANUAL",
+      autoRenews: false,
+      metadata: {
+        source: "seed",
+      },
+    },
+  });
+
+  await prisma.billingEvent.create({
+    data: {
+      companyId: company.id,
+      subscriptionId: currentSubscription.id,
+      actorUserId: admin.id,
+      type: "PLAN_GRANTED",
+      provider: "MANUAL",
+      amount: 0,
+      currency: "NGN",
+      status: "GRANTED",
+      summary: "Superadmin granted the Growth annual plan for pilot usage.",
+      metadata: {
+        planId: growthAnnualPlan.id,
+      },
+    },
   });
 
   for (const property of properties) {
@@ -444,6 +569,47 @@ async function main() {
       mimeType: "application/pdf",
       documentType: "RECEIPT",
       visibility: "PRIVATE",
+    },
+  });
+
+  await prisma.commissionRecord.create({
+    data: {
+      companyId: company.id,
+      paymentId: payment.id,
+      transactionId: transaction.id,
+      subscriptionId: currentSubscription.id,
+      planId: growthAnnualPlan.id,
+      commissionRuleId: companyCommissionRule.id,
+      grossAmount: 12500000,
+      companyAmount: 12475000,
+      platformCommission: 25000,
+      providerFee: 0,
+      netAmount: 12475000,
+      currency: "NGN",
+      settlementStatus: "READY",
+      metadata: {
+        isGrantedPlan: true,
+      },
+    },
+  });
+
+  await prisma.splitSettlement.create({
+    data: {
+      companyId: company.id,
+      paymentId: payment.id,
+      provider: "PAYSTACK",
+      grossAmount: 12500000,
+      companyAmount: 12475000,
+      platformAmount: 25000,
+      providerFee: 0,
+      currency: "NGN",
+      status: "READY",
+      metadata: {
+        paystack: {
+          subaccount: "ACCT_demo_acme",
+          transaction_charge: 2500000,
+        },
+      },
     },
   });
 

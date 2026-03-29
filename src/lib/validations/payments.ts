@@ -3,6 +3,7 @@ import { z } from "zod";
 export const paymentInitializeSchema = z.object({
   email: z.email(),
   amount: z.number().positive(),
+  currency: z.string().trim().length(3).transform((value) => value.toUpperCase()).default("NGN"),
   reference: z.string().min(4),
   callbackUrl: z.string().url(),
   transactionId: z.string().optional(),

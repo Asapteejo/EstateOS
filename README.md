@@ -50,6 +50,82 @@ The codebase is designed for one-company MVP usage today and SaaS-style tenant i
 - Private document access requires tenant match plus ownership or staff entitlement.
 - Payment references and storage keys are tenant-namespaced before leaving the app.
 
+## Billing And Monetization Model
+
+EstateOS now uses a hybrid SaaS monetization model:
+
+- company subscription plans with explicit monthly and annual intervals
+- superadmin manual grants and overrides
+- transaction-level platform commission on successful property payments
+- provider-aware split settlement design so tenant proceeds and EstateOS commission can be separated cleanly
+
+Implemented billing domain records now include:
+
+- `Plan`
+- `CompanySubscription`
+- `CompanyBillingSettings`
+- `CompanyPaymentProviderAccount`
+- `CommissionRule`
+- `CommissionRecord`
+- `SplitSettlement`
+- `BillingEvent`
+
+Business rules enforced in code:
+
+- every company can have a current plan
+- plans can be monthly, annual, or manually granted
+- superadmin grants do not exempt the company from transaction commission
+- transaction commission is created from webhook-authoritative successful payments
+- transaction access flows are gated by active company plan status
+- public marketing and listing reads remain publicly accessible
+
+### Monthly vs Annual Rules
+
+- Monthly and annual plans are separate plan records with explicit `interval`
+- active access is determined from `status`, `isCurrent`, `startsAt`, `endsAt`, and `cancelledAt`
+- annual plans are modeled directly, not inferred from monthly price multipliers
+- subscription checkout architecture is provider-ready, but live recurring billing is not yet wired in this workspace
+
+### Superadmin Grants
+
+- only `SUPER_ADMIN` can create plans, assign plans, grant plans, and revoke current subscriptions
+- grant actions require a reason
+- grant and revoke actions are written to both billing events and audit logs
+- granted tenants still generate platform commission records on successful transaction payments
+
+### Commission Model
+
+- current implementation supports flat per-transaction commission rules
+- percentage rules are modeled in the schema and commission logic
+- every successful webhook-reconciled payment can upsert:
+  - `CommissionRecord`
+  - `SplitSettlement`
+  - receipt state
+  - audit event
+- reporting foundations now support:
+  - active subscriptions
+  - granted plans
+  - expired subscriptions
+  - platform commission earned
+  - subscription revenue visibility
+  - payout readiness issues
+
+### Split Payment Model
+
+- settlement calculation is centralized in the billing module
+- company payout readiness is derived from `CompanyPaymentProviderAccount`
+- provider-specific split payloads are isolated from unrelated app logic
+- current live checkout path remains Paystack-first for property transaction payments
+- architecture already supports future Stripe / Flutterwave style settlement strategies through provider-specific metadata builders
+
+### International Provider Readiness
+
+- billing and payment domain records are currency-aware
+- transaction provider and subscription provider are stored separately in `CompanyBillingSettings`
+- provider account configuration is modeled independently from payment records
+- local and international providers can coexist without hardcoding one provider across the whole billing stack
+- only Paystack property-payment initialization is live in this workspace today; Stripe/Flutterwave readiness is structural, not falsely claimed as live
+
 ## Environment Model
 
 Environment parsing is centralized and typed.
@@ -253,9 +329,18 @@ Webhook reconciliation currently handles:
 - transaction and installment linkage
 - receipt upsert
 - receipt document persistence
+- commission record upsert
+- split settlement upsert
 - transaction balance update
 - transaction stage/milestone update
 - audit log write
+
+Transaction payment initialization now also:
+
+- checks active company plan access for transaction flows
+- resolves the tenant commission rule
+- verifies payout/split readiness for the configured transaction provider
+- attaches provider-specific split metadata only through the billing settlement service
 
 ## Storage Model
 
@@ -320,6 +405,14 @@ The repo is prepared for Next.js production deployment and includes [vercel.json
 - Paystack
 - Cloudflare R2
 
+### Mandatory Services For Hybrid Monetization In Production
+
+- billing plans seeded or created by superadmin
+- at least one active `CommissionRule`
+- `CompanyBillingSettings` for each live tenant
+- active payout configuration in `CompanyPaymentProviderAccount`
+- Paystack webhook delivery for authoritative transaction commission creation
+
 ### Services That Can Be Disabled In Lower Environments
 
 - Mapbox
@@ -339,6 +432,14 @@ Verified here:
 - `npx prisma validate`
 - `npx prisma generate`
 
+Billing-specific runtime confidence added here:
+
+- active plan calculation
+- granted-plan behavior
+- commission-on-granted-plan behavior
+- split-settlement preview generation
+- billing plan and manual grant validation rules
+
 Build verification in this workspace now runs without requiring live production secrets at import time. Production readiness is surfaced through runtime checks instead of blocking `next build`.
 
 ## What Still Requires Live Credentials Or Infrastructure
@@ -349,6 +450,8 @@ Build verification in this workspace now runs without requiring live production 
 - Real R2 object upload/download behavior
 - Real Resend delivery
 - Real Upstash, Inngest, and Sentry behavior in staging/production
+- Real subscription checkout / renewal provider flow for monthly and annual SaaS billing
+- Real provider payout account provisioning for Paystack split settlement and future international providers
 
 ## Development-Ready Status
 
@@ -367,3 +470,4 @@ EstateOS is now development-ready in the following sense:
 - Demo fallbacks remain intentionally available in non-production, so teams need discipline not to confuse demo behavior with live integrations
 - Sentry wiring is basic and should be expanded with richer tracing and release configuration before high-volume production use
 - Receipt documents are persisted, but receipt PDF generation is still deferred
+- Subscription checkout, renewal charging, and dunning are provider-ready in schema/service design but not live yet

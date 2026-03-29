@@ -96,6 +96,56 @@ enum KycStatus {
   CHANGES_REQUESTED
 }
 
+enum BillingInterval {
+  MONTHLY
+  ANNUAL
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIAL
+  GRANTED
+  EXPIRED
+  CANCELLED
+  PAST_DUE
+}
+
+enum BillingEventType {
+  PLAN_ASSIGNED
+  PLAN_GRANTED
+  PLAN_REVOKED
+  SUBSCRIPTION_RENEWED
+  SUBSCRIPTION_CANCELLED
+  SUBSCRIPTION_PAYMENT_RECORDED
+}
+
+enum CommissionType {
+  FLAT
+  PERCENTAGE
+}
+
+enum SettlementStatus {
+  PENDING
+  READY
+  SUBMITTED
+  SETTLED
+  FAILED
+  NOT_APPLICABLE
+}
+
+enum ProviderAccountStatus {
+  PENDING
+  ACTIVE
+  DISABLED
+}
+
+enum PaymentProviderCode {
+  PAYSTACK
+  FLUTTERWAVE
+  STRIPE
+  MANUAL
+}
+
 enum PaymentStatus {
   PENDING
   PROCESSING
@@ -154,6 +204,7 @@ enum AuditAction {
   REJECT
   LOGIN
   PAYMENT
+  BILLING
 }
 
 model Company {
@@ -201,8 +252,210 @@ model Company {
   activityEvents  ActivityEvent[]
   webhookEvents   WebhookEvent[]
   backgroundJobs  BackgroundJobLog[]
+  billingSettings CompanyBillingSettings?
+  subscriptions   CompanySubscription[]
+  providerAccounts CompanyPaymentProviderAccount[]
+  commissionRules CommissionRule[]
+  commissionRecords CommissionRecord[]
+  splitSettlements SplitSettlement[]
+  billingEvents   BillingEvent[]
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
+}
+
+model Plan {
+  id              String                @id @default(cuid())
+  code            String
+  slug            String                @unique
+  name            String
+  description     String?
+  interval        BillingInterval
+  priceAmount     Decimal               @db.Decimal(12, 2)
+  currency        String                @default("NGN")
+  isActive        Boolean               @default(true)
+  isPublic        Boolean               @default(true)
+  canBeGranted    Boolean               @default(true)
+  featureFlags    Json?
+  allowances      Json?
+  subscriptions   CompanySubscription[]
+  commissionRules CommissionRule[]
+  commissionRecords CommissionRecord[]
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@unique([code, interval])
+  @@index([isActive, isPublic])
+}
+
+model CompanySubscription {
+  id                     String             @id @default(cuid())
+  companyId              String
+  planId                 String
+  status                 SubscriptionStatus @default(ACTIVE)
+  interval               BillingInterval
+  isCurrent              Boolean            @default(true)
+  startsAt               DateTime
+  endsAt                 DateTime?
+  cancelledAt            DateTime?
+  grantedByUserId        String?
+  grantReason            String?
+  externalSubscriptionId String?
+  externalCustomerId     String?
+  billingProvider        PaymentProviderCode?
+  autoRenews             Boolean            @default(false)
+  metadata               Json?
+  company                Company            @relation(fields: [companyId], references: [id])
+  plan                   Plan               @relation(fields: [planId], references: [id])
+  grantedByUser          User?              @relation("GrantedSubscriptions", fields: [grantedByUserId], references: [id])
+  commissionRecords      CommissionRecord[]
+  billingEvents          BillingEvent[]
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  @@index([companyId, isCurrent, status])
+  @@index([companyId, startsAt, endsAt])
+  @@index([planId, status])
+}
+
+model CompanyBillingSettings {
+  id                               String              @id @default(cuid())
+  companyId                        String              @unique
+  defaultCurrency                  String              @default("NGN")
+  transactionProvider              PaymentProviderCode @default(PAYSTACK)
+  subscriptionProvider             PaymentProviderCode?
+  requireActivePlanForTransactions Boolean             @default(true)
+  requireActivePlanForAdminOps     Boolean             @default(false)
+  defaultCommissionRuleId          String?
+  notes                            String?
+  company                          Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  defaultCommissionRule            CommissionRule?     @relation("DefaultCommissionRule", fields: [defaultCommissionRuleId], references: [id])
+  createdAt                        DateTime            @default(now())
+  updatedAt                        DateTime            @updatedAt
+
+  @@index([defaultCommissionRuleId])
+}
+
+model CompanyPaymentProviderAccount {
+  id                       String                @id @default(cuid())
+  companyId                String
+  provider                 PaymentProviderCode
+  displayName              String
+  accountReference         String
+  splitCode                String?
+  subaccountCode           String?
+  settlementCurrency       String                @default("NGN")
+  settlementCountry        String?
+  status                   ProviderAccountStatus @default(PENDING)
+  supportsTransactionSplit Boolean               @default(false)
+  supportsSubscriptions    Boolean               @default(false)
+  isDefaultPayout          Boolean               @default(false)
+  metadata                 Json?
+  company                  Company               @relation(fields: [companyId], references: [id])
+  splitSettlements         SplitSettlement[]
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+
+  @@unique([companyId, provider, accountReference])
+  @@index([companyId, provider, status])
+}
+
+model CommissionRule {
+  id                String                   @id @default(cuid())
+  companyId         String?
+  planId            String?
+  name              String
+  code              String
+  feeType           CommissionType          @default(FLAT)
+  flatAmount        Decimal?                @db.Decimal(12, 2)
+  percentageRate    Decimal?                @db.Decimal(5, 2)
+  currency          String                  @default("NGN")
+  isActive          Boolean                 @default(true)
+  notes             String?
+  company           Company?                @relation(fields: [companyId], references: [id])
+  plan              Plan?                   @relation(fields: [planId], references: [id])
+  billingSettings   CompanyBillingSettings[] @relation("DefaultCommissionRule")
+  commissionRecords CommissionRecord[]
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  @@unique([companyId, code])
+  @@index([planId, isActive])
+  @@index([companyId, isActive])
+}
+
+model CommissionRecord {
+  id                 String               @id @default(cuid())
+  companyId          String
+  paymentId          String               @unique
+  transactionId      String?
+  subscriptionId     String?
+  planId             String?
+  commissionRuleId   String?
+  grossAmount        Decimal              @db.Decimal(12, 2)
+  companyAmount      Decimal              @db.Decimal(12, 2)
+  platformCommission Decimal              @db.Decimal(12, 2)
+  providerFee        Decimal              @default(0) @db.Decimal(12, 2)
+  netAmount          Decimal              @db.Decimal(12, 2)
+  currency           String               @default("NGN")
+  settlementStatus   SettlementStatus     @default(PENDING)
+  metadata           Json?
+  company            Company              @relation(fields: [companyId], references: [id])
+  payment            Payment              @relation(fields: [paymentId], references: [id])
+  transaction        Transaction?         @relation(fields: [transactionId], references: [id])
+  subscription       CompanySubscription? @relation(fields: [subscriptionId], references: [id])
+  plan               Plan?                @relation(fields: [planId], references: [id])
+  commissionRule     CommissionRule?      @relation(fields: [commissionRuleId], references: [id])
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@index([companyId, settlementStatus, createdAt])
+  @@index([companyId, subscriptionId])
+  @@index([companyId, transactionId])
+}
+
+model SplitSettlement {
+  id                  String                        @id @default(cuid())
+  companyId           String
+  paymentId           String                        @unique
+  provider            PaymentProviderCode
+  providerAccountId   String?
+  grossAmount         Decimal                       @db.Decimal(12, 2)
+  companyAmount       Decimal                       @db.Decimal(12, 2)
+  platformAmount      Decimal                       @db.Decimal(12, 2)
+  providerFee         Decimal                       @default(0) @db.Decimal(12, 2)
+  currency            String                        @default("NGN")
+  status              SettlementStatus              @default(PENDING)
+  settlementReference String?
+  metadata            Json?
+  company             Company                       @relation(fields: [companyId], references: [id])
+  payment             Payment                       @relation(fields: [paymentId], references: [id])
+  providerAccount     CompanyPaymentProviderAccount? @relation(fields: [providerAccountId], references: [id])
+  createdAt           DateTime                      @default(now())
+  updatedAt           DateTime                      @updatedAt
+
+  @@index([companyId, provider, status])
+  @@index([providerAccountId])
+}
+
+model BillingEvent {
+  id             String               @id @default(cuid())
+  companyId      String?
+  subscriptionId String?
+  actorUserId    String?
+  type           BillingEventType
+  provider       PaymentProviderCode?
+  amount         Decimal?             @db.Decimal(12, 2)
+  currency       String?
+  status         String?
+  summary        String
+  metadata       Json?
+  company        Company?             @relation(fields: [companyId], references: [id])
+  subscription   CompanySubscription? @relation(fields: [subscriptionId], references: [id])
+  actorUser      User?                @relation("BillingEvents", fields: [actorUserId], references: [id])
+  createdAt      DateTime             @default(now())
+
+  @@index([companyId, type, createdAt])
+  @@index([subscriptionId])
 }
 
 model Branch {
@@ -253,6 +506,8 @@ model User {
   activityEvents  ActivityEvent[]
   accessLogs      DocumentAccessLog[]
   kycSubmissions  KYCSubmission[]
+  grantedSubscriptions CompanySubscription[] @relation("GrantedSubscriptions")
+  billingEvents   BillingEvent[]        @relation("BillingEvents")
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
@@ -543,6 +798,7 @@ model Transaction {
   payments           Payment[]
   receipts           Receipt[]
   documents          Document[]
+  commissionRecords  CommissionRecord[]
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
 
@@ -621,6 +877,8 @@ model Payment {
   user              User?         @relation(fields: [userId], references: [id])
   receipt           Receipt?
   webhookEvents     WebhookEvent[]
+  commissionRecord  CommissionRecord?
+  splitSettlement   SplitSettlement?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
