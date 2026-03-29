@@ -1,137 +1,155 @@
-# Acme Realty Platform Foundation
+# EstateOS
 
-Production-minded Phase 1 foundation for a modern real estate platform built with:
+EstateOS is a multi-tenant real estate SaaS foundation built for three surfaces:
 
-- Next.js 16 App Router
+- Public marketing and listings
+- Buyer transaction portal
+- Internal admin operations
+
+The codebase is designed for one-company MVP usage today and SaaS-style tenant isolation from day one.
+
+## Stack
+
+- Next.js App Router
 - TypeScript
 - Tailwind CSS
-- shadcn/ui-style component foundation
-- PostgreSQL + Prisma
-- Clerk auth integration
-- Cloudflare R2 upload foundation
-- Paystack payment foundation
-- Mapbox-ready property mapping
-- Inngest event/job foundation
-- Upstash Redis rate limiting
-- Resend email foundation
-- Sentry-ready monitoring hooks
-- Vercel-ready deployment shape
+- PostgreSQL
+- Prisma ORM
+- Clerk
+- Paystack
+- Cloudflare R2
+- Inngest
+- Upstash Redis
+- Resend
+- Sentry
 
-## Multi-Tenancy
+## Architecture Summary
 
-This codebase is now structured as a tenant-safe SaaS foundation from day one.
+- `Company` is the tenant root in [prisma/schema.prisma](c:/Users/HP/Desktop/Realestate%20saas/prisma/schema.prisma).
+- Tenant-owned records carry `companyId` and are queried through server-side tenant helpers.
+- Public marketing, buyer portal, and admin dashboard are split into route groups under [src/app](c:/Users/HP/Desktop/Realestate%20saas/src/app).
+- Business reads and writes are concentrated in module services under [src/modules](c:/Users/HP/Desktop/Realestate%20saas/src/modules).
+- Server runtime configuration is validated centrally in [src/lib/config.ts](c:/Users/HP/Desktop/Realestate%20saas/src/lib/config.ts), [src/lib/env.ts](c:/Users/HP/Desktop/Realestate%20saas/src/lib/env.ts), and [src/lib/public-env.ts](c:/Users/HP/Desktop/Realestate%20saas/src/lib/public-env.ts).
 
-- `Company` is the tenant root model in [prisma/schema.prisma](c:/Users/HP/Desktop/Realestate%20saas/prisma/schema.prisma)
-- Core operational entities carry `companyId` and are indexed for tenant-scoped access
-- Roles are tenant-scoped through `Role.companyId` and `UserRole.companyId`
-- `SUPER_ADMIN` remains globally elevated and may operate across tenants
-- Non-super-admin access is constrained to one tenant context
-- Tenant resolution is prepared for domain, subdomain, and current-session-based lookup in [src/lib/tenancy/context.ts](c:/Users/HP/Desktop/Realestate%20saas/src/lib/tenancy/context.ts)
-- Seed data creates a default tenant and attaches all demo content to it
+## Tenant Model Summary
 
-Final tenant isolation rules:
+- `SUPER_ADMIN` can operate across tenants.
+- Non-super-admin users are restricted to one resolved tenant.
+- Tenant resolution currently supports:
+  session-based app usage
+  public fallback via `DEFAULT_COMPANY_SLUG`
+  future subdomain/custom-domain routing
+- Tenant-owned reads should use:
+  `requireTenantContext`
+  `requirePublicTenantContext`
+  `findManyForTenant`
+  `findFirstForTenant`
+  `countForTenant`
+  `aggregateForTenant`
+- Privileged writes reject caller-supplied `companyId`.
+- Private document access requires tenant match plus ownership or staff entitlement.
+- Payment references and storage keys are tenant-namespaced before leaving the app.
 
-- Tenant-owned reads must resolve tenant context server-side and scope by `companyId` unless the actor has `SUPER_ADMIN`
-- Client-supplied `companyId` is rejected on write routes
-- Payment references are tenant-namespaced before provider initialization
-- Upload keys are tenant-namespaced before storage signing
-- Private document access must satisfy both tenant match and ownership or staff entitlement
-- Public marketing writes must resolve a tenant from domain, subdomain, or server-configured default tenant context
-- Dashboard KPIs and future aggregates must use tenant-scoped helpers in `src/lib/tenancy/db.ts`
-- Live DB-backed screens must load tenant-owned rows through centralized query services, not route-local raw Prisma reads
-- Buyer portal reads must satisfy both tenant scope and buyer ownership where the record is user-bound
-- Aggregate queries must stay tenant-scoped at the root query level before any sum, count, or ranking logic is applied
-- Nested relation data rendered on tenant-owned screens must be treated as untrusted until the related row also matches tenant expectations
-- Public CMS content must resolve tenant context first, then read only that tenant's published rows so future custom domains and subdomains render isolated brand content
-- Query-service rule:
-  route handlers and pages should call module-level query services; tenant-owned Prisma reads should not be written ad hoc in UI files
+## Environment Model
 
-Public property search query params:
+Environment parsing is centralized and typed.
 
-- `location`
-- `propertyType`
-- `minPrice`
-- `maxPrice`
-- `bedrooms`
-- `status`
-- `hasPaymentPlan=true`
-- `featured=true`
-- `page`
+- Server env: [src/lib/env.ts](c:/Users/HP/Desktop/Realestate%20saas/src/lib/env.ts)
+- Public client env: [src/lib/public-env.ts](c:/Users/HP/Desktop/Realestate%20saas/src/lib/public-env.ts)
+- Shared schemas and feature-flag derivation: [src/lib/config.ts](c:/Users/HP/Desktop/Realestate%20saas/src/lib/config.ts)
 
-## What Is Included
+The app now validates aggressively when:
 
-- Premium marketing site:
-  Home, About, Listings, Property detail, Agents, Testimonials, Contact, FAQ, Blog, Careers scaffold
-- Buyer portal:
-  Dashboard, Profile, KYC, Saved properties, Reservations, Payments, Timeline, Notifications, Documents, Support scaffold
-- Admin dashboard:
-  Overview, Listings, Leads, Bookings, Clients, Transactions, Payments, Documents, Notifications scaffold, Analytics scaffold, Audit logs
-- Backend foundations:
-  Prisma schema, generated migration SQL, seed script, route protection, validated APIs, payment abstraction, upload abstraction, event publishing, Clerk webhook sync, audit logging
+- a service group is only partially configured
+- public config is malformed
 
-## Architecture
+Production-critical services are reported through startup logs and `/api/readyz`. This keeps `next build` reproducible in CI and local environments while still making misconfigured production runtime fail operational checks immediately.
 
-Key folders:
+### Required In Production
 
-- `src/app`: marketing, portal, admin, and API routes
-- `src/components`: shared, marketing, portal, and UI primitives
-- `src/lib`: auth, db, payments, storage, notifications, audit, cache, validations, utils
-- `src/lib/tenancy`: tenant resolution, scoping, and guard helpers
-- `src/modules/admin/queries.ts`: tenant-safe admin read services
-- `src/modules/portal/queries.ts`: tenant-safe buyer read services
-- `src/modules`: seeded demo domain data by module
-- `prisma`: schema, migration, seed
-- `src/inngest`: background function definitions
+- `DATABASE_URL`
+- `NEXT_PUBLIC_APP_URL`
+- `APP_BASE_URL`
+- `DEFAULT_COMPANY_SLUG`
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `CLERK_SECRET_KEY`
+- `CLERK_WEBHOOK_SECRET`
+- `PAYSTACK_SECRET_KEY`
+- `PAYSTACK_PUBLIC_KEY`
+- `PAYSTACK_WEBHOOK_SECRET`
+- `R2_ACCOUNT_ID`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `R2_BUCKET_NAME`
 
-## Setup
+### Optional But Supported
 
-1. Copy `.env.example` to `.env.local`.
-2. Fill in required service credentials.
-3. Start PostgreSQL and point `DATABASE_URL` at it.
-4. Install dependencies:
+- `R2_PUBLIC_BASE_URL`
+- `MAPBOX_ACCESS_TOKEN`
+- `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN`
+- `INNGEST_EVENT_KEY`
+- `INNGEST_SIGNING_KEY`
+- `INNGEST_BASE_URL`
+- `UPSTASH_REDIS_REST_URL`
+- `UPSTASH_REDIS_REST_TOKEN`
+- `RESEND_API_KEY`
+- `EMAIL_FROM`
+- `SENTRY_DSN`
+
+### Service Group Rule
+
+Partial configuration is treated as invalid for grouped services. For example, setting only `PAYSTACK_SECRET_KEY` without the webhook secret now fails config parsing.
+
+## Local Developer Bootstrap Checklist
+
+1. Install dependencies.
+2. Copy `.env.example` to `.env.local`.
+3. Start PostgreSQL.
+4. Set at least:
+   `DATABASE_URL`
+   `NEXT_PUBLIC_APP_URL`
+   `APP_BASE_URL`
+   `DEFAULT_COMPANY_SLUG`
+5. Run Prisma validate and generate.
+6. Run migrations.
+7. Seed demo data.
+8. Start the dev server.
+9. Open `/api/health` and `/api/readyz`.
+
+## Local Setup
+
+### 1. Install
 
 ```bash
 npm install
 ```
 
-5. Generate Prisma client:
+### 2. Configure Env
 
 ```bash
-npm run db:generate
+copy .env.example .env.local
 ```
 
-6. Apply migrations against your database:
+Minimum local env for DB-backed development:
 
-```bash
-npm run db:migrate
+```env
+NODE_ENV="development"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+APP_BASE_URL="http://localhost:3000"
+DEFAULT_COMPANY_SLUG="acme-realty"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/realestate_platform?schema=public"
 ```
 
-7. Seed demo data:
+Prisma CLI commands load `.env.local` first and then `.env` through [prisma.config.ts](c:/Users/HP/Desktop/Realestate%20saas/prisma.config.ts), so the same local database config can be reused across Next.js and Prisma workflows.
 
-```bash
-npm run db:seed
-```
+If Clerk is not configured in non-production, local demo mode remains available for `/portal` and `/admin`.
 
-8. Run locally:
+### 3. Start PostgreSQL
 
-```bash
-npm run dev
-```
-
-## Local Postgres Bootstrap
-
-Option A: existing local PostgreSQL
-
-1. Create a database:
+Option A: local PostgreSQL
 
 ```sql
 CREATE DATABASE realestate_platform;
-```
-
-2. Set `DATABASE_URL` in `.env.local`:
-
-```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/realestate_platform?schema=public"
 ```
 
 Option B: Docker
@@ -145,153 +163,207 @@ docker run --name realestate-postgres ^
   -d postgres:16
 ```
 
-Then run:
+### 4. Prepare Prisma
 
 ```bash
+npm run db:validate
 npm run db:generate
 npm run db:migrate
 npm run db:seed
 ```
 
-## Environment Notes
+### 5. Run The App
 
-Required for full production behavior:
+```bash
+npm run dev
+```
 
-- `DATABASE_URL`
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-- `CLERK_SECRET_KEY`
-- `PAYSTACK_SECRET_KEY`
-- `PAYSTACK_WEBHOOK_SECRET`
-- `R2_ACCOUNT_ID`
-- `R2_ACCESS_KEY_ID`
-- `R2_SECRET_ACCESS_KEY`
-- `R2_BUCKET_NAME`
-- `RESEND_API_KEY`
-- `UPSTASH_REDIS_REST_URL`
-- `UPSTASH_REDIS_REST_TOKEN`
+## Scripts
 
-Optional but wired:
+- `npm run dev`
+- `npm run build`
+- `npm run start`
+- `npm run test`
+- `npm run typecheck`
+- `npm run lint`
+- `npm run check`
+- `npm run db:validate`
+- `npm run db:generate`
+- `npm run db:migrate`
+- `npm run db:migrate:deploy`
+- `npm run db:seed`
 
-- `MAPBOX_ACCESS_TOKEN`
-- `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN`
-- `SENTRY_DSN`
-- `INNGEST_EVENT_KEY`
-- `INNGEST_SIGNING_KEY`
+## Database And Migration Workflow
 
-## Demo Mode
+### Local Development
 
-If Clerk is not configured, the app falls back to local demo access for `/portal` and `/admin` in non-production environments so the product shell remains explorable.
+Use:
 
-If Paystack, R2, Redis, Resend, or Mapbox are not configured, their integrations fall back to safe placeholders or no-op foundations instead of crashing the app.
+```bash
+npm run db:validate
+npm run db:generate
+npm run db:migrate
+npm run db:seed
+```
 
-## Finished In Phase 1
+### Production / Staging
 
-- Modular app structure with marketing, portal, and admin sections
-- Production-oriented Prisma schema across listings, CRM, transactions, documents, CMS, and system domains
-- Mandatory multi-tenant architecture built into the schema and request-level access helpers
-- Initial migration SQL at `prisma/migrations/0001_init/migration.sql`
-- Seed script with realistic demo content
-- Clerk-aware auth guards and middleware with database role model
-- Tenant-aware session and request context resolution
-- Validated inquiry, inspection, upload-signing, payment initialize/verify, and webhook routes
-- Tenant-safe admin property CRUD with persisted create, edit, publish/unpublish/archive, unit management, media management, and brochure association
-- Buyer profile persistence plus private KYC submission workflow with admin review actions
-- Tenant-safe reservation lifecycle and transaction stage mutation routes for admin operations
-- DB-backed tenant-safe reads for admin listings, admin inquiries, admin payments, admin transactions, admin documents, buyer reservations, buyer payments, and buyer document vault
-- DB-backed tenant-safe reads for admin bookings, admin clients, analytics details, buyer dashboard summary, buyer saved properties, buyer notifications, and buyer timeline
-- DB-backed tenant-safe reads for admin audit logs, admin notifications, public property listings, and public property detail pages
-- Public property filtering is URL-driven and applied at the database layer through the properties query service
-- Public tenant-aware CMS loaders for testimonials, FAQ, team members, blog index, blog post pages, and homepage editorial sections
-- Tenant-scoped admin KPI and leaderboard queries for inquiries, reservations, active deals, overdue payments, sales value, top listings, and top staff
-- Paystack provider abstraction with server-side verification pattern
-- Paystack webhook persistence, idempotency handling, tenant resolution from namespaced references, installment-aware reconciliation, receipt upsert, receipt document persistence, transaction balance/stage updates, and audit logging
-- Public brochure delivery route that only serves tenant-owned `BROCHURE` + `PUBLIC` documents
-- Admin notification management with mark-as-read and mark-all-read actions
-- Cloudflare R2 signed upload/download helpers
-- Inngest event publishing and starter function
-- Upstash rate limiting on inquiry intake
-- Audit log service foundation
-- Responsive premium UI foundation
+Use:
 
-## Intentionally Scaffolded For Phase 2
+```bash
+npm run db:validate
+npm run db:generate
+npm run db:migrate:deploy
+```
 
-- Real interactive Mapbox rendering on property detail pages
-- Rich CMS editing workflows
-- Receipt PDF generation and downloadable asset pipeline
-- Staff permission matrix beyond role-level gating
-- Realtime buyer support/chat
-- Full analytics charts and reporting pipeline
-- Deep Sentry instrumentation files
+Notes:
 
-## Verification
+- `prisma migrate dev` is for local development only.
+- `prisma migrate deploy` is the production-safe path.
+- Seed data is deterministic and intended for development/demo environments.
+- The schema and baseline migration should stay aligned; run `npx prisma validate` and `npx prisma generate` after schema changes.
 
-Verified locally in this workspace:
+## Auth, Session, And Tenancy Runtime Rules
+
+- Clerk is required in production.
+- Demo auth fallback is available only when Clerk is absent and `NODE_ENV !== "production"`.
+- Public tenant rendering currently resolves through:
+  `DEFAULT_COMPANY_SLUG`
+  future host/subdomain lookup
+  authenticated session context when applicable
+- Clerk webhook sync now validates referenced `companyId` and `branchId` against the database before persisting them.
+- Middleware protects `/portal` and `/admin` when Clerk is configured.
+
+## Payment Authority Model
+
+Paystack is intentionally split into two paths:
+
+- `POST /api/payments/initialize`
+  initializes provider payment and may persist a pending local payment row
+- `POST /api/payments/verify`
+  is a read/check helper only and does not mutate authoritative finance state
+- `POST /api/webhooks/paystack`
+  is the source of truth for reconciliation
+
+Webhook reconciliation currently handles:
+
+- tenant resolution from namespaced reference
+- idempotency guard via provider event identity
+- payment upsert/update
+- transaction and installment linkage
+- receipt upsert
+- receipt document persistence
+- transaction balance update
+- transaction stage/milestone update
+- audit log write
+
+## Storage Model
+
+### Public Brochures
+
+- Public brochure route: `/brochures/[slug]`
+- Only documents with `documentType = BROCHURE` and `visibility = PUBLIC` are eligible
+- Public brochure delivery is separate from private document vault access
+
+### Private Documents
+
+- Buyer/admin private download route: `/api/documents/[documentId]/download`
+- Access requires tenant match and ownership/staff entitlement
+- Upload signing uses tenant-namespaced keys
+- Missing R2 config falls back safely in non-production flows instead of exposing internals
+
+## Health And Readiness Endpoints
+
+- `/api/health`
+  basic liveness plus non-secret dependency summary and runtime readiness summary
+- `/api/readyz`
+  readiness endpoint with DB connectivity status, production-readiness checks, and safe dependency summary
+
+These endpoints do not expose secrets.
+
+## Observability And Error Handling
+
+- Sentry initialization is wired through [instrumentation.ts](c:/Users/HP/Desktop/Realestate%20saas/instrumentation.ts) and [src/lib/sentry.ts](c:/Users/HP/Desktop/Realestate%20saas/src/lib/sentry.ts)
+- Root UI errors are captured in [src/app/error.tsx](c:/Users/HP/Desktop/Realestate%20saas/src/app/error.tsx)
+- Critical webhook failures now emit safe logs and error capture
+- Startup readiness is logged once through [src/lib/ops/startup.ts](c:/Users/HP/Desktop/Realestate%20saas/src/lib/ops/startup.ts)
+
+## Deployment Readiness
+
+The repo is prepared for Next.js production deployment and includes [vercel.json](c:/Users/HP/Desktop/Realestate%20saas/vercel.json) for a straightforward Vercel setup.
+
+### Production Checklist
+
+1. Provision PostgreSQL.
+2. Set all required production env vars.
+3. Configure Clerk frontend and backend keys plus webhook URL.
+4. Configure Paystack callback and webhook URLs.
+5. Configure R2 bucket and credentials.
+6. Run:
+   `npm run db:validate`
+   `npm run db:generate`
+   `npm run db:migrate:deploy`
+7. Deploy the app.
+8. Verify:
+   `/api/health`
+   `/api/readyz`
+   Clerk auth flow
+   Paystack webhook flow
+   brochure download flow
+   private document flow
+9. Confirm `/api/readyz` reports `ok: true` before exposing the environment to internal users.
+
+### Mandatory Services For First Production Deployment
+
+- PostgreSQL
+- Clerk
+- Paystack
+- Cloudflare R2
+
+### Services That Can Be Disabled In Lower Environments
+
+- Mapbox
+- Resend
+- Upstash Redis
+- Inngest
+- Sentry
+
+## Runtime Verification In This Workspace
+
+Verified here:
 
 - `npm run test`
-- `npm run lint`
 - `npm run typecheck`
+- `npm run lint`
 - `npm run build`
+- `npx prisma validate`
+- `npx prisma generate`
 
-## Runtime Verification Checklist
+Build verification in this workspace now runs without requiring live production secrets at import time. Production readiness is surfaced through runtime checks instead of blocking `next build`.
 
-Local database bootstrapping:
+## What Still Requires Live Credentials Or Infrastructure
 
-1. Start PostgreSQL using either your local install or the Docker command above.
-2. Copy `.env.example` to `.env.local`.
-3. Set `DATABASE_URL`.
-4. Run `npm run db:generate`.
-5. Run `npm run db:migrate`.
-6. Run `npm run db:seed`.
-7. Start the app with `npm run dev`.
+- Real Postgres migrate/seed execution against a running database
+- Real Clerk auth and webhook round-trips
+- Real Paystack initialize/verify/webhook round-trips
+- Real R2 object upload/download behavior
+- Real Resend delivery
+- Real Upstash, Inngest, and Sentry behavior in staging/production
 
-Buyer flow checklist:
+## Development-Ready Status
 
-1. Sign up through Clerk or use demo portal access in non-production.
-2. Open `/properties` and confirm listings render from Prisma for the resolved tenant.
-3. Open `/portal/profile`, save buyer data, and confirm the page refresh shows the persisted record and `profileCompleted` state.
-4. Open `/portal/kyc`, upload a private KYC document through the signed upload flow, and confirm a `SUBMITTED` record appears.
-5. Save a property from the property detail page and confirm it appears at `/portal/saved`.
-6. Reserve a property from the property detail page and confirm the reservation appears at `/portal/reservations` and the transaction timeline activates.
-7. Call `POST /api/payments/initialize` with the tenant session and confirm a pending payment row is created with the tenant-namespaced reference.
-8. Deliver a signed Paystack webhook to `/api/webhooks/paystack` and confirm payment status, receipt, audit log, transaction stage/balance, and buyer-facing payment/documents/timeline surfaces update.
-9. Call `POST /api/payments/verify` and confirm it behaves as a read/check helper that points back to webhook reconciliation as the authoritative finance path.
-10. Open a property brochure link and confirm it resolves through `/brochures/[slug]` without exposing any private document path.
+EstateOS is now development-ready in the following sense:
 
-Admin flow checklist:
+- env parsing is typed and centralized
+- local bootstrap is explicit and reproducible
+- Prisma workflow has local and production-safe script paths
+- health and readiness endpoints exist
+- client/server config boundaries are cleaner
+- production-only missing-core-service states are surfaced through runtime readiness checks and startup logs
 
-1. Sign in as an admin or use demo admin access in non-production.
-2. Open `/admin/listings`, `/admin/leads`, `/admin/bookings`, `/admin/clients`, `/admin/transactions`, `/admin/payments`, `/admin/documents`, `/admin/notifications`, and `/admin/audit-logs`.
-3. Confirm each screen only shows tenant-owned records.
-4. Create a new property in `/admin/listings`, add units and media, publish it, then edit it and confirm changes persist on the public listing/detail pages.
-5. Use `/admin/transactions` to update reservation status and transaction stage, then confirm the buyer timeline reflects the persisted workflow changes.
-6. Use `/admin/documents` to move a KYC submission through `UNDER_REVIEW`, `APPROVED`, `REJECTED`, or `CHANGES_REQUESTED`, then confirm the buyer sees the updated KYC state.
-7. Mark an admin notification as read, then use mark-all-read and confirm no cross-tenant mutation occurs.
-8. Confirm `/admin` and `/admin/analytics` KPIs and ranking tables stay tenant-scoped.
-9. Confirm brochure links on public property pages only resolve for public brochure documents.
-10. Confirm public pages at `/properties` and `/properties/[slug]` only show public property/media/brochure data, never private document records.
+## Known Remaining Risks
 
-## Notes
-
-- Most operational and CMS surfaces now read live tenant-scoped Prisma data through centralized query services. The main remaining seeded areas are support/chat and a few premium analytics/editorial workflows.
-- Queries that touch tenant-owned data should always flow through tenant context and `companyId` scoping. The helper entry points for that are in `src/lib/tenancy`.
-- Prefer `requireTenantContext`, `requirePublicTenantContext`, `findManyForTenant`, `findFirstForTenant`, `countForTenant`, and `aggregateForTenant` over raw ad hoc tenant-owned Prisma queries.
-- Pilot-critical write-side rule:
-  admin property management, buyer profile updates, KYC submission/review, reservation status changes, and transaction stage updates must go through the shared module mutation services instead of route-local Prisma writes.
-- Payment/installment business rule:
-  one installment may receive multiple payments over time, but each payment may point to only one installment. `Payment.installmentId` is nullable and additive for backward compatibility.
-- KYC workflow rule:
-  buyer-visible KYC state is explicit and business-facing: `NOT_SUBMITTED`, `SUBMITTED`, `UNDER_REVIEW`, `APPROVED`, `REJECTED`, `CHANGES_REQUESTED`. Individual KYC documents stay private and tenant-scoped by default.
-- Brochure delivery behavior:
-  property pages link to `/brochures/[slug]`, which resolves tenant context, verifies the property is publicly visible, verifies the attached document is `BROCHURE` and `PUBLIC`, and then redirects to a safe downloadable asset URL. Private document vault routes remain separate.
-- Admin notification behavior:
-  admins can mark individual notifications as read or mark all tenant-scoped unread notifications as read. Archiving/dismissal is intentionally deferred until a dedicated schema field exists.
-- Payment reconciliation flow:
-  initialize route namescopes the reference, optionally persists a pending payment, and may attach `transactionId`, `reservationReference`, and `installmentId`; verify route is read-only and does not mutate finance state; webhook verifies signature, resolves tenant from the namespaced reference, guards duplicate provider events, reconciles against the matching transaction and installment when metadata supports it, upserts a receipt and receipt document, updates transaction balance/stage milestones, and records an audit log.
-- Migration assumption for installment-aware payments:
-  `Payment.installmentId` is additive and nullable, so existing payments remain valid while newer flows can reconcile directly to a payment plan installment.
-- Runtime verification notes:
-  lightweight Node tests cover tenant query scoping helpers, buyer ownership checks, document access enforcement, payment webhook idempotency key and installment semantics, public property visibility filters, admin notifications/audit-log query rules, property CRUD validation shape, buyer profile/KYC validation, buyer save/reservation/payment initialization semantics, and workflow transition helpers.
-- Sensitive document handling is modeled as private by default. Public brochure handling is intentionally separated from private vault access.
-- Payment success is not trusted from the client. Verification and webhook routes are separated for server-side confirmation flow.
-- Intentionally deferred:
-  advanced search facets, full pagination UI controls, brochure analytics/audit events, notification archiving, receipt PDF generation, and a fully automated external-service end-to-end test harness.
+- Live external-service behavior is still unproven until real staging credentials are used
+- Demo fallbacks remain intentionally available in non-production, so teams need discipline not to confuse demo behavior with live integrations
+- Sentry wiring is basic and should be expanded with richer tracing and release configuration before high-volume production use
+- Receipt documents are persisted, but receipt PDF generation is still deferred

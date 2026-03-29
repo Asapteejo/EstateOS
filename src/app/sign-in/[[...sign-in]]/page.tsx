@@ -4,12 +4,12 @@ import { SignIn } from "@clerk/nextjs";
 import { Container } from "@/components/shared/container";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { clientFlags } from "@/lib/public-env";
 
 export default function SignInPage() {
-  const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
   return (
     <Container className="flex min-h-[70vh] items-center justify-center py-16">
-      {hasClerk ? (
+      {clientFlags.hasClerk ? (
         <SignIn />
       ) : (
         <Card className="max-w-xl p-8 text-center">

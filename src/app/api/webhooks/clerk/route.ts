@@ -3,6 +3,8 @@ import { Webhook } from "svix";
 import { ok, fail } from "@/lib/http";
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
+import { logError, logWarn } from "@/lib/ops/logger";
+import { captureException } from "@/lib/sentry";
 
 export async function POST(request: Request) {
   if (!featureFlags.hasDatabase || !env.CLERK_WEBHOOK_SECRET) {
@@ -36,6 +38,7 @@ export async function POST(request: Request) {
       "svix-signature": headers.get("svix-signature") ?? "",
     }) as typeof event;
   } catch {
+    logWarn("Rejected Clerk webhook with invalid signature.");
     return fail("Invalid Clerk webhook signature.", 401);
   }
 
@@ -46,26 +49,59 @@ export async function POST(request: Request) {
       return fail("Missing primary email.");
     }
 
-    await prisma.user.upsert({
-      where: { clerkUserId: event.data.id },
-      create: {
+    const companyId =
+      event.data.public_metadata?.companyId &&
+      (await prisma.company.findUnique({
+        where: {
+          id: event.data.public_metadata.companyId,
+        },
+        select: {
+          id: true,
+        },
+      }))?.id;
+
+    const branchId =
+      event.data.public_metadata?.branchId && companyId
+        ? (await prisma.branch.findFirst({
+            where: {
+              id: event.data.public_metadata.branchId,
+              companyId,
+            },
+            select: {
+              id: true,
+            },
+          }))?.id
+        : null;
+
+    try {
+      await prisma.user.upsert({
+        where: { clerkUserId: event.data.id },
+        create: {
+          clerkUserId: event.data.id,
+          email: primaryEmail,
+          firstName: event.data.first_name ?? "",
+          lastName: event.data.last_name ?? "",
+          phone: event.data.phone_numbers?.[0]?.phone_number,
+          companyId: companyId ?? null,
+          branchId,
+        },
+        update: {
+          email: primaryEmail,
+          firstName: event.data.first_name ?? "",
+          lastName: event.data.last_name ?? "",
+          phone: event.data.phone_numbers?.[0]?.phone_number,
+          companyId: companyId ?? null,
+          branchId,
+        },
+      });
+    } catch (error) {
+      captureException(error);
+      logError("Failed to persist Clerk webhook user sync.", {
         clerkUserId: event.data.id,
-        email: primaryEmail,
-        firstName: event.data.first_name ?? "",
-        lastName: event.data.last_name ?? "",
-        phone: event.data.phone_numbers?.[0]?.phone_number,
-        companyId: event.data.public_metadata?.companyId,
-        branchId: event.data.public_metadata?.branchId,
-      },
-      update: {
-        email: primaryEmail,
-        firstName: event.data.first_name ?? "",
-        lastName: event.data.last_name ?? "",
-        phone: event.data.phone_numbers?.[0]?.phone_number,
-        companyId: event.data.public_metadata?.companyId,
-        branchId: event.data.public_metadata?.branchId,
-      },
-    });
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+      return fail("Unable to sync Clerk user.", 400);
+    }
   }
 
   return ok({ received: true });

@@ -1,9 +1,9 @@
 import { Inngest } from "inngest";
 
-import { env } from "@/lib/env";
+import { env, featureFlags } from "@/lib/env";
 
 export const inngest = new Inngest({
-  id: "acme-realty",
+  id: `estateos-${env.DEFAULT_COMPANY_SLUG ?? "app"}`,
   eventKey: env.INNGEST_EVENT_KEY,
 });
 
@@ -16,7 +16,7 @@ export async function publishDomainEvent<
     | "document/requested"
     | "milestone/updated",
 >(name: TName, data: Record<string, unknown>) {
-  if (!env.INNGEST_EVENT_KEY) {
+  if (!featureFlags.hasInngest) {
     return { id: `demo-${name}` };
   }
 

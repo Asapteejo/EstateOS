@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { AppProviders } from "@/components/providers/app-providers";
+import { logStartupReadinessOnce } from "@/lib/ops/startup";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -14,6 +15,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  logStartupReadinessOnce();
+
   return (
     <html lang="en">
       <body>

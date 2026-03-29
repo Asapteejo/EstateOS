@@ -3,8 +3,9 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "sonner";
 
+import { clientFlags } from "@/lib/public-env";
+
 export function AppProviders({ children }: { children: React.ReactNode }) {
-  const hasClerk = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
   const content = (
     <>
       {children}
@@ -12,7 +13,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
     </>
   );
 
-  if (!hasClerk) {
+  if (!clientFlags.hasClerk) {
     return content;
   }
 

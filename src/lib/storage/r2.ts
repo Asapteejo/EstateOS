@@ -2,6 +2,7 @@ import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { env, featureFlags } from "@/lib/env";
+import { logWarn } from "@/lib/ops/logger";
 
 export const r2 = featureFlags.hasR2
   ? new S3Client({
@@ -16,6 +17,9 @@ export const r2 = featureFlags.hasR2
 
 export async function getPrivateUploadUrl(key: string, contentType: string) {
   if (!r2 || !env.R2_BUCKET_NAME) {
+    logWarn("R2 upload requested without full R2 configuration. Returning demo upload response.", {
+      key,
+    });
     return { url: "#", key, mode: "demo" as const };
   }
 
@@ -34,6 +38,9 @@ export async function getPrivateUploadUrl(key: string, contentType: string) {
 
 export async function getPrivateDownloadUrl(key: string) {
   if (!r2 || !env.R2_BUCKET_NAME) {
+    logWarn("R2 download requested without full R2 configuration. Returning demo download response.", {
+      key,
+    });
     return "#";
   }
 

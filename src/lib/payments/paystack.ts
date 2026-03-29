@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import type { PaymentStatus } from "@prisma/client";
 
 import { env, featureFlags } from "@/lib/env";
+import { logError, logWarn } from "@/lib/ops/logger";
 
 export type PaymentInitializationInput = {
   email: string;
@@ -14,6 +15,7 @@ export type PaymentInitializationInput = {
 
 export async function initializePayment(input: PaymentInitializationInput) {
   if (!featureFlags.hasPaystack) {
+    logWarn("Paystack initialize called without full Paystack configuration. Returning demo response.");
     return {
       provider: "PAYSTACK",
       authorizationUrl: "#",
@@ -39,6 +41,9 @@ export async function initializePayment(input: PaymentInitializationInput) {
   });
 
   if (!response.ok) {
+    logError("Paystack initialize request failed.", {
+      status: response.status,
+    });
     throw new Error("Failed to initialize Paystack payment.");
   }
 
@@ -57,6 +62,7 @@ export async function initializePayment(input: PaymentInitializationInput) {
 
 export async function verifyPayment(reference: string) {
   if (!featureFlags.hasPaystack) {
+    logWarn("Paystack verify called without full Paystack configuration. Returning demo verification.");
     return {
       status: "SUCCESS" as PaymentStatus,
       reference,
@@ -75,6 +81,10 @@ export async function verifyPayment(reference: string) {
   );
 
   if (!response.ok) {
+    logError("Paystack verify request failed.", {
+      status: response.status,
+      reference,
+    });
     throw new Error("Failed to verify Paystack payment.");
   }
 
@@ -92,6 +102,7 @@ export async function verifyPayment(reference: string) {
 
 export function verifyPaystackSignature(rawBody: string, signature?: string | null) {
   if (!featureFlags.hasPaystack || !env.PAYSTACK_WEBHOOK_SECRET) {
+    logWarn("Paystack webhook signature verification attempted without full Paystack configuration.");
     return false;
   }
 

@@ -9,7 +9,7 @@ export function initializeSentry() {
 
   Sentry.init({
     dsn: env.SENTRY_DSN,
-    tracesSampleRate: 1,
+    tracesSampleRate: featureFlags.isProduction ? 0.1 : 1,
   });
 }
 

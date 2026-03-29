@@ -1,12 +1,17 @@
 import { ok, fail } from "@/lib/http";
 import { reconcilePaystackWebhook } from "@/lib/payments/reconciliation";
 import { verifyPaystackSignature } from "@/lib/payments/paystack";
+import { logError, logWarn } from "@/lib/ops/logger";
+import { captureException } from "@/lib/sentry";
 
 export async function POST(request: Request) {
   const rawBody = await request.text();
   const signature = request.headers.get("x-paystack-signature");
 
   if (!verifyPaystackSignature(rawBody, signature)) {
+    logWarn("Paystack webhook rejected due to invalid signature.", {
+      hasSignature: Boolean(signature),
+    });
     return fail("Invalid webhook signature.", 401);
   }
 
@@ -16,6 +21,10 @@ export async function POST(request: Request) {
     );
     return ok(reconciliation);
   } catch (error) {
+    captureException(error);
+    logError("Paystack webhook reconciliation failed.", {
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
     return fail(
       error instanceof Error ? error.message : "Failed to reconcile webhook.",
       400,
