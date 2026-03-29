@@ -1,0 +1,882 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AppRole {
+  BUYER
+  STAFF
+  ADMIN
+  LEGAL
+  FINANCE
+  SUPER_ADMIN
+}
+
+enum PropertyStatus {
+  DRAFT
+  AVAILABLE
+  RESERVED
+  SOLD
+  ARCHIVED
+}
+
+enum PropertyType {
+  APARTMENT
+  DUPLEX
+  TERRACE
+  DETACHED
+  SEMI_DETACHED
+  LAND
+  COMMERCIAL
+}
+
+enum LeadSource {
+  WEBSITE
+  WALK_IN
+  REFERRAL
+  WHATSAPP
+  SOCIAL_MEDIA
+  PAID_ADS
+  AGENT
+  PARTNER
+}
+
+enum InquiryStatus {
+  NEW
+  QUALIFIED
+  CONTACTED
+  CLOSED
+  LOST
+}
+
+enum InspectionStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum ReservationStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  CONVERTED
+}
+
+enum TransactionStage {
+  INQUIRY_RECEIVED
+  KYC_SUBMITTED
+  RESERVATION_FEE_PAID
+  CONTRACT_ISSUED
+  ALLOCATION_IN_PROGRESS
+  LEGAL_VERIFICATION
+  FINAL_PAYMENT_COMPLETED
+  HANDOVER_COMPLETED
+}
+
+enum MilestoneStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  BLOCKED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  REFUNDED
+  OVERDUE
+}
+
+enum PaymentMethod {
+  PAYSTACK
+  BANK_TRANSFER
+  CARD
+  CASH
+}
+
+enum DocumentType {
+  KYC_ID
+  KYC_PROOF_OF_ADDRESS
+  PASSPORT_PHOTO
+  RECEIPT
+  CONTRACT
+  BROCHURE
+  AGREEMENT
+  OTHER
+}
+
+enum DocumentVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum NotificationType {
+  INQUIRY_RECEIVED
+  INSPECTION_BOOKED
+  RESERVATION_CREATED
+  PAYMENT_CONFIRMED
+  DOCUMENT_REQUESTED
+  MILESTONE_UPDATED
+  SYSTEM
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  VERIFY
+  APPROVE
+  REJECT
+  LOGIN
+  PAYMENT
+}
+
+model Company {
+  id              String             @id @default(cuid())
+  name            String
+  slug            String             @unique
+  description     String?
+  legalName       String?
+  subdomain       String?            @unique
+  customDomain    String?            @unique
+  logoUrl         String?
+  primaryColor    String?
+  accentColor     String?
+  brandSettings   Json?
+  users           User[]
+  userRoles       UserRole[]
+  roles           Role[]
+  branches        Branch[]
+  properties      Property[]
+  propertyUnits   PropertyUnit[]
+  propertyMedia   PropertyMedia[]
+  propertyFeatures PropertyFeature[]
+  propertyLocations PropertyLocation[]
+  savedProperties SavedProperty[]
+  inquiries       Inquiry[]
+  inspections     InspectionBooking[]
+  reservations    Reservation[]
+  transactions    Transaction[]
+  milestones      TransactionMilestone[]
+  paymentPlans    PaymentPlan[]
+  installments    Installment[]
+  payments        Payment[]
+  receipts        Receipt[]
+  documents       Document[]
+  kycSubmissions  KYCSubmission[]
+  signedAgreements SignedAgreement[]
+  documentAccessLogs DocumentAccessLog[]
+  blogPosts       BlogPost[]
+  testimonials    Testimonial[]
+  teamMembers     TeamMember[]
+  faqItems        FAQItem[]
+  siteSetting     SiteSettings?
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  activityEvents  ActivityEvent[]
+  webhookEvents   WebhookEvent[]
+  backgroundJobs  BackgroundJobLog[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+}
+
+model Branch {
+  id           String   @id @default(cuid())
+  companyId    String
+  name         String
+  slug         String
+  city         String?
+  state        String?
+  country      String?  @default("Nigeria")
+  addressLine1 String?
+  addressLine2 String?
+  phone        String?
+  email        String?
+  company      Company  @relation(fields: [companyId], references: [id])
+  users        User[]
+  properties   Property[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([companyId, slug])
+  @@index([companyId])
+}
+
+model User {
+  id              String              @id @default(cuid())
+  clerkUserId     String              @unique
+  companyId       String?
+  branchId        String?
+  email           String              @unique
+  firstName       String?
+  lastName        String?
+  phone           String?
+  isActive        Boolean             @default(true)
+  company         Company?            @relation(fields: [companyId], references: [id])
+  branch          Branch?             @relation(fields: [branchId], references: [id])
+  profile         Profile?
+  roles           UserRole[]
+  staffProfile    StaffProfile?
+  savedProperties SavedProperty[]
+  inquiries       Inquiry[]
+  reservations    Reservation[]
+  transactions    Transaction[]
+  payments        Payment[]
+  documents       Document[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  activityEvents  ActivityEvent[]
+  accessLogs      DocumentAccessLog[]
+  kycSubmissions  KYCSubmission[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([companyId])
+  @@index([branchId])
+}
+
+model Role {
+  id        String    @id @default(cuid())
+  companyId String?
+  name      AppRole
+  label     String
+  company   Company?  @relation(fields: [companyId], references: [id])
+  users     UserRole[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  companyId String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  company   Company? @relation(fields: [companyId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, roleId, companyId])
+  @@index([roleId])
+  @@index([companyId])
+}
+
+model Profile {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  dateOfBirth      DateTime?
+  nationality      String?
+  addressLine1     String?
+  addressLine2     String?
+  city             String?
+  state            String?
+  country          String?  @default("Nigeria")
+  occupation       String?
+  nextOfKinName    String?
+  nextOfKinPhone   String?
+  profileCompleted Boolean  @default(false)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model StaffProfile {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  title         String?
+  department    String?
+  bio           String?
+  avatarUrl     String?
+  staffCode     String?
+  isAssignable  Boolean   @default(true)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedLeads Inquiry[] @relation("AssignedStaff")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Property {
+  id                 String         @id @default(cuid())
+  companyId          String
+  branchId           String?
+  title              String
+  slug               String
+  shortDescription   String
+  description        String
+  propertyType       PropertyType
+  status             PropertyStatus @default(DRAFT)
+  isFeatured         Boolean        @default(false)
+  priceFrom          Decimal        @db.Decimal(12, 2)
+  priceTo            Decimal?       @db.Decimal(12, 2)
+  currency           String         @default("NGN")
+  bedrooms           Int?
+  bathrooms          Int?
+  parkingSpaces      Int?
+  sizeSqm            Decimal?       @db.Decimal(10, 2)
+  brochureDocumentId String?
+  videoUrl           String?
+  locationSummary    String?
+  landmarks          Json?
+  hasPaymentPlan     Boolean        @default(false)
+  company            Company        @relation(fields: [companyId], references: [id])
+  branch             Branch?        @relation(fields: [branchId], references: [id])
+  location           PropertyLocation?
+  media              PropertyMedia[]
+  features           PropertyFeature[]
+  units              PropertyUnit[]
+  paymentPlans       PaymentPlan[]
+  savedBy            SavedProperty[]
+  inquiries          Inquiry[]
+  inspections        InspectionBooking[]
+  reservations       Reservation[]
+  transactions       Transaction[]
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@unique([companyId, slug])
+  @@index([companyId, branchId])
+  @@index([companyId, status, propertyType])
+  @@index([companyId, isFeatured])
+}
+
+model PropertyUnit {
+  id           String         @id @default(cuid())
+  companyId    String
+  propertyId   String
+  unitCode     String
+  title        String
+  status       PropertyStatus @default(AVAILABLE)
+  price        Decimal        @db.Decimal(12, 2)
+  bedrooms     Int?
+  bathrooms    Int?
+  sizeSqm      Decimal?       @db.Decimal(10, 2)
+  floor        Int?
+  block        String?
+  company      Company        @relation(fields: [companyId], references: [id])
+  property     Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  reservations Reservation[]
+  transactions Transaction[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([companyId, propertyId, unitCode])
+  @@index([companyId, propertyId, status])
+}
+
+model PropertyMedia {
+  id         String             @id @default(cuid())
+  companyId  String
+  propertyId String
+  title      String?
+  url        String
+  mimeType   String?
+  sortOrder  Int                @default(0)
+  isPrimary  Boolean            @default(false)
+  visibility DocumentVisibility @default(PUBLIC)
+  company    Company            @relation(fields: [companyId], references: [id])
+  property   Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  createdAt  DateTime           @default(now())
+
+  @@index([companyId, propertyId, sortOrder])
+}
+
+model PropertyFeature {
+  id         String   @id @default(cuid())
+  companyId  String
+  propertyId String
+  label      String
+  value      String?
+  company    Company  @relation(fields: [companyId], references: [id])
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, propertyId])
+}
+
+model PropertyLocation {
+  id            String   @id @default(cuid())
+  companyId     String
+  propertyId    String   @unique
+  addressLine1  String?
+  city          String
+  state         String
+  country       String   @default("Nigeria")
+  latitude      Decimal? @db.Decimal(10, 7)
+  longitude     Decimal? @db.Decimal(10, 7)
+  mapboxPlaceId String?
+  neighborhood  String?
+  postalCode    String?
+  company       Company  @relation(fields: [companyId], references: [id])
+  property      Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, city, state])
+}
+
+model SavedProperty {
+  id         String   @id @default(cuid())
+  companyId  String
+  userId     String
+  propertyId String
+  company    Company  @relation(fields: [companyId], references: [id])
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([companyId, userId, propertyId])
+  @@index([companyId, propertyId])
+}
+
+model Inquiry {
+  id              String         @id @default(cuid())
+  companyId       String
+  propertyId      String?
+  userId          String?
+  assignedStaffId String?
+  fullName        String
+  email           String
+  phone           String?
+  message         String
+  source          LeadSource     @default(WEBSITE)
+  status          InquiryStatus  @default(NEW)
+  notes           String?
+  company         Company        @relation(fields: [companyId], references: [id])
+  property        Property?      @relation(fields: [propertyId], references: [id])
+  user            User?          @relation(fields: [userId], references: [id])
+  assignedStaff   StaffProfile?  @relation("AssignedStaff", fields: [assignedStaffId], references: [id])
+  inspections     InspectionBooking[]
+  activities      ActivityEvent[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([companyId, propertyId, status])
+  @@index([companyId, assignedStaffId])
+}
+
+model InspectionBooking {
+  id           String           @id @default(cuid())
+  companyId    String
+  propertyId   String
+  inquiryId    String?
+  userId       String?
+  fullName     String
+  email        String
+  phone        String?
+  scheduledFor DateTime
+  status       InspectionStatus @default(PENDING)
+  notes        String?
+  company      Company          @relation(fields: [companyId], references: [id])
+  property     Property         @relation(fields: [propertyId], references: [id])
+  inquiry      Inquiry?         @relation(fields: [inquiryId], references: [id])
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([companyId, propertyId, scheduledFor])
+}
+
+model Reservation {
+  id             String            @id @default(cuid())
+  companyId      String
+  propertyId     String
+  propertyUnitId String?
+  userId         String
+  reference      String
+  status         ReservationStatus @default(PENDING)
+  reservationFee Decimal           @db.Decimal(12, 2)
+  reservedUntil  DateTime?
+  notes          String?
+  company        Company           @relation(fields: [companyId], references: [id])
+  property       Property          @relation(fields: [propertyId], references: [id])
+  propertyUnit   PropertyUnit?     @relation(fields: [propertyUnitId], references: [id])
+  user           User              @relation(fields: [userId], references: [id])
+  transaction    Transaction?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@unique([companyId, reference])
+  @@index([companyId, propertyId, status])
+  @@index([companyId, userId])
+}
+
+model Transaction {
+  id                 String                @id @default(cuid())
+  companyId          String
+  reservationId      String                @unique
+  propertyId         String
+  propertyUnitId     String?
+  userId             String
+  currentStage       TransactionStage      @default(INQUIRY_RECEIVED)
+  totalValue         Decimal               @db.Decimal(12, 2)
+  outstandingBalance Decimal               @db.Decimal(12, 2)
+  company            Company               @relation(fields: [companyId], references: [id])
+  reservation        Reservation           @relation(fields: [reservationId], references: [id])
+  property           Property              @relation(fields: [propertyId], references: [id])
+  propertyUnit       PropertyUnit?         @relation(fields: [propertyUnitId], references: [id])
+  user               User                  @relation(fields: [userId], references: [id])
+  milestones         TransactionMilestone[]
+  payments           Payment[]
+  receipts           Receipt[]
+  documents          Document[]
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  @@index([companyId, propertyId])
+  @@index([companyId, userId, currentStage])
+}
+
+model TransactionMilestone {
+  id            String           @id @default(cuid())
+  companyId     String
+  transactionId String
+  stage         TransactionStage
+  title         String
+  description   String?
+  status        MilestoneStatus  @default(PENDING)
+  dueAt         DateTime?
+  completedAt   DateTime?
+  company       Company          @relation(fields: [companyId], references: [id])
+  transaction   Transaction      @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([companyId, transactionId, stage])
+}
+
+model PaymentPlan {
+  id             String        @id @default(cuid())
+  companyId      String
+  propertyId     String
+  title          String
+  description    String?
+  durationMonths Int
+  depositPercent Decimal?      @db.Decimal(5, 2)
+  isActive       Boolean       @default(true)
+  company        Company       @relation(fields: [companyId], references: [id])
+  property       Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  installments   Installment[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([companyId, propertyId, isActive])
+}
+
+model Installment {
+  id            String      @id @default(cuid())
+  companyId     String
+  paymentPlanId String
+  title         String
+  amount        Decimal     @db.Decimal(12, 2)
+  dueInDays     Int
+  sortOrder     Int         @default(0)
+  company       Company     @relation(fields: [companyId], references: [id])
+  paymentPlan   PaymentPlan @relation(fields: [paymentPlanId], references: [id], onDelete: Cascade)
+  payments      Payment[]
+
+  @@index([companyId, paymentPlanId, sortOrder])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  companyId         String
+  transactionId     String?
+  installmentId     String?
+  userId            String?
+  provider          String        @default("PAYSTACK")
+  providerReference String
+  amount            Decimal       @db.Decimal(12, 2)
+  currency          String        @default("NGN")
+  status            PaymentStatus @default(PENDING)
+  method            PaymentMethod @default(PAYSTACK)
+  paidAt            DateTime?
+  metadata          Json?
+  company           Company       @relation(fields: [companyId], references: [id])
+  transaction       Transaction?  @relation(fields: [transactionId], references: [id])
+  installment       Installment?  @relation(fields: [installmentId], references: [id])
+  user              User?         @relation(fields: [userId], references: [id])
+  receipt           Receipt?
+  webhookEvents     WebhookEvent[]
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@unique([companyId, providerReference])
+  @@index([companyId, transactionId, status])
+  @@index([companyId, installmentId])
+  @@index([companyId, userId])
+}
+
+model Receipt {
+  id            String    @id @default(cuid())
+  companyId     String
+  paymentId     String    @unique
+  transactionId String?
+  receiptNumber String
+  issuedAt      DateTime  @default(now())
+  totalAmount   Decimal   @db.Decimal(12, 2)
+  currency      String    @default("NGN")
+  documentUrl   String?
+  company       Company   @relation(fields: [companyId], references: [id])
+  payment       Payment   @relation(fields: [paymentId], references: [id])
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+  createdAt     DateTime  @default(now())
+
+  @@unique([companyId, receiptNumber])
+  @@index([companyId, transactionId])
+}
+
+model Document {
+  id                 String             @id @default(cuid())
+  companyId          String
+  userId             String?
+  transactionId      String?
+  fileName           String
+  storageKey         String
+  mimeType           String?
+  sizeBytes          Int?
+  documentType       DocumentType
+  visibility         DocumentVisibility @default(PRIVATE)
+  uploadedByUserId   String?
+  createdForUserId   String?
+  signedUrlExpiresAt DateTime?
+  metadata           Json?
+  company            Company            @relation(fields: [companyId], references: [id])
+  user               User?              @relation(fields: [userId], references: [id])
+  transaction        Transaction?       @relation(fields: [transactionId], references: [id])
+  accessLogs         DocumentAccessLog[]
+  kycSubmissions     KYCSubmission[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@unique([companyId, storageKey])
+  @@index([companyId, userId, documentType])
+  @@index([companyId, transactionId])
+}
+
+model KYCSubmission {
+  id           String          @id @default(cuid())
+  companyId    String
+  userId       String
+  documentId   String
+  status       MilestoneStatus @default(PENDING)
+  reviewedById String?
+  notes        String?
+  company      Company         @relation(fields: [companyId], references: [id])
+  user         User            @relation(fields: [userId], references: [id])
+  document     Document        @relation(fields: [documentId], references: [id])
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([companyId, userId, status])
+}
+
+model SignedAgreement {
+  id            String          @id @default(cuid())
+  companyId     String
+  transactionId String          @unique
+  documentId    String
+  provider      String?
+  status        MilestoneStatus @default(PENDING)
+  company       Company         @relation(fields: [companyId], references: [id])
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([companyId, transactionId])
+}
+
+model DocumentAccessLog {
+  id         String   @id @default(cuid())
+  companyId  String
+  documentId String
+  userId     String?
+  action     String
+  ipAddress  String?
+  userAgent  String?
+  company    Company  @relation(fields: [companyId], references: [id])
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@index([companyId, documentId, createdAt])
+}
+
+model BlogPost {
+  id            String   @id @default(cuid())
+  companyId     String
+  slug          String
+  title         String
+  excerpt       String
+  content       String
+  authorName    String
+  coverImageUrl String?
+  publishedAt   DateTime?
+  isPublished   Boolean  @default(false)
+  company       Company  @relation(fields: [companyId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([companyId, slug])
+  @@index([companyId, isPublished, publishedAt])
+}
+
+model Testimonial {
+  id          String   @id @default(cuid())
+  companyId   String
+  fullName    String
+  role        String?
+  companyName String?
+  quote       String
+  avatarUrl   String?
+  sortOrder   Int      @default(0)
+  isPublished Boolean  @default(true)
+  company     Company  @relation(fields: [companyId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, isPublished, sortOrder])
+}
+
+model TeamMember {
+  id          String   @id @default(cuid())
+  companyId   String
+  fullName    String
+  slug        String
+  title       String
+  bio         String
+  avatarUrl   String?
+  email       String?
+  phone       String?
+  sortOrder   Int      @default(0)
+  isPublished Boolean  @default(true)
+  company     Company  @relation(fields: [companyId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([companyId, slug])
+  @@index([companyId, isPublished, sortOrder])
+}
+
+model FAQItem {
+  id          String   @id @default(cuid())
+  companyId   String
+  question    String
+  answer      String
+  category    String?
+  sortOrder   Int      @default(0)
+  isPublished Boolean  @default(true)
+  company     Company  @relation(fields: [companyId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([companyId, isPublished, sortOrder])
+}
+
+model SiteSettings {
+  id              String   @id @default(cuid())
+  companyId       String   @unique
+  companyName     String
+  supportEmail    String?
+  supportPhone    String?
+  address         String?
+  socialLinks     Json?
+  marketingConfig Json?
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Notification {
+  id        String              @id @default(cuid())
+  companyId String
+  userId    String
+  type      NotificationType
+  channel   NotificationChannel @default(IN_APP)
+  title     String
+  body      String
+  readAt    DateTime?
+  metadata  Json?
+  company   Company             @relation(fields: [companyId], references: [id])
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime            @default(now())
+
+  @@index([companyId, userId, readAt])
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  companyId   String?
+  actorUserId String?
+  action      AuditAction
+  entityType  String
+  entityId    String
+  summary     String
+  payload     Json?
+  company     Company?    @relation(fields: [companyId], references: [id])
+  actorUser   User?       @relation(fields: [actorUserId], references: [id])
+  createdAt   DateTime    @default(now())
+
+  @@index([companyId, entityType, entityId])
+  @@index([companyId, actorUserId, createdAt])
+}
+
+model ActivityEvent {
+  id        String   @id @default(cuid())
+  companyId String
+  userId    String?
+  inquiryId String?
+  eventName String
+  summary   String
+  payload   Json?
+  company   Company  @relation(fields: [companyId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
+  inquiry   Inquiry? @relation(fields: [inquiryId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([companyId, userId, createdAt])
+  @@index([companyId, inquiryId, createdAt])
+}
+
+model WebhookEvent {
+  id                String   @id @default(cuid())
+  companyId         String?
+  provider          String
+  eventType         String
+  providerEventId   String?
+  paymentId         String?
+  signatureVerified Boolean  @default(false)
+  payload           Json
+  company           Company? @relation(fields: [companyId], references: [id])
+  payment           Payment? @relation(fields: [paymentId], references: [id])
+  createdAt         DateTime @default(now())
+
+  @@index([companyId, provider, eventType])
+  @@index([companyId, paymentId])
+}
+
+model BackgroundJobLog {
+  id        String   @id @default(cuid())
+  companyId String?
+  jobName   String
+  eventKey  String?
+  status    String
+  payload   Json?
+  error     String?
+  company   Company? @relation(fields: [companyId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, jobName, status])
+}

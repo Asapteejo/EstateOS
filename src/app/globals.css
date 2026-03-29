@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8f6f0;
+  --foreground: #0f1720;
+  --brand-500: #1c7b61;
+  --brand-700: #0e5b49;
+  --brand-800: #0a4638;
+  --ink-500: #6b7280;
+  --ink-600: #475569;
+  --ink-700: #334155;
+  --ink-900: #0f172a;
+  --ink-950: #07111b;
+  --sand-100: #f6f0e6;
+  --sand-200: #efe4d3;
+  --line: rgba(15, 23, 42, 0.08);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Aptos", "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-serif: "Baskerville Old Face", "Palatino Linotype", "Book Antiqua", serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background:
+    radial-gradient(circle at top, rgba(28, 123, 97, 0.08), transparent 30%),
+    linear-gradient(180deg, #fcfbf7, #f8f6f0 35%, #f4f1e8);
+  color: var(--foreground);
+  font-family: "Aptos", "Segoe UI", "Helvetica Neue", sans-serif;
+}
+
+a {
+  text-decoration: none;
+}
+
+::selection {
+  background: rgba(28, 123, 97, 0.18);
+}
