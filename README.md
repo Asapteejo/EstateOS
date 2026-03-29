@@ -46,6 +46,18 @@ Final tenant isolation rules:
 - Query-service rule:
   route handlers and pages should call module-level query services; tenant-owned Prisma reads should not be written ad hoc in UI files
 
+Public property search query params:
+
+- `location`
+- `propertyType`
+- `minPrice`
+- `maxPrice`
+- `bedrooms`
+- `status`
+- `hasPaymentPlan=true`
+- `featured=true`
+- `page`
+
 ## What Is Included
 
 - Premium marketing site:
@@ -182,13 +194,19 @@ If Paystack, R2, Redis, Resend, or Mapbox are not configured, their integrations
 - Clerk-aware auth guards and middleware with database role model
 - Tenant-aware session and request context resolution
 - Validated inquiry, inspection, upload-signing, payment initialize/verify, and webhook routes
+- Tenant-safe admin property CRUD with persisted create, edit, publish/unpublish/archive, unit management, media management, and brochure association
+- Buyer profile persistence plus private KYC submission workflow with admin review actions
+- Tenant-safe reservation lifecycle and transaction stage mutation routes for admin operations
 - DB-backed tenant-safe reads for admin listings, admin inquiries, admin payments, admin transactions, admin documents, buyer reservations, buyer payments, and buyer document vault
 - DB-backed tenant-safe reads for admin bookings, admin clients, analytics details, buyer dashboard summary, buyer saved properties, buyer notifications, and buyer timeline
 - DB-backed tenant-safe reads for admin audit logs, admin notifications, public property listings, and public property detail pages
+- Public property filtering is URL-driven and applied at the database layer through the properties query service
 - Public tenant-aware CMS loaders for testimonials, FAQ, team members, blog index, blog post pages, and homepage editorial sections
 - Tenant-scoped admin KPI and leaderboard queries for inquiries, reservations, active deals, overdue payments, sales value, top listings, and top staff
 - Paystack provider abstraction with server-side verification pattern
-- Paystack webhook persistence, idempotency handling, tenant resolution from namespaced references, installment-aware reconciliation, receipt upsert, and audit logging
+- Paystack webhook persistence, idempotency handling, tenant resolution from namespaced references, installment-aware reconciliation, receipt upsert, receipt document persistence, transaction balance/stage updates, and audit logging
+- Public brochure delivery route that only serves tenant-owned `BROCHURE` + `PUBLIC` documents
+- Admin notification management with mark-as-read and mark-all-read actions
 - Cloudflare R2 signed upload/download helpers
 - Inngest event publishing and starter function
 - Upstash rate limiting on inquiry intake
@@ -198,7 +216,6 @@ If Paystack, R2, Redis, Resend, or Mapbox are not configured, their integrations
 ## Intentionally Scaffolded For Phase 2
 
 - Real interactive Mapbox rendering on property detail pages
-- Full Prisma-backed admin CRUD UI mutations
 - Rich CMS editing workflows
 - Receipt PDF generation and downloadable asset pipeline
 - Staff permission matrix beyond role-level gating
@@ -231,31 +248,50 @@ Buyer flow checklist:
 
 1. Sign up through Clerk or use demo portal access in non-production.
 2. Open `/properties` and confirm listings render from Prisma for the resolved tenant.
-3. Save a property from the buyer flow once the save mutation is wired or validate seeded saved-property data at `/portal/saved`.
-4. Open `/portal/reservations`, `/portal/payments`, `/portal/documents`, and `/portal/timeline` and confirm seeded DB records render only for the current buyer.
-5. Call `POST /api/payments/initialize` with the tenant session and confirm a pending payment row is created.
-6. Deliver a signed Paystack webhook to `/api/webhooks/paystack` and confirm payment status, receipt, audit log, and buyer-facing payment/documents surfaces update.
+3. Open `/portal/profile`, save buyer data, and confirm the page refresh shows the persisted record and `profileCompleted` state.
+4. Open `/portal/kyc`, upload a private KYC document through the signed upload flow, and confirm a `SUBMITTED` record appears.
+5. Save a property from the property detail page and confirm it appears at `/portal/saved`.
+6. Reserve a property from the property detail page and confirm the reservation appears at `/portal/reservations` and the transaction timeline activates.
+7. Call `POST /api/payments/initialize` with the tenant session and confirm a pending payment row is created with the tenant-namespaced reference.
+8. Deliver a signed Paystack webhook to `/api/webhooks/paystack` and confirm payment status, receipt, audit log, transaction stage/balance, and buyer-facing payment/documents/timeline surfaces update.
+9. Call `POST /api/payments/verify` and confirm it behaves as a read/check helper that points back to webhook reconciliation as the authoritative finance path.
+10. Open a property brochure link and confirm it resolves through `/brochures/[slug]` without exposing any private document path.
 
 Admin flow checklist:
 
 1. Sign in as an admin or use demo admin access in non-production.
 2. Open `/admin/listings`, `/admin/leads`, `/admin/bookings`, `/admin/clients`, `/admin/transactions`, `/admin/payments`, `/admin/documents`, `/admin/notifications`, and `/admin/audit-logs`.
 3. Confirm each screen only shows tenant-owned records.
-4. Confirm `/admin` and `/admin/analytics` KPIs and ranking tables stay tenant-scoped.
-5. Confirm public pages at `/properties` and `/properties/[slug]` only show public property/media/brochure data, never private document records.
+4. Create a new property in `/admin/listings`, add units and media, publish it, then edit it and confirm changes persist on the public listing/detail pages.
+5. Use `/admin/transactions` to update reservation status and transaction stage, then confirm the buyer timeline reflects the persisted workflow changes.
+6. Use `/admin/documents` to move a KYC submission through `UNDER_REVIEW`, `APPROVED`, `REJECTED`, or `CHANGES_REQUESTED`, then confirm the buyer sees the updated KYC state.
+7. Mark an admin notification as read, then use mark-all-read and confirm no cross-tenant mutation occurs.
+8. Confirm `/admin` and `/admin/analytics` KPIs and ranking tables stay tenant-scoped.
+9. Confirm brochure links on public property pages only resolve for public brochure documents.
+10. Confirm public pages at `/properties` and `/properties/[slug]` only show public property/media/brochure data, never private document records.
 
 ## Notes
 
-- Most operational and CMS surfaces now read live tenant-scoped Prisma data through centralized query services. Remaining seeded areas are primarily scaffolds or phase-2 CRUD/mutation workflows.
+- Most operational and CMS surfaces now read live tenant-scoped Prisma data through centralized query services. The main remaining seeded areas are support/chat and a few premium analytics/editorial workflows.
 - Queries that touch tenant-owned data should always flow through tenant context and `companyId` scoping. The helper entry points for that are in `src/lib/tenancy`.
 - Prefer `requireTenantContext`, `requirePublicTenantContext`, `findManyForTenant`, `findFirstForTenant`, `countForTenant`, and `aggregateForTenant` over raw ad hoc tenant-owned Prisma queries.
+- Pilot-critical write-side rule:
+  admin property management, buyer profile updates, KYC submission/review, reservation status changes, and transaction stage updates must go through the shared module mutation services instead of route-local Prisma writes.
 - Payment/installment business rule:
   one installment may receive multiple payments over time, but each payment may point to only one installment. `Payment.installmentId` is nullable and additive for backward compatibility.
+- KYC workflow rule:
+  buyer-visible KYC state is explicit and business-facing: `NOT_SUBMITTED`, `SUBMITTED`, `UNDER_REVIEW`, `APPROVED`, `REJECTED`, `CHANGES_REQUESTED`. Individual KYC documents stay private and tenant-scoped by default.
+- Brochure delivery behavior:
+  property pages link to `/brochures/[slug]`, which resolves tenant context, verifies the property is publicly visible, verifies the attached document is `BROCHURE` and `PUBLIC`, and then redirects to a safe downloadable asset URL. Private document vault routes remain separate.
+- Admin notification behavior:
+  admins can mark individual notifications as read or mark all tenant-scoped unread notifications as read. Archiving/dismissal is intentionally deferred until a dedicated schema field exists.
 - Payment reconciliation flow:
-  initialize route namescopes the reference, optionally persists a pending payment, and may attach `transactionId`, `reservationReference`, and `installmentId`; webhook verifies signature, resolves tenant from the namespaced reference, guards duplicate provider events, reconciles against the matching transaction and installment when metadata supports it, upserts a receipt, and records an audit log.
+  initialize route namescopes the reference, optionally persists a pending payment, and may attach `transactionId`, `reservationReference`, and `installmentId`; verify route is read-only and does not mutate finance state; webhook verifies signature, resolves tenant from the namespaced reference, guards duplicate provider events, reconciles against the matching transaction and installment when metadata supports it, upserts a receipt and receipt document, updates transaction balance/stage milestones, and records an audit log.
 - Migration assumption for installment-aware payments:
   `Payment.installmentId` is additive and nullable, so existing payments remain valid while newer flows can reconcile directly to a payment plan installment.
 - Runtime verification notes:
-  lightweight Node tests cover tenant query scoping helpers, buyer ownership checks, document access enforcement, payment webhook idempotency key and installment semantics, public property visibility filters, and admin notifications/audit-log query rules.
+  lightweight Node tests cover tenant query scoping helpers, buyer ownership checks, document access enforcement, payment webhook idempotency key and installment semantics, public property visibility filters, admin notifications/audit-log query rules, property CRUD validation shape, buyer profile/KYC validation, buyer save/reservation/payment initialization semantics, and workflow transition helpers.
 - Sensitive document handling is modeled as private by default. Public brochure handling is intentionally separated from private vault access.
 - Payment success is not trusted from the client. Verification and webhook routes are separated for server-side confirmation flow.
+- Intentionally deferred:
+  advanced search facets, full pagination UI controls, brochure analytics/audit events, notification archiving, receipt PDF generation, and a fully automated external-service end-to-end test harness.

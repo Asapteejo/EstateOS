@@ -175,6 +175,26 @@ async function main() {
       },
     });
 
+    const brochure = await prisma.document.create({
+      data: {
+        companyId: company.id,
+        fileName: `${property.slug}-brochure.pdf`,
+        storageKey: `${company.slug}/brochures/${property.slug}-brochure.pdf`,
+        mimeType: "application/pdf",
+        documentType: "BROCHURE",
+        visibility: "PUBLIC",
+      },
+    });
+
+    await prisma.property.update({
+      where: {
+        id: createdProperty.id,
+      },
+      data: {
+        brochureDocumentId: brochure.id,
+      },
+    });
+
     await prisma.propertyLocation.create({
       data: {
         companyId: company.id,
@@ -356,7 +376,7 @@ async function main() {
       userId: buyer.id,
       reference: "RSV-2026-00018",
       status: "ACTIVE",
-      reservationFee: 5000000,
+      reservationFee: 185000000,
     },
   });
 
@@ -412,6 +432,68 @@ async function main() {
       receiptNumber: "RCT-PAY-11082",
       totalAmount: 12500000,
     },
+  });
+
+  await prisma.document.create({
+    data: {
+      companyId: company.id,
+      userId: buyer.id,
+      transactionId: transaction.id,
+      fileName: "RCT-PAY-11082.pdf",
+      storageKey: `${company.slug}/receipts/RCT-PAY-11082.pdf`,
+      mimeType: "application/pdf",
+      documentType: "RECEIPT",
+      visibility: "PRIVATE",
+    },
+  });
+
+  const kycIdDocument = await prisma.document.create({
+    data: {
+      companyId: company.id,
+      userId: buyer.id,
+      fileName: "ada-okafor-passport.pdf",
+      storageKey: `${company.slug}/kyc/ada-okafor-passport.pdf`,
+      mimeType: "application/pdf",
+      documentType: "KYC_ID",
+      visibility: "PRIVATE",
+      uploadedByUserId: buyer.id,
+      createdForUserId: buyer.id,
+    },
+  });
+
+  const proofOfAddressDocument = await prisma.document.create({
+    data: {
+      companyId: company.id,
+      userId: buyer.id,
+      fileName: "ada-okafor-address.pdf",
+      storageKey: `${company.slug}/kyc/ada-okafor-address.pdf`,
+      mimeType: "application/pdf",
+      documentType: "KYC_PROOF_OF_ADDRESS",
+      visibility: "PRIVATE",
+      uploadedByUserId: buyer.id,
+      createdForUserId: buyer.id,
+    },
+  });
+
+  await prisma.kYCSubmission.createMany({
+    data: [
+      {
+        companyId: company.id,
+        userId: buyer.id,
+        documentId: kycIdDocument.id,
+        status: "APPROVED",
+        reviewedById: admin.id,
+        notes: "Identity document verified.",
+      },
+      {
+        companyId: company.id,
+        userId: buyer.id,
+        documentId: proofOfAddressDocument.id,
+        status: "UNDER_REVIEW",
+        reviewedById: admin.id,
+        notes: "Cross-checking submitted address details.",
+      },
+    ],
   });
 
   await prisma.notification.create({

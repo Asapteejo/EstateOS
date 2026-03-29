@@ -1,18 +1,23 @@
 import { requireAdminSession } from "@/lib/auth/guards";
 import { ok, fail } from "@/lib/http";
-import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
-import { slugify } from "@/lib/utils";
 import { propertyCreateSchema } from "@/lib/validations/properties";
+import { getAdminPropertyManagementList } from "@/modules/properties/admin-queries";
+import { createPropertyForAdmin } from "@/modules/properties/mutations";
 
 export async function GET() {
+  let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
   try {
-    await requireAdminSession(undefined, { redirectOnMissingAuth: false });
+    tenant = await requireAdminSession(undefined, { redirectOnMissingAuth: false });
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }
-  return ok({
-    message: "Admin property CRUD foundation is ready for Prisma-backed persistence.",
-  });
+
+  try {
+    const properties = await getAdminPropertyManagementList(tenant);
+    return ok(properties);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "Unable to load properties.", 400);
+  }
 }
 
 export async function POST(request: Request) {
@@ -22,26 +27,20 @@ export async function POST(request: Request) {
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }
+
   const json = (await request.json()) as Record<string, unknown>;
-
-  try {
-    rejectUnsafeCompanyIdInput(json);
-  } catch {
-    return fail("Caller-provided companyId is not allowed.", 400);
-  }
-
   const body = propertyCreateSchema.safeParse(json);
   if (!body.success) {
     return fail("Invalid property payload.");
   }
 
-  return ok(
-    {
+  try {
+    const created = await createPropertyForAdmin(tenant, {
+      ...json,
       ...body.data,
-      companyId: tenant.companyId,
-      slug: slugify(body.data.title),
-      status: body.data.status,
-    },
-    { status: 201 },
-  );
+    });
+    return ok(created, { status: 201 });
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "Unable to create property.", 400);
+  }
 }

@@ -1,22 +1,19 @@
+import { ProfileForm } from "@/components/portal/profile-form";
 import { DashboardShell } from "@/components/portal/dashboard-shell";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { requirePortalSession } from "@/lib/auth/guards";
+import { getBuyerProfileRecord } from "@/modules/kyc/service";
 
-export default function PortalProfilePage() {
+export default async function PortalProfilePage() {
+  const tenant = await requirePortalSession();
+  const profile = await getBuyerProfileRecord(tenant);
+
   return (
-    <DashboardShell area="portal" title="Profile" subtitle="Collect identity and contact details early so downstream legal and finance workflows stay clean.">
-      <Card className="grid gap-4 p-8 md:grid-cols-2">
-        <Input placeholder="First name" />
-        <Input placeholder="Last name" />
-        <Input placeholder="Email address" />
-        <Input placeholder="Phone number" />
-        <Input placeholder="Occupation" />
-        <Input placeholder="City" />
-        <div className="md:col-span-2">
-          <Button>Save profile</Button>
-        </div>
-      </Card>
+    <DashboardShell
+      area="portal"
+      title="Profile"
+      subtitle="Maintain buyer identity, contact, and next-of-kin information used by sales, legal, and finance."
+    >
+      <ProfileForm initialValue={profile} />
     </DashboardShell>
   );
 }

@@ -1,10 +1,8 @@
-import { Prisma } from "@prisma/client";
-
-import { writeAuditLog } from "@/lib/audit/service";
+import { prisma } from "@/lib/db/prisma";
+import { featureFlags } from "@/lib/env";
 import { ok, fail } from "@/lib/http";
-import { createReceiptFromPayment, verifyPayment } from "@/lib/payments/paystack";
+import { verifyPayment } from "@/lib/payments/paystack";
 import { assertPaymentReferenceBelongsToTenant } from "@/lib/payments/references";
-import { publishDomainEvent } from "@/lib/notifications/events";
 import { requireTenantContext } from "@/lib/tenancy/context";
 import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import { paymentVerifySchema } from "@/lib/validations/payments";
@@ -16,6 +14,7 @@ export async function POST(request: Request) {
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }
+
   const json = (await request.json()) as Record<string, unknown>;
   try {
     rejectUnsafeCompanyIdInput(json);
@@ -34,22 +33,41 @@ export async function POST(request: Request) {
     return fail("Payment reference is not valid for this tenant.", 403);
   }
 
-  const verification = await verifyPayment(body.data.reference);
-  const receipt = createReceiptFromPayment(body.data.reference, 0);
+  try {
+    const verification = await verifyPayment(body.data.reference);
+    const payment =
+      featureFlags.hasDatabase && tenant.companyId
+        ? await prisma.payment.findUnique({
+            where: {
+              companyId_providerReference: {
+                companyId: tenant.companyId,
+                providerReference: body.data.reference,
+              },
+            },
+            select: {
+              id: true,
+              status: true,
+              paidAt: true,
+              receipt: {
+                select: {
+                  id: true,
+                  receiptNumber: true,
+                },
+              },
+            },
+          })
+        : null;
 
-  await publishDomainEvent("payment/confirmed", {
-    reference: body.data.reference,
-    status: verification.status,
-  });
-
-  await writeAuditLog({
-    companyId: tenant.companyId,
-    action: "PAYMENT",
-    entityType: "Payment",
-    entityId: body.data.reference,
-    summary: `Payment ${verification.status.toLowerCase()} for ${body.data.reference}`,
-    payload: { verification, receipt } as unknown as Prisma.JsonObject,
-  });
-
-  return ok({ verification, receipt });
+    return ok({
+      verification,
+      payment,
+      authoritativeSource: "webhook",
+      message:
+        verification.status === "SUCCESS" && payment?.status !== "SUCCESS"
+          ? "Provider reports success, but local records will remain authoritative only after webhook reconciliation."
+          : "Verification completed.",
+    });
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "Unable to verify payment.", 400);
+  }
 }

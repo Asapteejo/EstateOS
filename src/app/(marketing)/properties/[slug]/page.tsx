@@ -4,6 +4,7 @@ import Image from "next/image";
 import { InquiryForm } from "@/components/marketing/inquiry-form";
 import { InspectionForm } from "@/components/marketing/inspection-form";
 import { MapSection } from "@/components/marketing/map-section";
+import { PropertyActions } from "@/components/marketing/property-actions";
 import { Container } from "@/components/shared/container";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -90,9 +91,7 @@ export default async function PropertyDetailPage({
                 <div>{property.sizeSqm} sqm</div>
               </div>
               <div className="mt-6 space-y-3">
-                <Link href="/portal/reservations">
-                  <Button className="w-full">Start purchase</Button>
-                </Link>
+                <PropertyActions propertyId={property.id} />
                 {property.brochureUrl ? (
                   <Link href={property.brochureUrl} className="block">
                     <Button variant="outline" className="w-full">

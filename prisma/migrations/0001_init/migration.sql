@@ -29,6 +29,9 @@ CREATE TYPE "TransactionStage" AS ENUM ('INQUIRY_RECEIVED', 'KYC_SUBMITTED', 'RE
 CREATE TYPE "MilestoneStatus" AS ENUM ('PENDING', 'ACTIVE', 'COMPLETED', 'BLOCKED');
 
 -- CreateEnum
+CREATE TYPE "KycStatus" AS ENUM ('NOT_SUBMITTED', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED', 'REJECTED', 'CHANGES_REQUESTED');
+
+-- CreateEnum
 CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'PROCESSING', 'SUCCESS', 'FAILED', 'REFUNDED', 'OVERDUE');
 
 -- CreateEnum
@@ -455,7 +458,7 @@ CREATE TABLE "KYCSubmission" (
     "companyId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "documentId" TEXT NOT NULL,
-    "status" "MilestoneStatus" NOT NULL DEFAULT 'PENDING',
+    "status" "KycStatus" NOT NULL DEFAULT 'SUBMITTED',
     "reviewedById" TEXT,
     "notes" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

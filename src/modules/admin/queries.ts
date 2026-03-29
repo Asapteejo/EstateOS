@@ -27,6 +27,15 @@ export function buildAdminNotificationWhere() {
   };
 }
 
+export type AdminNotificationListItem = {
+  id: string;
+  title: string;
+  channel: string;
+  recipient: string;
+  state: "Read" | "Unread";
+  created: string;
+};
+
 export async function getAdminPropertiesTable(context: TenantContext) {
   if (!featureFlags.hasDatabase || !context.companyId) {
     return demoProperties.map((property) => [
@@ -471,6 +480,73 @@ export async function getAdminNotificationsTable(context: TenantContext) {
     notification.readAt ? "Read" : "Unread",
     formatDate(notification.createdAt, "PPP p"),
   ]);
+}
+
+export async function getAdminNotificationsList(
+  context: TenantContext,
+): Promise<AdminNotificationListItem[]> {
+  if (!featureFlags.hasDatabase || !context.companyId) {
+    return [
+      {
+        id: "demo-notification-1",
+        title: "Payment confirmed",
+        channel: "IN_APP",
+        recipient: "Ada Okafor",
+        state: "Unread",
+        created: "2026-03-28 14:20",
+      },
+    ];
+  }
+
+  const notifications = (await findManyForTenant(
+    prisma.notification as ScopedFindManyDelegate,
+    context,
+    {
+      where: buildAdminNotificationWhere(),
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        id: true,
+        title: true,
+        channel: true,
+        readAt: true,
+        createdAt: true,
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            companyId: true,
+          },
+        },
+      },
+      take: 50,
+    } as Parameters<typeof prisma.notification.findMany>[0],
+  )) as Array<{
+    id: string;
+    title: string;
+    channel: string;
+    readAt: Date | null;
+    createdAt: Date;
+    user: {
+      firstName: string | null;
+      lastName: string | null;
+      companyId: string | null;
+    };
+  }>;
+
+  return notifications.map((notification) => ({
+    id: notification.id,
+    title: notification.title,
+    channel: notification.channel,
+    recipient:
+      notification.user.companyId === context.companyId
+        ? `${notification.user.firstName ?? ""} ${notification.user.lastName ?? ""}`.trim() ||
+          "Unknown"
+        : "Unknown",
+    state: notification.readAt ? "Read" : "Unread",
+    created: formatDate(notification.createdAt, "PPP p"),
+  }));
 }
 
 export async function getAdminTransactionsTable(context: TenantContext) {

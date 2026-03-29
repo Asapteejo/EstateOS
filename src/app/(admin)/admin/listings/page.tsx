@@ -1,19 +1,25 @@
+import { PropertyManagement } from "@/components/admin/property-management";
 import { DashboardShell } from "@/components/portal/dashboard-shell";
-import { DataTableCard } from "@/components/shared/data-table-card";
 import { requireAdminSession } from "@/lib/auth/guards";
-import { getAdminPropertiesTable } from "@/modules/admin/queries";
+import {
+  getAdminPropertyManagementList,
+  getAvailableBrochureDocuments,
+} from "@/modules/properties/admin-queries";
 
 export default async function AdminListingsPage() {
   const tenant = await requireAdminSession();
-  const rows = await getAdminPropertiesTable(tenant);
+  const [properties, brochures] = await Promise.all([
+    getAdminPropertyManagementList(tenant),
+    getAvailableBrochureDocuments(tenant),
+  ]);
 
   return (
-    <DashboardShell area="admin" title="Listings Management" subtitle="Create, edit, archive, and manage inventory availability with room for unit-level controls.">
-      <DataTableCard
-        title="Properties"
-        columns={["Listing", "Type", "Status", "City", "Inquiries"]}
-        rows={rows}
-      />
+    <DashboardShell
+      area="admin"
+      title="Listings Management"
+      subtitle="Create, edit, publish, and manage live inventory with unit and media controls."
+    >
+      <PropertyManagement properties={properties} brochures={brochures} />
     </DashboardShell>
   );
 }

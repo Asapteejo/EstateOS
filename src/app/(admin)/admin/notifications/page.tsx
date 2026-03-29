@@ -1,19 +1,15 @@
+import { NotificationManagement } from "@/components/admin/notification-management";
 import { DashboardShell } from "@/components/portal/dashboard-shell";
-import { DataTableCard } from "@/components/shared/data-table-card";
 import { requireAdminSession } from "@/lib/auth/guards";
-import { getAdminNotificationsTable } from "@/modules/admin/queries";
+import { getAdminNotificationsList } from "@/modules/admin/queries";
 
 export default async function AdminNotificationsPage() {
   const tenant = await requireAdminSession();
-  const rows = await getAdminNotificationsTable(tenant);
+  const notifications = await getAdminNotificationsList(tenant);
 
   return (
     <DashboardShell area="admin" title="Notifications" subtitle="Campaigns, transactional templates, and operator-triggered notifications scaffold.">
-      <DataTableCard
-        title="Recent notifications"
-        columns={["Title", "Channel", "Recipient", "State", "Created"]} 
-        rows={rows}
-      />
+      <NotificationManagement notifications={notifications} />
     </DashboardShell>
   );
 }

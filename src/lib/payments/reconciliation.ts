@@ -15,6 +15,11 @@ import {
 import {
   parseTenantPaymentReference,
 } from "@/lib/payments/references";
+import {
+  calculateOutstandingBalance,
+  deriveTransactionStageFromPayment,
+} from "@/modules/transactions/workflow";
+import { syncTransactionMilestones } from "@/modules/transactions/mutations";
 
 type PaystackWebhookPayload = {
   event: string;
@@ -82,6 +87,22 @@ export async function persistInitializedPayment(
   let transactionId = input.transactionId;
   let installmentId = input.installmentId;
 
+  if (transactionId) {
+    const transaction = await prisma.transaction.findFirst({
+      where: {
+        companyId: input.companyId,
+        id: transactionId,
+        userId: input.userId,
+      },
+      select: {
+        id: true,
+        propertyId: true,
+      },
+    });
+
+    transactionId = transaction?.id;
+  }
+
   if (!transactionId && input.reservationReference) {
     const reservation = await prisma.reservation.findFirst({
       where: {
@@ -110,11 +131,33 @@ export async function persistInitializedPayment(
       select: {
         id: true,
         companyId: true,
+        paymentPlan: {
+          select: {
+            propertyId: true,
+          },
+        },
       },
     });
 
     if (installment) {
       assertInstallmentMatchesCompany(input.companyId, installment.companyId);
+      if (transactionId) {
+        const transaction = await prisma.transaction.findFirst({
+          where: {
+            companyId: input.companyId,
+            id: transactionId,
+            userId: input.userId,
+          },
+          select: {
+            propertyId: true,
+          },
+        });
+
+        assertInstallmentMatchesTransaction(
+          transaction?.propertyId,
+          installment.paymentPlan.propertyId,
+        );
+      }
     }
 
     installmentId = installment?.id;
@@ -320,43 +363,181 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
   }
 
   let receipt = null;
+  let receiptDocumentId: string | null = null;
 
   if (featureFlags.hasDatabase && payment) {
-    const generatedReceipt = createReceiptFromPayment(
-      reference,
-      payment.amount.toNumber(),
-    );
+    const generatedReceipt = createReceiptFromPayment(reference, payment.amount.toNumber());
 
-    receipt = await prisma.receipt.upsert({
-      where: {
-        paymentId: payment.id,
-      },
-      update: {
-        companyId: company.id,
-        transactionId: payment.transactionId,
-        receiptNumber: generatedReceipt.receiptNumber,
-        totalAmount: payment.amount,
-      },
-      create: {
-        companyId: company.id,
-        paymentId: payment.id,
-        transactionId: payment.transactionId,
-        receiptNumber: generatedReceipt.receiptNumber,
-        totalAmount: payment.amount,
-      },
+    const transactionUpdate = await prisma.$transaction(async (tx) => {
+      let updatedTransactionId = payment.transactionId;
+      let updatedTransactionStage: string | null = null;
+
+      if (status === "SUCCESS" && payment.transactionId) {
+        const transaction = await tx.transaction.findFirst({
+          where: {
+            companyId: company.id,
+            id: payment.transactionId,
+          },
+          select: {
+            id: true,
+            currentStage: true,
+            outstandingBalance: true,
+            userId: true,
+            reservation: {
+              select: {
+                id: true,
+              },
+            },
+          },
+        });
+
+        if (transaction) {
+          const nextOutstandingBalance = calculateOutstandingBalance(
+            transaction.outstandingBalance.toNumber(),
+            payment.amount.toNumber(),
+          );
+          const nextStage = deriveTransactionStageFromPayment({
+            currentStage: transaction.currentStage,
+            outstandingBalanceBefore: transaction.outstandingBalance.toNumber(),
+            paymentAmount: payment.amount.toNumber(),
+          });
+
+          const updatedTransaction = await tx.transaction.update({
+            where: {
+              id: transaction.id,
+            },
+            data: {
+              outstandingBalance: nextOutstandingBalance,
+              currentStage: nextStage,
+            },
+            select: {
+              id: true,
+              currentStage: true,
+              userId: true,
+              reservation: {
+                select: {
+                  id: true,
+                },
+              },
+            },
+          });
+
+          updatedTransactionId = updatedTransaction.id;
+          updatedTransactionStage = updatedTransaction.currentStage;
+
+          await syncTransactionMilestones(tx, {
+            companyId: company.id,
+            transactionId: updatedTransaction.id,
+            currentStage: updatedTransaction.currentStage,
+          });
+
+          if (updatedTransaction.currentStage === "FINAL_PAYMENT_COMPLETED" && updatedTransaction.reservation) {
+            await tx.reservation.update({
+              where: {
+                id: updatedTransaction.reservation.id,
+              },
+              data: {
+                status: "CONVERTED",
+              },
+            });
+          }
+
+          await tx.notification.create({
+            data: {
+              companyId: company.id,
+              userId: updatedTransaction.userId,
+              type: "PAYMENT_CONFIRMED",
+              channel: "IN_APP",
+              title: "Payment confirmed",
+              body: `Payment ${reference} has been reconciled successfully.`,
+              metadata: {
+                reference,
+                transactionId: updatedTransaction.id,
+              } as Prisma.InputJsonValue,
+            },
+          });
+        }
+      }
+
+      const persistedReceipt = await tx.receipt.upsert({
+        where: {
+          paymentId: payment.id,
+        },
+        update: {
+          companyId: company.id,
+          transactionId: updatedTransactionId,
+          receiptNumber: generatedReceipt.receiptNumber,
+          totalAmount: payment.amount,
+        },
+        create: {
+          companyId: company.id,
+          paymentId: payment.id,
+          transactionId: updatedTransactionId,
+          receiptNumber: generatedReceipt.receiptNumber,
+          totalAmount: payment.amount,
+        },
+      });
+
+      const receiptDocument = await tx.document.upsert({
+        where: {
+          companyId_storageKey: {
+            companyId: company.id,
+            storageKey: `${company.slug}/receipts/${generatedReceipt.receiptNumber}.pdf`,
+          },
+        },
+        update: {
+          fileName: `${generatedReceipt.receiptNumber}.pdf`,
+          transactionId: updatedTransactionId,
+          userId: payment.userId,
+          documentType: "RECEIPT",
+          visibility: "PRIVATE",
+          metadata: {
+            receiptId: persistedReceipt.id,
+            providerReference: reference,
+            generatedFromWebhook: true,
+          } as Prisma.InputJsonValue,
+        },
+        create: {
+          companyId: company.id,
+          userId: payment.userId,
+          transactionId: updatedTransactionId,
+          fileName: `${generatedReceipt.receiptNumber}.pdf`,
+          storageKey: `${company.slug}/receipts/${generatedReceipt.receiptNumber}.pdf`,
+          documentType: "RECEIPT",
+          visibility: "PRIVATE",
+          metadata: {
+            receiptId: persistedReceipt.id,
+            providerReference: reference,
+            generatedFromWebhook: true,
+          } as Prisma.InputJsonValue,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      const webhookEvent = await tx.webhookEvent.create({
+        data: {
+          companyId: company.id,
+          provider: "PAYSTACK",
+          eventType: rawPayload.event,
+          providerEventId,
+          paymentId: payment.id,
+          signatureVerified: true,
+          payload: rawPayload as unknown as Prisma.InputJsonValue,
+        },
+      });
+
+      return {
+        receipt: persistedReceipt,
+        webhookEventId: webhookEvent.id,
+        receiptDocumentId: receiptDocument.id,
+        transactionStage: updatedTransactionStage,
+      };
     });
 
-    const webhookEvent = await prisma.webhookEvent.create({
-      data: {
-        companyId: company.id,
-        provider: "PAYSTACK",
-        eventType: rawPayload.event,
-        providerEventId,
-        paymentId: payment.id,
-        signatureVerified: true,
-        payload: rawPayload as unknown as Prisma.InputJsonValue,
-      },
-    });
+    receipt = transactionUpdate.receipt;
+    receiptDocumentId = transactionUpdate.receiptDocumentId;
 
     await writeAuditLog({
       companyId: company.id,
@@ -366,8 +547,9 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
       summary: `Webhook reconciled payment ${reference} as ${status}`,
       payload: {
         providerEventId,
-        webhookEventId: webhookEvent.id,
         receiptId: receipt.id,
+        receiptDocumentId,
+        transactionStage: transactionUpdate.transactionStage,
       } as Prisma.InputJsonValue,
     });
   }
@@ -378,6 +560,7 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
     providerEventId,
     paymentId: payment?.id ?? null,
     receiptId: receipt?.id ?? null,
+    receiptDocumentId,
     status,
   };
 }

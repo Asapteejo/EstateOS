@@ -87,6 +87,15 @@ enum MilestoneStatus {
   BLOCKED
 }
 
+enum KycStatus {
+  NOT_SUBMITTED
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+}
+
 enum PaymentStatus {
   PENDING
   PROCESSING
@@ -673,7 +682,7 @@ model KYCSubmission {
   companyId    String
   userId       String
   documentId   String
-  status       MilestoneStatus @default(PENDING)
+  status       KycStatus       @default(SUBMITTED)
   reviewedById String?
   notes        String?
   company      Company         @relation(fields: [companyId], references: [id])
