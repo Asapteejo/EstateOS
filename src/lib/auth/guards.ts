@@ -24,3 +24,15 @@ export async function requireAdminSession(
 
   return session;
 }
+
+export async function requireSuperAdminSession(options?: {
+  redirectOnMissingAuth?: boolean;
+}) {
+  const session = await requireTenantContext("superadmin", options);
+
+  if (!hasRequiredRole(session.roles, ["SUPER_ADMIN"])) {
+    redirect("/portal");
+  }
+
+  return session;
+}

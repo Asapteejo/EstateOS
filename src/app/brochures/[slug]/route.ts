@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 
 import { env, featureFlags } from "@/lib/env";
 import { getPrivateDownloadUrl } from "@/lib/storage/r2";
+import { resolveBrochureRedirectUrl } from "@/modules/properties/brochures";
 import { getPublicPropertiesContext, getPublicBrochureByPropertySlug } from "@/modules/properties/queries";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const tenant = await getPublicPropertiesContext();
@@ -19,5 +20,5 @@ export async function GET(
         ? `${env.R2_PUBLIC_BASE_URL.replace(/\/$/, "")}/${brochure.storageKey}`
         : "/brochure";
 
-  return NextResponse.redirect(targetUrl);
+  return NextResponse.redirect(resolveBrochureRedirectUrl(request.url, targetUrl));
 }

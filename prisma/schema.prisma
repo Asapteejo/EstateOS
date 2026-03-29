@@ -80,6 +80,12 @@ enum TransactionStage {
   HANDOVER_COMPLETED
 }
 
+enum PaymentPlanKind {
+  ONE_TIME
+  FIXED
+  CUSTOM
+}
+
 enum MilestoneStatus {
   PENDING
   ACTIVE
@@ -639,6 +645,7 @@ model PropertyUnit {
   property     Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   reservations Reservation[]
   transactions Transaction[]
+  paymentPlans  PaymentPlan[]
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
@@ -761,6 +768,8 @@ model Reservation {
   propertyId     String
   propertyUnitId String?
   userId         String
+  marketerId     String?
+  paymentPlanId  String?
   reference      String
   status         ReservationStatus @default(PENDING)
   reservationFee Decimal           @db.Decimal(12, 2)
@@ -770,6 +779,8 @@ model Reservation {
   property       Property          @relation(fields: [propertyId], references: [id])
   propertyUnit   PropertyUnit?     @relation(fields: [propertyUnitId], references: [id])
   user           User              @relation(fields: [userId], references: [id])
+  marketer       TeamMember?       @relation("SelectedMarketerReservations", fields: [marketerId], references: [id])
+  paymentPlan    PaymentPlan?      @relation(fields: [paymentPlanId], references: [id])
   transaction    Transaction?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
@@ -777,6 +788,7 @@ model Reservation {
   @@unique([companyId, reference])
   @@index([companyId, propertyId, status])
   @@index([companyId, userId])
+  @@index([companyId, marketerId])
 }
 
 model Transaction {
@@ -786,6 +798,8 @@ model Transaction {
   propertyId         String
   propertyUnitId     String?
   userId             String
+  marketerId         String?
+  paymentPlanId      String?
   currentStage       TransactionStage      @default(INQUIRY_RECEIVED)
   totalValue         Decimal               @db.Decimal(12, 2)
   outstandingBalance Decimal               @db.Decimal(12, 2)
@@ -794,6 +808,8 @@ model Transaction {
   property           Property              @relation(fields: [propertyId], references: [id])
   propertyUnit       PropertyUnit?         @relation(fields: [propertyUnitId], references: [id])
   user               User                  @relation(fields: [userId], references: [id])
+  marketer           TeamMember?           @relation("SelectedMarketerTransactions", fields: [marketerId], references: [id])
+  paymentPlan        PaymentPlan?          @relation(fields: [paymentPlanId], references: [id])
   milestones         TransactionMilestone[]
   payments           Payment[]
   receipts           Receipt[]
@@ -804,6 +820,7 @@ model Transaction {
 
   @@index([companyId, propertyId])
   @@index([companyId, userId, currentStage])
+  @@index([companyId, marketerId])
 }
 
 model TransactionMilestone {
@@ -828,18 +845,27 @@ model PaymentPlan {
   id             String        @id @default(cuid())
   companyId      String
   propertyId     String
+  propertyUnitId String?
   title          String
+  kind           PaymentPlanKind @default(FIXED)
   description    String?
+  scheduleDescription String?
   durationMonths Int
+  installmentCount Int?
   depositPercent Decimal?      @db.Decimal(5, 2)
+  downPaymentAmount Decimal?   @db.Decimal(12, 2)
   isActive       Boolean       @default(true)
   company        Company       @relation(fields: [companyId], references: [id])
   property       Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyUnit   PropertyUnit? @relation(fields: [propertyUnitId], references: [id])
   installments   Installment[]
+  reservations   Reservation[]
+  transactions   Transaction[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   @@index([companyId, propertyId, isActive])
+  @@index([companyId, propertyUnitId, isActive])
 }
 
 model Installment {
@@ -849,6 +875,7 @@ model Installment {
   title         String
   amount        Decimal     @db.Decimal(12, 2)
   dueInDays     Int
+  scheduleLabel String?
   sortOrder     Int         @default(0)
   company       Company     @relation(fields: [companyId], references: [id])
   paymentPlan   PaymentPlan @relation(fields: [paymentPlanId], references: [id], onDelete: Cascade)
@@ -863,6 +890,7 @@ model Payment {
   transactionId     String?
   installmentId     String?
   userId            String?
+  marketerId        String?
   provider          String        @default("PAYSTACK")
   providerReference String
   amount            Decimal       @db.Decimal(12, 2)
@@ -875,6 +903,7 @@ model Payment {
   transaction       Transaction?  @relation(fields: [transactionId], references: [id])
   installment       Installment?  @relation(fields: [installmentId], references: [id])
   user              User?         @relation(fields: [userId], references: [id])
+  marketer          TeamMember?   @relation("SelectedMarketerPayments", fields: [marketerId], references: [id])
   receipt           Receipt?
   webhookEvents     WebhookEvent[]
   commissionRecord  CommissionRecord?
@@ -886,6 +915,7 @@ model Payment {
   @@index([companyId, transactionId, status])
   @@index([companyId, installmentId])
   @@index([companyId, userId])
+  @@index([companyId, marketerId])
 }
 
 model Receipt {
@@ -898,6 +928,7 @@ model Receipt {
   totalAmount   Decimal   @db.Decimal(12, 2)
   currency      String    @default("NGN")
   documentUrl   String?
+  renderData    Json?
   company       Company   @relation(fields: [companyId], references: [id])
   payment       Payment   @relation(fields: [paymentId], references: [id])
   transaction   Transaction? @relation(fields: [transactionId], references: [id])
@@ -1027,14 +1058,24 @@ model TeamMember {
   avatarUrl   String?
   email       String?
   phone       String?
+  whatsappNumber String?
+  resumeDocumentId String?
+  profileHighlights Json?
+  portfolioText String?
+  portfolioLinks Json?
+  specialties Json?
+  isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
   isPublished Boolean  @default(true)
   company     Company  @relation(fields: [companyId], references: [id])
+  reservations Reservation[] @relation("SelectedMarketerReservations")
+  transactions Transaction[] @relation("SelectedMarketerTransactions")
+  payments    Payment[] @relation("SelectedMarketerPayments")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@unique([companyId, slug])
-  @@index([companyId, isPublished, sortOrder])
+  @@index([companyId, isPublished, isActive, sortOrder])
 }
 
 model FAQItem {

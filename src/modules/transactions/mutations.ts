@@ -102,6 +102,8 @@ export async function createTransactionForReservation(
     propertyId: string;
     propertyUnitId?: string | null;
     userId: string;
+    marketerId?: string | null;
+    paymentPlanId?: string | null;
     totalValue: number;
     currentStage?: TransactionStageValue;
   },
@@ -115,6 +117,8 @@ export async function createTransactionForReservation(
       propertyId: input.propertyId,
       propertyUnitId: input.propertyUnitId ?? null,
       userId: input.userId,
+      marketerId: input.marketerId ?? null,
+      paymentPlanId: input.paymentPlanId ?? null,
       currentStage,
       totalValue: input.totalValue,
       outstandingBalance: input.totalValue,

@@ -18,11 +18,17 @@ export default function SignInPage() {
             Local demo mode is active. Add Clerk keys in `.env.local` to enable real signup and login.
           </p>
           <div className="mt-6 flex justify-center gap-4">
+            <Link href="/">
+              <Button variant="ghost">Platform home</Button>
+            </Link>
             <Link href="/portal">
               <Button>Open buyer demo</Button>
             </Link>
             <Link href="/admin">
               <Button variant="outline">Open admin demo</Button>
+            </Link>
+            <Link href="/superadmin">
+              <Button variant="outline">Open superadmin demo</Button>
             </Link>
           </div>
         </Card>

@@ -26,6 +26,7 @@ export async function getPublicTestimonials(context?: TenantContext): Promise<Te
     {
       where: {
         isPublished: true,
+        isActive: true,
       },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
       select: {

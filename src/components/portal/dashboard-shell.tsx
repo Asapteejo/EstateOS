@@ -20,6 +20,7 @@ const portalLinks = [
 const adminLinks = [
   ["Overview", "/admin"],
   ["Listings", "/admin/listings"],
+  ["Team", "/admin/team"],
   ["Leads", "/admin/leads"],
   ["Bookings", "/admin/bookings"],
   ["Clients", "/admin/clients"],
@@ -48,7 +49,7 @@ export function DashboardShell({
   return (
     <Container className="grid gap-6 py-8 lg:grid-cols-[260px_1fr]">
       <aside className="rounded-[28px] border border-[var(--line)] bg-white p-5">
-        <Logo />
+        <Logo href={`/${area}`} />
         <div className="mt-8 space-y-2">
           {links.map(([label, href]) => (
             <Link

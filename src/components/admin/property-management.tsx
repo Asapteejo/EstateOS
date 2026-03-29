@@ -62,6 +62,27 @@ type PropertyFormState = {
     floor: string;
     block: string;
   }>;
+  paymentPlans: Array<{
+    id?: string;
+    propertyUnitId: string;
+    title: string;
+    kind: "ONE_TIME" | "FIXED" | "CUSTOM";
+    description: string;
+    scheduleDescription: string;
+    durationMonths: string;
+    installmentCount: string;
+    depositPercent: string;
+    downPaymentAmount: string;
+    isActive: boolean;
+    installments: Array<{
+      id?: string;
+      title: string;
+      amount: string;
+      dueInDays: string;
+      scheduleLabel: string;
+      sortOrder: string;
+    }>;
+  }>;
 };
 
 function emptyFormState(): PropertyFormState {
@@ -97,6 +118,7 @@ function emptyFormState(): PropertyFormState {
     features: [{ label: "", value: "" }],
     media: [{ title: "", url: "", mimeType: "", sortOrder: "0", isPrimary: true, visibility: "PUBLIC" }],
     units: [{ unitCode: "", title: "", status: "AVAILABLE", price: "", bedrooms: "", bathrooms: "", sizeSqm: "", floor: "", block: "" }],
+    paymentPlans: [],
   };
 }
 
@@ -164,6 +186,27 @@ function toFormState(property: AdminPropertyManagementRecord): PropertyFormState
             block: unit.block ?? "",
           }))
         : [{ unitCode: "", title: "", status: "AVAILABLE", price: "", bedrooms: "", bathrooms: "", sizeSqm: "", floor: "", block: "" }],
+    paymentPlans: property.paymentPlans.map((plan) => ({
+      id: plan.id,
+      propertyUnitId: plan.propertyUnitId ?? "",
+      title: plan.title,
+      kind: plan.kind as "ONE_TIME" | "FIXED" | "CUSTOM",
+      description: plan.description ?? "",
+      scheduleDescription: plan.scheduleDescription ?? "",
+      durationMonths: String(plan.durationMonths),
+      installmentCount: plan.installmentCount == null ? "" : String(plan.installmentCount),
+      depositPercent: plan.depositPercent == null ? "" : String(plan.depositPercent),
+      downPaymentAmount: plan.downPaymentAmount == null ? "" : String(plan.downPaymentAmount),
+      isActive: plan.isActive,
+      installments: plan.installments.map((installment) => ({
+        id: installment.id,
+        title: installment.title,
+        amount: String(installment.amount),
+        dueInDays: String(installment.dueInDays),
+        scheduleLabel: installment.scheduleLabel ?? "",
+        sortOrder: String(installment.sortOrder),
+      })),
+    })),
   };
 }
 
@@ -230,6 +273,31 @@ function serializeForm(state: PropertyFormState) {
         sizeSqm: unit.sizeSqm ? Number(unit.sizeSqm) : undefined,
         floor: unit.floor ? Number(unit.floor) : undefined,
         block: unit.block || undefined,
+      })),
+    paymentPlans: state.paymentPlans
+      .filter((plan) => plan.title.trim())
+      .map((plan) => ({
+        id: plan.id,
+        propertyUnitId: plan.propertyUnitId || undefined,
+        title: plan.title,
+        kind: plan.kind,
+        description: plan.description || undefined,
+        scheduleDescription: plan.scheduleDescription || undefined,
+        durationMonths: Number(plan.durationMonths || 0),
+        installmentCount: plan.installmentCount ? Number(plan.installmentCount) : undefined,
+        depositPercent: plan.depositPercent ? Number(plan.depositPercent) : undefined,
+        downPaymentAmount: plan.downPaymentAmount ? Number(plan.downPaymentAmount) : undefined,
+        isActive: plan.isActive,
+        installments: plan.installments
+          .filter((installment) => installment.title.trim() && installment.amount.trim())
+          .map((installment, index) => ({
+            id: installment.id,
+            title: installment.title,
+            amount: Number(installment.amount),
+            dueInDays: Number(installment.dueInDays || 0),
+            scheduleLabel: installment.scheduleLabel || undefined,
+            sortOrder: Number(installment.sortOrder || index),
+          })),
       })),
   };
 }
@@ -657,6 +725,327 @@ function PropertyEditor({
             <div>
               <Button type="button" variant="outline" onClick={() => update("units", value.units.filter((_, itemIndex) => itemIndex !== index))}>
                 Remove unit
+              </Button>
+            </div>
+          </div>
+        ))}
+      </ArraySection>
+
+      <ArraySection
+        title="Payment plans"
+        onAdd={() =>
+          update("paymentPlans", [
+            ...value.paymentPlans,
+            {
+              title: "",
+              propertyUnitId: "",
+              kind: "FIXED",
+              description: "",
+              scheduleDescription: "",
+              durationMonths: "0",
+              installmentCount: "",
+              depositPercent: "",
+              downPaymentAmount: "",
+              isActive: true,
+              installments: [
+                { title: "", amount: "", dueInDays: "0", scheduleLabel: "", sortOrder: "0" },
+              ],
+            },
+          ])
+        }
+      >
+        {value.paymentPlans.map((plan, index) => (
+          <div key={`plan-${index}`} className="grid gap-3 rounded-3xl border border-[var(--line)] p-4">
+            <div className="grid gap-3 md:grid-cols-3">
+              <Input
+                placeholder="Plan title"
+                value={plan.title}
+                onChange={(event) =>
+                  update(
+                    "paymentPlans",
+                    value.paymentPlans.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, title: event.target.value } : item,
+                    ),
+                  )
+                }
+              />
+              <select
+                className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+                value={plan.kind}
+                onChange={(event) =>
+                  update(
+                    "paymentPlans",
+                    value.paymentPlans.map((item, itemIndex) =>
+                      itemIndex === index
+                        ? { ...item, kind: event.target.value as "ONE_TIME" | "FIXED" | "CUSTOM" }
+                        : item,
+                    ),
+                  )
+                }
+              >
+                <option value="ONE_TIME">One time</option>
+                <option value="FIXED">Fixed installments</option>
+                <option value="CUSTOM">Custom plan</option>
+              </select>
+              <select
+                className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+                value={plan.propertyUnitId}
+                onChange={(event) =>
+                  update(
+                    "paymentPlans",
+                    value.paymentPlans.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, propertyUnitId: event.target.value } : item,
+                    ),
+                  )
+                }
+              >
+                <option value="">Applies to full property</option>
+                {value.units
+                  .filter((unit) => unit.unitCode.trim())
+                  .map((unit) => (
+                    <option key={unit.id ?? unit.unitCode} value={unit.id ?? ""}>
+                      {unit.title || unit.unitCode}
+                    </option>
+                  ))}
+              </select>
+              <Input
+                placeholder="Duration (months)"
+                value={plan.durationMonths}
+                onChange={(event) =>
+                  update(
+                    "paymentPlans",
+                    value.paymentPlans.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, durationMonths: event.target.value } : item,
+                    ),
+                  )
+                }
+              />
+              <Input
+                placeholder="Installment count"
+                value={plan.installmentCount}
+                onChange={(event) =>
+                  update(
+                    "paymentPlans",
+                    value.paymentPlans.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, installmentCount: event.target.value } : item,
+                    ),
+                  )
+                }
+              />
+              <Input
+                placeholder="Deposit %"
+                value={plan.depositPercent}
+                onChange={(event) =>
+                  update(
+                    "paymentPlans",
+                    value.paymentPlans.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, depositPercent: event.target.value } : item,
+                    ),
+                  )
+                }
+              />
+              <Input
+                placeholder="Down payment amount"
+                value={plan.downPaymentAmount}
+                onChange={(event) =>
+                  update(
+                    "paymentPlans",
+                    value.paymentPlans.map((item, itemIndex) =>
+                      itemIndex === index ? { ...item, downPaymentAmount: event.target.value } : item,
+                    ),
+                  )
+                }
+              />
+            </div>
+            <Textarea
+              placeholder="Plan description"
+              value={plan.description}
+              onChange={(event) =>
+                update(
+                  "paymentPlans",
+                  value.paymentPlans.map((item, itemIndex) =>
+                    itemIndex === index ? { ...item, description: event.target.value } : item,
+                  ),
+                )
+              }
+            />
+            <Textarea
+              placeholder="Schedule description"
+              value={plan.scheduleDescription}
+              onChange={(event) =>
+                update(
+                  "paymentPlans",
+                  value.paymentPlans.map((item, itemIndex) =>
+                    itemIndex === index ? { ...item, scheduleDescription: event.target.value } : item,
+                  ),
+                )
+              }
+            />
+            <ArraySection
+              title="Installments"
+              onAdd={() =>
+                update(
+                  "paymentPlans",
+                  value.paymentPlans.map((item, itemIndex) =>
+                    itemIndex === index
+                      ? {
+                          ...item,
+                          installments: [
+                            ...item.installments,
+                            {
+                              title: "",
+                              amount: "",
+                              dueInDays: "0",
+                              scheduleLabel: "",
+                              sortOrder: String(item.installments.length),
+                            },
+                          ],
+                        }
+                      : item,
+                  ),
+                )
+              }
+            >
+              {plan.installments.map((installment, installmentIndex) => (
+                <div
+                  key={`plan-${index}-installment-${installmentIndex}`}
+                  className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_auto]"
+                >
+                  <Input
+                    placeholder="Installment title"
+                    value={installment.title}
+                    onChange={(event) =>
+                      update(
+                        "paymentPlans",
+                        value.paymentPlans.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? {
+                                ...item,
+                                installments: item.installments.map((entry, entryIndex) =>
+                                  entryIndex === installmentIndex
+                                    ? { ...entry, title: event.target.value }
+                                    : entry,
+                                ),
+                              }
+                            : item,
+                        ),
+                      )
+                    }
+                  />
+                  <Input
+                    placeholder="Amount"
+                    value={installment.amount}
+                    onChange={(event) =>
+                      update(
+                        "paymentPlans",
+                        value.paymentPlans.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? {
+                                ...item,
+                                installments: item.installments.map((entry, entryIndex) =>
+                                  entryIndex === installmentIndex
+                                    ? { ...entry, amount: event.target.value }
+                                    : entry,
+                                ),
+                              }
+                            : item,
+                        ),
+                      )
+                    }
+                  />
+                  <Input
+                    placeholder="Due in days"
+                    value={installment.dueInDays}
+                    onChange={(event) =>
+                      update(
+                        "paymentPlans",
+                        value.paymentPlans.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? {
+                                ...item,
+                                installments: item.installments.map((entry, entryIndex) =>
+                                  entryIndex === installmentIndex
+                                    ? { ...entry, dueInDays: event.target.value }
+                                    : entry,
+                                ),
+                              }
+                            : item,
+                        ),
+                      )
+                    }
+                  />
+                  <Input
+                    placeholder="Schedule label"
+                    value={installment.scheduleLabel}
+                    onChange={(event) =>
+                      update(
+                        "paymentPlans",
+                        value.paymentPlans.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? {
+                                ...item,
+                                installments: item.installments.map((entry, entryIndex) =>
+                                  entryIndex === installmentIndex
+                                    ? { ...entry, scheduleLabel: event.target.value }
+                                    : entry,
+                                ),
+                              }
+                            : item,
+                        ),
+                      )
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      update(
+                        "paymentPlans",
+                        value.paymentPlans.map((item, itemIndex) =>
+                          itemIndex === index
+                            ? {
+                                ...item,
+                                installments: item.installments.filter(
+                                  (_, entryIndex) => entryIndex !== installmentIndex,
+                                ),
+                              }
+                            : item,
+                        ),
+                      )
+                    }
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+            </ArraySection>
+            <div className="flex flex-wrap items-center gap-4">
+              <label className="flex items-center gap-2 text-sm text-[var(--ink-700)]">
+                <input
+                  type="checkbox"
+                  checked={plan.isActive}
+                  onChange={(event) =>
+                    update(
+                      "paymentPlans",
+                      value.paymentPlans.map((item, itemIndex) =>
+                        itemIndex === index ? { ...item, isActive: event.target.checked } : item,
+                      ),
+                    )
+                  }
+                />
+                Active plan
+              </label>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  update(
+                    "paymentPlans",
+                    value.paymentPlans.filter((_, itemIndex) => itemIndex !== index),
+                  )
+                }
+              >
+                Remove plan
               </Button>
             </div>
           </div>

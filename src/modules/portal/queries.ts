@@ -6,6 +6,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { properties as demoProperties } from "@/modules/properties/demo-data";
 import { buyerNotifications, buyerOverview, buyerTimeline } from "@/modules/portal/demo-data";
 import { isBuyerOwnedDocumentRecord, isBuyerOwnedTransactionRecord } from "@/modules/portal/access";
+import { buildBuyerPaymentProgress } from "@/modules/portal/payments";
 import type { PropertySummary } from "@/types/domain";
 
 type ScopedFindManyDelegate = { findMany: (args?: unknown) => Promise<unknown> };
@@ -111,6 +112,224 @@ export async function getBuyerPaymentsTable(context: TenantContext) {
     ]);
 }
 
+export async function getBuyerPaymentExperience(context: TenantContext) {
+  if (!featureFlags.hasDatabase || !context.companyId || !context.userId) {
+    return {
+      progress: buildBuyerPaymentProgress({
+        totalPayableAmount: 185000000,
+        amountPaidSoFar: 160500000,
+        installmentSchedule: [
+          { title: "Reservation fee", amount: 12500000, status: "paid" as const },
+          { title: "Second tranche", amount: 48000000, status: "paid" as const },
+          { title: "Final settlement", amount: 124500000, status: "due" as const },
+        ],
+      }),
+      selectedMarketer: "Tobi Adewale",
+      selectedPaymentPlan: "24-month plan",
+      receipts: [
+        {
+          id: "demo-receipt",
+          receiptNumber: "RCT-PAY-11082",
+          amount: "NGN 12,500,000",
+          issuedAt: "2026-03-21",
+          downloadHref: "/api/receipts/demo-receipt/download",
+        },
+      ],
+      payments: [
+        {
+          reference: "PAY-11082",
+          amount: "NGN 12,500,000",
+          status: "SUCCESS",
+          method: "PAYSTACK",
+          receiptHref: "/api/receipts/demo-receipt/download",
+        },
+      ],
+    };
+  }
+
+  const transaction = (await findFirstForTenant(
+    prisma.transaction as ScopedFindFirstDelegate,
+    context,
+    {
+      where: {
+        userId: context.userId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      select: {
+        id: true,
+        totalValue: true,
+        outstandingBalance: true,
+        marketer: {
+          select: {
+            fullName: true,
+          },
+        },
+        paymentPlan: {
+          select: {
+            title: true,
+            installments: {
+              orderBy: {
+                sortOrder: "asc",
+              },
+              select: {
+                id: true,
+                title: true,
+                amount: true,
+              },
+            },
+          },
+        },
+        payments: {
+          orderBy: {
+            createdAt: "asc",
+          },
+          select: {
+            id: true,
+            providerReference: true,
+            amount: true,
+            status: true,
+            method: true,
+            installmentId: true,
+            receipt: {
+              select: {
+                id: true,
+                receiptNumber: true,
+                issuedAt: true,
+                totalAmount: true,
+              },
+            },
+          },
+        },
+      },
+    } as Parameters<typeof prisma.transaction.findFirst>[0],
+  )) as {
+    id: string;
+    totalValue: { toNumber?: () => number } | number;
+    outstandingBalance: { toNumber?: () => number } | number;
+    marketer: { fullName: string } | null;
+    paymentPlan: {
+      title: string;
+      installments: Array<{
+        id: string;
+        title: string;
+        amount: { toNumber?: () => number } | number;
+      }>;
+    } | null;
+    payments: Array<{
+      id: string;
+      providerReference: string;
+      amount: { toNumber?: () => number } | number;
+      status: string;
+      method: string;
+      installmentId: string | null;
+      receipt: {
+        id: string;
+        receiptNumber: string;
+        issuedAt: Date;
+        totalAmount: { toNumber?: () => number } | number;
+      } | null;
+    }>;
+  } | null;
+
+  if (!transaction) {
+    return {
+      progress: buildBuyerPaymentProgress({
+        totalPayableAmount: 0,
+        amountPaidSoFar: 0,
+      }),
+      selectedMarketer: null,
+      selectedPaymentPlan: null,
+      receipts: [],
+      payments: [],
+    };
+  }
+
+  const paidAmount = transaction.payments
+    .filter((payment) => payment.status === "SUCCESS")
+    .reduce((sum, payment) => {
+      const amount =
+        typeof payment.amount === "number"
+          ? payment.amount
+          : payment.amount.toNumber?.() ?? Number(payment.amount);
+      return sum + amount;
+    }, 0);
+
+  const installmentPaidMap = new Map<string, number>();
+  for (const payment of transaction.payments.filter((entry) => entry.status === "SUCCESS" && entry.installmentId)) {
+    const amount =
+      typeof payment.amount === "number"
+        ? payment.amount
+        : payment.amount.toNumber?.() ?? Number(payment.amount);
+    installmentPaidMap.set(
+      payment.installmentId!,
+      (installmentPaidMap.get(payment.installmentId!) ?? 0) + amount,
+    );
+  }
+
+  const installmentSchedule =
+    transaction.paymentPlan?.installments.map((installment) => {
+      const targetAmount =
+        typeof installment.amount === "number"
+          ? installment.amount
+          : installment.amount.toNumber?.() ?? Number(installment.amount);
+      const paidAgainstInstallment = installmentPaidMap.get(installment.id) ?? 0;
+
+      return {
+        title: installment.title,
+        amount: targetAmount,
+        status:
+          paidAgainstInstallment >= targetAmount
+            ? ("paid" as const)
+            : paidAgainstInstallment > 0
+              ? ("due" as const)
+              : ("upcoming" as const),
+      };
+    }) ?? [];
+
+  const progress = buildBuyerPaymentProgress({
+    totalPayableAmount:
+      typeof transaction.totalValue === "number"
+        ? transaction.totalValue
+        : transaction.totalValue.toNumber?.() ?? Number(transaction.totalValue),
+    amountPaidSoFar: paidAmount,
+    installmentSchedule,
+  });
+
+  const receiptRows = transaction.payments
+    .filter((payment) => payment.receipt)
+    .map((payment) => ({
+      id: payment.receipt!.id,
+      receiptNumber: payment.receipt!.receiptNumber,
+      amount: formatCurrency(
+        typeof payment.receipt!.totalAmount === "number"
+          ? payment.receipt!.totalAmount
+          : payment.receipt!.totalAmount.toNumber?.() ?? Number(payment.receipt!.totalAmount),
+      ),
+      issuedAt: formatDate(payment.receipt!.issuedAt),
+      downloadHref: `/api/receipts/${payment.receipt!.id}/download`,
+    }));
+
+  return {
+    progress,
+    selectedMarketer: transaction.marketer?.fullName ?? null,
+    selectedPaymentPlan: transaction.paymentPlan?.title ?? null,
+    receipts: receiptRows,
+    payments: transaction.payments.map((payment) => ({
+      reference: payment.providerReference,
+      amount: formatCurrency(
+        typeof payment.amount === "number"
+          ? payment.amount
+          : payment.amount.toNumber?.() ?? Number(payment.amount),
+      ),
+      status: payment.status,
+      method: payment.method,
+      receiptHref: payment.receipt ? `/api/receipts/${payment.receipt.id}/download` : null,
+    })),
+  };
+}
+
 export async function getBuyerDocumentsTable(context: TenantContext) {
   if (!featureFlags.hasDatabase || !context.companyId || !context.userId) {
     return [["allocation-letter.pdf", "AGREEMENT", "PRIVATE", "2026-03-27"]];
@@ -170,6 +389,75 @@ export async function getBuyerDocumentsTable(context: TenantContext) {
       document.visibility,
       formatDate(document.updatedAt),
     ]);
+}
+
+export async function getBuyerDocumentsList(context: TenantContext) {
+  if (!featureFlags.hasDatabase || !context.companyId || !context.userId) {
+    return [
+      {
+        id: "demo-document",
+        fileName: "RCT-PAY-11082.pdf",
+        documentType: "RECEIPT",
+        visibility: "PRIVATE",
+        updatedAt: "2026-03-27",
+        href: "/api/documents/demo-document/download",
+      },
+    ];
+  }
+
+  const documents = (await findManyForTenant(
+    prisma.document as ScopedFindManyDelegate,
+    context,
+    {
+      where: {
+        OR: [{ userId: context.userId }, { transaction: { userId: context.userId } }],
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+      select: {
+        id: true,
+        fileName: true,
+        documentType: true,
+        visibility: true,
+        updatedAt: true,
+        userId: true,
+        transaction: {
+          select: {
+            userId: true,
+            companyId: true,
+          },
+        },
+      },
+    } as Parameters<typeof prisma.document.findMany>[0],
+  )) as Array<{
+    id: string;
+    fileName: string;
+    documentType: string;
+    visibility: string;
+    updatedAt: Date;
+    userId: string | null;
+    transaction: { userId: string; companyId: string } | null;
+  }>;
+
+  return documents
+    .filter((document) =>
+      isBuyerOwnedDocumentRecord({
+        viewerCompanyId: context.companyId,
+        viewerUserId: context.userId,
+        documentUserId: document.userId,
+        transactionCompanyId: document.transaction?.companyId,
+        transactionUserId: document.transaction?.userId,
+      }),
+    )
+    .map((document) => ({
+      id: document.id,
+      fileName: document.fileName,
+      documentType: document.documentType,
+      visibility: document.visibility,
+      updatedAt: formatDate(document.updatedAt),
+      href: `/api/documents/${document.id}/download`,
+    }));
 }
 
 export async function getBuyerSavedProperties(context: TenantContext): Promise<PropertySummary[]> {

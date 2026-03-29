@@ -25,7 +25,7 @@ export default async function AdminTransactionsPage() {
         <TransactionManagement items={mapAdminTransactionsForTable(managementRows)} />
         <DataTableCard
           title="Transactions register"
-          columns={["Reference", "Property", "Buyer", "Stage", "Balance"]}
+          columns={["Reference", "Property", "Buyer", "Marketer", "Stage", "Balance"]}
           rows={rows}
         />
       </div>

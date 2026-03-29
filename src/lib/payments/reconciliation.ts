@@ -79,6 +79,7 @@ export async function persistInitializedPayment(
     transactionId?: string;
     installmentId?: string;
     reservationReference?: string;
+    marketerId?: string;
   },
 ) {
   if (!featureFlags.hasDatabase) {
@@ -87,6 +88,7 @@ export async function persistInitializedPayment(
 
   let transactionId = input.transactionId;
   let installmentId = input.installmentId;
+  let marketerId = input.marketerId;
 
   if (transactionId) {
     const transaction = await prisma.transaction.findFirst({
@@ -98,10 +100,12 @@ export async function persistInitializedPayment(
       select: {
         id: true,
         propertyId: true,
+        marketerId: true,
       },
     });
 
     transactionId = transaction?.id;
+    marketerId = marketerId ?? transaction?.marketerId ?? undefined;
   }
 
   if (!transactionId && input.reservationReference) {
@@ -112,15 +116,19 @@ export async function persistInitializedPayment(
         userId: input.userId,
       },
       select: {
+        marketerId: true,
         transaction: {
           select: {
             id: true,
+            marketerId: true,
           },
         },
       },
     });
 
     transactionId = reservation?.transaction?.id;
+    marketerId =
+      marketerId ?? reservation?.transaction?.marketerId ?? reservation?.marketerId ?? undefined;
   }
 
   if (installmentId) {
@@ -175,6 +183,7 @@ export async function persistInitializedPayment(
       transactionId,
       installmentId,
       userId: input.userId,
+      marketerId,
       amount: input.amount,
       currency: input.currency ?? "NGN",
       status: "PENDING",
@@ -184,6 +193,7 @@ export async function persistInitializedPayment(
         transactionId,
         installmentId,
         reservationReference: input.reservationReference,
+        marketerId,
       } as Prisma.InputJsonValue,
     },
     create: {
@@ -191,6 +201,7 @@ export async function persistInitializedPayment(
       transactionId,
       installmentId,
       userId: input.userId,
+      marketerId,
       providerReference: input.reference,
       amount: input.amount,
       currency: input.currency ?? "NGN",
@@ -201,6 +212,7 @@ export async function persistInitializedPayment(
         transactionId,
         installmentId,
         reservationReference: input.reservationReference,
+        marketerId,
       } as Prisma.InputJsonValue,
     },
   });
@@ -274,6 +286,11 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
     payment?.transactionId ?? transactionIdFromMetadata ?? undefined;
   let resolvedInstallmentId =
     payment?.installmentId ?? installmentIdFromMetadata ?? undefined;
+  let resolvedMarketerId =
+    payment?.marketerId ??
+    (typeof rawPayload.data?.metadata?.marketerId === "string"
+      ? rawPayload.data.metadata.marketerId
+      : undefined);
 
   if (!resolvedTransactionId && reservationReferenceFromMetadata && featureFlags.hasDatabase) {
     const reservation = await prisma.reservation.findFirst({
@@ -282,15 +299,19 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
         reference: reservationReferenceFromMetadata,
       },
       select: {
+        marketerId: true,
         transaction: {
           select: {
             id: true,
+            marketerId: true,
           },
         },
       },
     });
 
     resolvedTransactionId = reservation?.transaction?.id;
+    resolvedMarketerId =
+      resolvedMarketerId ?? reservation?.transaction?.marketerId ?? reservation?.marketerId ?? undefined;
   }
 
   if (resolvedInstallmentId && featureFlags.hasDatabase) {
@@ -342,6 +363,7 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
         companyId: company.id,
         transactionId: resolvedTransactionId,
         installmentId: resolvedInstallmentId,
+        marketerId: resolvedMarketerId,
         providerReference: reference,
         amount: (rawPayload.data?.amount ?? 0) / 100,
         status,
@@ -358,6 +380,7 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
       data: {
         transactionId: resolvedTransactionId ?? payment.transactionId,
         installmentId: resolvedInstallmentId ?? payment.installmentId,
+        marketerId: resolvedMarketerId ?? payment.marketerId,
         status,
         paidAt: rawPayload.data?.paid_at ? new Date(rawPayload.data.paid_at) : payment.paidAt,
         metadata: rawPayload as unknown as Prisma.InputJsonValue,
@@ -481,6 +504,10 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
           transactionId: updatedTransactionId,
           receiptNumber: generatedReceipt.receiptNumber,
           totalAmount: payment.amount,
+          renderData: {
+            providerReference: reference,
+            transactionStage: updatedTransactionStage,
+          } as Prisma.InputJsonValue,
         },
         create: {
           companyId: company.id,
@@ -488,6 +515,10 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
           transactionId: updatedTransactionId,
           receiptNumber: generatedReceipt.receiptNumber,
           totalAmount: payment.amount,
+          renderData: {
+            providerReference: reference,
+            transactionStage: updatedTransactionStage,
+          } as Prisma.InputJsonValue,
         },
       });
 
@@ -508,6 +539,7 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
             receiptId: persistedReceipt.id,
             providerReference: reference,
             generatedFromWebhook: true,
+            isFullPaymentReceipt: updatedTransactionStage === "FINAL_PAYMENT_COMPLETED",
           } as Prisma.InputJsonValue,
         },
         create: {
@@ -522,6 +554,7 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
             receiptId: persistedReceipt.id,
             providerReference: reference,
             generatedFromWebhook: true,
+            isFullPaymentReceipt: updatedTransactionStage === "FINAL_PAYMENT_COMPLETED",
           } as Prisma.InputJsonValue,
         },
         select: {

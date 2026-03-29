@@ -342,6 +342,11 @@ export async function getAdminPaymentsTable(context: TenantContext) {
         amount: true,
         status: true,
         method: true,
+        marketer: {
+          select: {
+            fullName: true,
+          },
+        },
         user: {
           select: {
             firstName: true,
@@ -356,6 +361,7 @@ export async function getAdminPaymentsTable(context: TenantContext) {
     amount: { toNumber: () => number };
     status: string;
     method: string;
+    marketer: { fullName: string } | null;
     user: {
       firstName: string | null;
       lastName: string | null;
@@ -368,6 +374,7 @@ export async function getAdminPaymentsTable(context: TenantContext) {
     payment.user?.companyId === context.companyId
       ? `${payment.user.firstName ?? ""} ${payment.user.lastName ?? ""}`.trim() || "Unknown"
       : "Unknown",
+    payment.marketer?.fullName ?? "Unassigned",
     formatCurrency(payment.amount.toNumber()),
     payment.status,
     payment.method,
@@ -569,6 +576,11 @@ export async function getAdminTransactionsTable(context: TenantContext) {
         id: true,
         currentStage: true,
         outstandingBalance: true,
+        marketer: {
+          select: {
+            fullName: true,
+          },
+        },
         reservation: {
           select: {
             reference: true,
@@ -593,6 +605,7 @@ export async function getAdminTransactionsTable(context: TenantContext) {
     id: string;
     currentStage: string;
     outstandingBalance: { toNumber: () => number };
+    marketer: { fullName: string } | null;
     reservation: { reference: string } | null;
     property: { title: string; companyId: string } | null;
     user: { firstName: string | null; lastName: string | null; companyId: string | null } | null;
@@ -604,6 +617,7 @@ export async function getAdminTransactionsTable(context: TenantContext) {
     transaction.user?.companyId === context.companyId
       ? `${transaction.user.firstName ?? ""} ${transaction.user.lastName ?? ""}`.trim() || "Unknown"
       : "Unknown",
+    transaction.marketer?.fullName ?? "Unassigned",
     transaction.currentStage,
     formatCurrency(transaction.outstandingBalance.toNumber()),
   ]);

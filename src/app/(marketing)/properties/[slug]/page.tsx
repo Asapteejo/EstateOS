@@ -15,6 +15,7 @@ import {
   getPublicPropertiesContext,
   getPublicPropertyDetailBySlug,
 } from "@/modules/properties/queries";
+import { getVisibleTeamMembers } from "@/modules/team/queries";
 
 export default async function PropertyDetailPage({
   params,
@@ -23,7 +24,10 @@ export default async function PropertyDetailPage({
 }) {
   const { slug } = await params;
   const tenant = await getPublicPropertiesContext();
-  const property = await getPublicPropertyDetailBySlug(slug, tenant);
+  const [property, marketers] = await Promise.all([
+    getPublicPropertyDetailBySlug(slug, tenant),
+    getVisibleTeamMembers(tenant),
+  ]);
 
   return (
     <div className="space-y-14 py-12">
@@ -91,7 +95,19 @@ export default async function PropertyDetailPage({
                 <div>{property.sizeSqm} sqm</div>
               </div>
               <div className="mt-6 space-y-3">
-                <PropertyActions propertyId={property.id} />
+                <PropertyActions
+                  propertyId={property.id}
+                  marketers={marketers.map((marketer) => ({
+                    id: marketer.id,
+                    fullName: marketer.fullName,
+                    title: marketer.title,
+                  }))}
+                  paymentPlans={property.paymentOptions.map((plan) => ({
+                    id: plan.id,
+                    title: plan.title,
+                    kind: plan.kind,
+                  }))}
+                />
                 {property.brochureUrl ? (
                   <Link href={property.brochureUrl} className="block">
                     <Button variant="outline" className="w-full">
@@ -106,16 +122,49 @@ export default async function PropertyDetailPage({
               </div>
             </Card>
             <Card className="p-8">
-              <h2 className="text-xl font-semibold text-[var(--ink-950)]">Payment plan</h2>
-              <p className="mt-3 text-sm leading-6 text-[var(--ink-600)]">
-                {property.paymentPlan.summary}
-              </p>
-              <div className="mt-5 grid gap-3 text-sm text-[var(--ink-700)]">
-                <div>Plan: {property.paymentPlan.title}</div>
-                <div>Duration: {property.paymentPlan.durationMonths} months</div>
-                <div>Deposit: {property.paymentPlan.depositPercent}%</div>
+              <h2 className="text-xl font-semibold text-[var(--ink-950)]">Payment options</h2>
+              <div className="mt-5 space-y-4">
+                {property.paymentOptions.length > 0 ? (
+                  property.paymentOptions.map((plan) => (
+                    <div key={plan.id} className="rounded-2xl bg-[var(--sand-100)] p-4 text-sm text-[var(--ink-700)]">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="font-semibold text-[var(--ink-950)]">{plan.title}</div>
+                        <Badge>{plan.kind.toLowerCase()}</Badge>
+                      </div>
+                      <p className="mt-2 leading-6 text-[var(--ink-600)]">
+                        {plan.scheduleDescription ?? plan.description ?? "Structured payment option available."}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-4">
+                        <span>Duration: {plan.durationMonths} months</span>
+                        <span>Installments: {plan.installmentCount ?? plan.installments.length}</span>
+                        <span>
+                          Deposit: {plan.depositPercent != null ? `${plan.depositPercent}%` : "Custom"}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm leading-6 text-[var(--ink-600)]">{property.paymentPlan.summary}</p>
+                )}
               </div>
             </Card>
+            {marketers.length > 0 ? (
+              <Card className="p-8">
+                <h2 className="text-xl font-semibold text-[var(--ink-950)]">Choose a marketer</h2>
+                <p className="mt-2 text-sm text-[var(--ink-600)]">
+                  If you are already working with a marketer, select them before reserving so the deal is attached correctly from the start.
+                </p>
+                <div className="mt-5 space-y-3">
+                  {marketers.map((marketer) => (
+                    <div key={marketer.id} className="rounded-2xl bg-[var(--sand-100)] p-4">
+                      <div className="font-semibold text-[var(--ink-950)]">{marketer.fullName}</div>
+                      <div className="mt-1 text-sm text-[var(--brand-700)]">{marketer.title}</div>
+                      <p className="mt-2 text-sm leading-6 text-[var(--ink-600)]">{marketer.bio}</p>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            ) : null}
             <Card className="p-8">
               <h2 className="text-xl font-semibold text-[var(--ink-950)]">Available units</h2>
               <div className="mt-5 space-y-3">

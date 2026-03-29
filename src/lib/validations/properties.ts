@@ -19,6 +19,7 @@ const propertyTypeSchema = z.enum([
 ]);
 
 const propertyMediaVisibilitySchema = z.enum(["PUBLIC", "PRIVATE"]);
+const paymentPlanKindSchema = z.enum(["ONE_TIME", "FIXED", "CUSTOM"]);
 
 const optionalTrimmedString = z.string().trim().optional().transform((value) => value || undefined);
 
@@ -48,6 +49,30 @@ export const propertyMediaInputSchema = z.object({
 export const propertyFeatureInputSchema = z.object({
   label: z.string().trim().min(2),
   value: optionalTrimmedString,
+});
+
+export const installmentInputSchema = z.object({
+  id: z.string().optional(),
+  title: z.string().trim().min(2),
+  amount: z.coerce.number().positive(),
+  dueInDays: z.coerce.number().int().min(0),
+  scheduleLabel: optionalTrimmedString,
+  sortOrder: z.coerce.number().int().min(0).default(0),
+});
+
+export const paymentPlanInputSchema = z.object({
+  id: z.string().optional(),
+  propertyUnitId: z.string().optional(),
+  title: z.string().trim().min(2),
+  kind: paymentPlanKindSchema.default("FIXED"),
+  description: optionalTrimmedString,
+  scheduleDescription: optionalTrimmedString,
+  durationMonths: z.coerce.number().int().min(0),
+  installmentCount: z.coerce.number().int().min(1).optional(),
+  depositPercent: z.coerce.number().min(0).max(100).optional(),
+  downPaymentAmount: z.coerce.number().min(0).optional(),
+  isActive: z.coerce.boolean().default(true),
+  installments: z.array(installmentInputSchema).default([]),
 });
 
 export const propertyLocationInputSchema = z.object({
@@ -85,6 +110,7 @@ export const propertyMutationSchema = z.object({
   features: z.array(propertyFeatureInputSchema).default([]),
   units: z.array(propertyUnitInputSchema).default([]),
   media: z.array(propertyMediaInputSchema).default([]),
+  paymentPlans: z.array(paymentPlanInputSchema).default([]),
 }).superRefine((value, ctx) => {
   if (value.priceTo != null && value.priceTo < value.priceFrom) {
     ctx.addIssue({
@@ -101,6 +127,32 @@ export const propertyMutationSchema = z.object({
       message: "Only one media item can be marked as primary.",
       path: ["media"],
     });
+  }
+
+  for (const [index, plan] of value.paymentPlans.entries()) {
+    if (plan.installmentCount != null && plan.installments.length > 0 && plan.installmentCount !== plan.installments.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Installment count must match the number of installment rows.",
+        path: ["paymentPlans", index, "installmentCount"],
+      });
+    }
+
+    if (plan.kind === "ONE_TIME" && plan.installments.length > 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "One-time plans can only contain one installment row.",
+        path: ["paymentPlans", index, "installments"],
+      });
+    }
+
+    if ((plan.kind === "FIXED" || plan.kind === "CUSTOM") && plan.installments.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Installment plans must define at least one installment row.",
+        path: ["paymentPlans", index, "installments"],
+      });
+    }
   }
 });
 
@@ -137,3 +189,5 @@ export type PropertySearchParams = z.infer<typeof propertySearchParamsSchema>;
 export type PropertyMutationInput = z.infer<typeof propertyMutationSchema>;
 export type PropertyUnitInput = z.infer<typeof propertyUnitInputSchema>;
 export type PropertyMediaInput = z.infer<typeof propertyMediaInputSchema>;
+export type PaymentPlanInput = z.infer<typeof paymentPlanInputSchema>;
+export type InstallmentInput = z.infer<typeof installmentInputSchema>;

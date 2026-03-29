@@ -9,6 +9,7 @@ export const paymentInitializeSchema = z.object({
   transactionId: z.string().optional(),
   installmentId: z.string().optional(),
   reservationReference: z.string().optional(),
+  marketerId: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 }).superRefine((value, ctx) => {
   if (value.installmentId && !value.transactionId && !value.reservationReference) {

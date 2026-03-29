@@ -59,6 +59,27 @@ export type AdminPropertyManagementRecord = {
     isPrimary: boolean;
     visibility: string;
   }>;
+  paymentPlans: Array<{
+    id: string;
+    propertyUnitId: string | null;
+    title: string;
+    kind: string;
+    description: string | null;
+    scheduleDescription: string | null;
+    durationMonths: number;
+    installmentCount: number | null;
+    depositPercent: number | null;
+    downPaymentAmount: number | null;
+    isActive: boolean;
+    installments: Array<{
+      id: string;
+      title: string;
+      amount: number;
+      dueInDays: number;
+      scheduleLabel: string | null;
+      sortOrder: number;
+    }>;
+  }>;
 };
 
 function decimalToNumber(value: Decimalish | null | undefined) {
@@ -155,6 +176,35 @@ export async function getAdminPropertyManagementList(context: TenantContext) {
             visibility: true,
           },
         },
+        paymentPlans: {
+          orderBy: [{ createdAt: "asc" }],
+          select: {
+            id: true,
+            propertyUnitId: true,
+            title: true,
+            kind: true,
+            description: true,
+            scheduleDescription: true,
+            durationMonths: true,
+            installmentCount: true,
+            depositPercent: true,
+            downPaymentAmount: true,
+            isActive: true,
+            installments: {
+              orderBy: {
+                sortOrder: "asc",
+              },
+              select: {
+                id: true,
+                title: true,
+                amount: true,
+                dueInDays: true,
+                scheduleLabel: true,
+                sortOrder: true,
+              },
+            },
+          },
+        },
       },
     } as Parameters<typeof prisma.property.findMany>[0],
   )) as Array<{
@@ -211,6 +261,27 @@ export async function getAdminPropertyManagementList(context: TenantContext) {
       isPrimary: boolean;
       visibility: string;
     }>;
+    paymentPlans: Array<{
+      id: string;
+      propertyUnitId: string | null;
+      title: string;
+      kind: string;
+      description: string | null;
+      scheduleDescription: string | null;
+      durationMonths: number;
+      installmentCount: number | null;
+      depositPercent: Decimalish | null;
+      downPaymentAmount: Decimalish | null;
+      isActive: boolean;
+      installments: Array<{
+        id: string;
+        title: string;
+        amount: Decimalish;
+        dueInDays: number;
+        scheduleLabel: string | null;
+        sortOrder: number;
+      }>;
+    }>;
   }>;
 
   return properties
@@ -255,6 +326,27 @@ export async function getAdminPropertyManagementList(context: TenantContext) {
         sizeSqm: decimalToNumber(unit.sizeSqm),
       })),
       media: property.media,
+      paymentPlans: property.paymentPlans.map((plan) => ({
+        id: plan.id,
+        propertyUnitId: plan.propertyUnitId,
+        title: plan.title,
+        kind: plan.kind,
+        description: plan.description,
+        scheduleDescription: plan.scheduleDescription,
+        durationMonths: plan.durationMonths,
+        installmentCount: plan.installmentCount,
+        depositPercent: decimalToNumber(plan.depositPercent),
+        downPaymentAmount: decimalToNumber(plan.downPaymentAmount),
+        isActive: plan.isActive,
+        installments: plan.installments.map((installment) => ({
+          id: installment.id,
+          title: installment.title,
+          amount: decimalToNumber(installment.amount) ?? 0,
+          dueInDays: installment.dueInDays,
+          scheduleLabel: installment.scheduleLabel,
+          sortOrder: installment.sortOrder,
+        })),
+      })),
     }));
 }
 

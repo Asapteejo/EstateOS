@@ -96,7 +96,7 @@ function getHostResolution(host: string | null) {
 }
 
 export async function resolveTenantContext(
-  area: "marketing" | "portal" | "admin" = "marketing",
+  area: "marketing" | "portal" | "admin" | "superadmin" = "marketing",
 ): Promise<TenantContext> {
   const requestHeaders = await headers();
   const host = requestHeaders.get("host");
@@ -147,7 +147,7 @@ export async function resolveTenantContext(
 }
 
 export async function requireTenantContext(
-  area: "portal" | "admin" | "marketing" = "portal",
+  area: "portal" | "admin" | "marketing" | "superadmin" = "portal",
   options?: {
     redirectOnMissingAuth?: boolean;
   },

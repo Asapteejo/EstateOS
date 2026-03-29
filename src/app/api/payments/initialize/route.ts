@@ -79,6 +79,7 @@ export async function POST(request: Request) {
       companySlug: tenant.companySlug,
       userId: tenant.userId,
       installmentId: body.data.installmentId,
+      marketerId: body.data.marketerId,
       settlementQuote: settlementQuote
         ? {
             provider: settlementQuote.provider,
@@ -97,6 +98,7 @@ export async function POST(request: Request) {
       userId: tenant.userId,
       transactionId: body.data.transactionId,
       installmentId: body.data.installmentId,
+      marketerId: body.data.marketerId,
       reservationReference: body.data.reservationReference,
       metadata: {
         ...body.data.metadata,
@@ -104,6 +106,7 @@ export async function POST(request: Request) {
         companySlug: tenant.companySlug,
         userId: tenant.userId,
         installmentId: body.data.installmentId,
+        marketerId: body.data.marketerId,
         settlementQuote: settlementQuote
           ? {
               provider: settlementQuote.provider,

@@ -17,7 +17,7 @@ export function MarketingHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-white/20 bg-[rgba(248,246,240,0.82)] backdrop-blur-xl">
       <Container className="flex h-20 items-center justify-between gap-6">
-        <Logo />
+        <Logo href="/properties" />
         <nav className="hidden items-center gap-6 md:flex">
           {links.map((link) => (
             <Link

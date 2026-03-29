@@ -38,6 +38,27 @@ export type PublicPropertyDetail = PropertySummary & {
   videoUrl?: string;
   brochureUrl?: string | null;
   brochureAvailable: boolean;
+  paymentOptions: Array<{
+    id: string;
+    propertyUnitId: string | null;
+    title: string;
+    kind: string;
+    description: string | null;
+    scheduleDescription: string | null;
+    durationMonths: number;
+    installmentCount: number | null;
+    depositPercent: number | null;
+    downPaymentAmount: number | null;
+    isActive: boolean;
+    installments: Array<{
+      id: string;
+      title: string;
+      amount: number;
+      dueInDays: number;
+      scheduleLabel: string | null;
+      sortOrder: number;
+    }>;
+  }>;
   units: Array<{
     id: string;
     unitCode: string;
@@ -93,9 +114,30 @@ type PropertyRow = {
   }>;
 };
 
-type DetailPropertyRow = Omit<PropertyRow, "units"> & {
+type DetailPropertyRow = Omit<PropertyRow, "units" | "paymentPlans"> & {
   brochureDocumentId: string | null;
   videoUrl: string | null;
+  paymentPlans: Array<{
+    id: string;
+    propertyUnitId: string | null;
+    title: string;
+    kind: string;
+    description: string | null;
+    scheduleDescription: string | null;
+    durationMonths: number;
+    installmentCount: number | null;
+    depositPercent: Decimalish | null;
+    downPaymentAmount: Decimalish | null;
+    isActive: boolean;
+    installments: Array<{
+      id: string;
+      title: string;
+      amount: Decimalish;
+      dueInDays: number;
+      scheduleLabel: string | null;
+      sortOrder: number;
+    }>;
+  }>;
   units: Array<{
     id: string;
     unitCode: string;
@@ -382,6 +424,7 @@ export async function getPublicPropertyDetailBySlug(
       brochureAvailable: true,
       brochureUrl: buildPropertyBrochureHref(property.slug),
       videoUrl: undefined,
+      paymentOptions: [],
       units: [],
     };
   }
@@ -438,12 +481,31 @@ export async function getPublicPropertyDetailBySlug(
           orderBy: {
             createdAt: "asc",
           },
-          take: 1,
           select: {
+            id: true,
+            propertyUnitId: true,
             title: true,
+            kind: true,
             description: true,
+            scheduleDescription: true,
             durationMonths: true,
+            installmentCount: true,
             depositPercent: true,
+            downPaymentAmount: true,
+            isActive: true,
+            installments: {
+              orderBy: {
+                sortOrder: "asc",
+              },
+              select: {
+                id: true,
+                title: true,
+                amount: true,
+                dueInDays: true,
+                scheduleLabel: true,
+                sortOrder: true,
+              },
+            },
           },
         },
         features: {
@@ -498,6 +560,28 @@ export async function getPublicPropertyDetailBySlug(
     brochureAvailable,
     brochureUrl: brochureAvailable ? buildPropertyBrochureHref(property.slug) : null,
     videoUrl: property.videoUrl ?? undefined,
+    paymentOptions: property.paymentPlans.map((plan) => ({
+      id: plan.id,
+      propertyUnitId: plan.propertyUnitId,
+      title: plan.title,
+      kind: plan.kind,
+      description: plan.description,
+      scheduleDescription: plan.scheduleDescription,
+      durationMonths: plan.durationMonths,
+      installmentCount: plan.installmentCount,
+      depositPercent: plan.depositPercent == null ? null : decimalToNumber(plan.depositPercent),
+      downPaymentAmount:
+        plan.downPaymentAmount == null ? null : decimalToNumber(plan.downPaymentAmount),
+      isActive: plan.isActive,
+      installments: plan.installments.map((installment) => ({
+        id: installment.id,
+        title: installment.title,
+        amount: decimalToNumber(installment.amount),
+        dueInDays: installment.dueInDays,
+        scheduleLabel: installment.scheduleLabel,
+        sortOrder: installment.sortOrder,
+      })),
+    })),
     units: property.units.map((unit) => ({
       id: unit.id,
       unitCode: unit.unitCode,

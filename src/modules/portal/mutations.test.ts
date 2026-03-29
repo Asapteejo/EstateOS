@@ -71,3 +71,24 @@ test("payment initialization requires transaction or reservation linkage for ins
 
   assert.equal(valid.success, true);
 });
+
+test("reservation creation payload accepts optional marketer and payment plan selection", () => {
+  const reservationPayload = {
+    propertyId: "property_1",
+    marketerId: "marketer_1",
+    paymentPlanId: "plan_1",
+  };
+
+  assert.equal(reservationPayload.marketerId, "marketer_1");
+  assert.equal(reservationPayload.paymentPlanId, "plan_1");
+
+  const paymentPayload = paymentInitializeSchema.safeParse({
+    email: "buyer@acmerealty.dev",
+    amount: 1000000,
+    reference: "PAY-5678",
+    callbackUrl: "http://localhost:3000/portal/payments",
+    marketerId: "marketer_1",
+  });
+
+  assert.equal(paymentPayload.success, true);
+});

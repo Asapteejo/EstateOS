@@ -3,11 +3,16 @@ import { Timeline } from "@/components/shared/timeline";
 import { Card } from "@/components/ui/card";
 import { requirePortalSession } from "@/lib/auth/guards";
 import { formatCurrency } from "@/lib/utils";
-import { getBuyerDashboardSummary } from "@/modules/portal/queries";
+import { getBuyerDashboardSummary, getBuyerPaymentExperience } from "@/modules/portal/queries";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export default async function PortalDashboardPage() {
   const tenant = await requirePortalSession();
-  const summary = await getBuyerDashboardSummary(tenant);
+  const [summary, paymentExperience] = await Promise.all([
+    getBuyerDashboardSummary(tenant),
+    getBuyerPaymentExperience(tenant),
+  ]);
 
   return (
     <DashboardShell
@@ -48,6 +53,53 @@ export default async function PortalDashboardPage() {
           ))}
         </Card>
       </div>
+      <Card className="p-8">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h2 className="text-2xl font-semibold text-[var(--ink-950)]">Payment transparency</h2>
+            <p className="mt-2 text-sm leading-7 text-[var(--ink-600)]">
+              Progress is rendered from the latest persisted transaction, installment, and payment records.
+            </p>
+          </div>
+          {paymentExperience.receipts[0] ? (
+            <Link href={paymentExperience.receipts[0].downloadHref}>
+              <Button variant="outline">Open latest receipt</Button>
+            </Link>
+          ) : null}
+        </div>
+        <div className="mt-6 h-3 rounded-full bg-[var(--sand-100)]">
+          <div
+            className="h-3 rounded-full bg-[var(--brand-700)]"
+            style={{ width: `${paymentExperience.progress.progressPercent}%` }}
+          />
+        </div>
+        <div className="mt-6 grid gap-4 md:grid-cols-4">
+          <div className="rounded-3xl bg-[var(--sand-100)] p-5">
+            <div className="text-sm text-[var(--ink-500)]">Total payable</div>
+            <div className="mt-2 text-xl font-semibold text-[var(--ink-950)]">
+              {formatCurrency(paymentExperience.progress.totalPayableAmount)}
+            </div>
+          </div>
+          <div className="rounded-3xl bg-[var(--sand-100)] p-5">
+            <div className="text-sm text-[var(--ink-500)]">Paid so far</div>
+            <div className="mt-2 text-xl font-semibold text-[var(--ink-950)]">
+              {formatCurrency(paymentExperience.progress.amountPaidSoFar)}
+            </div>
+          </div>
+          <div className="rounded-3xl bg-[var(--sand-100)] p-5">
+            <div className="text-sm text-[var(--ink-500)]">Outstanding</div>
+            <div className="mt-2 text-xl font-semibold text-[var(--ink-950)]">
+              {formatCurrency(paymentExperience.progress.outstandingBalance)}
+            </div>
+          </div>
+          <div className="rounded-3xl bg-[var(--sand-100)] p-5">
+            <div className="text-sm text-[var(--ink-500)]">Selected plan</div>
+            <div className="mt-2 text-xl font-semibold text-[var(--ink-950)]">
+              {paymentExperience.selectedPaymentPlan ?? "Unselected"}
+            </div>
+          </div>
+        </div>
+      </Card>
     </DashboardShell>
   );
 }

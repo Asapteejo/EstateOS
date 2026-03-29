@@ -336,8 +336,11 @@ async function main() {
         companyId: company.id,
         propertyId: createdProperty.id,
         title: property.paymentPlan.title,
+        kind: "FIXED",
         description: property.paymentPlan.summary,
+        scheduleDescription: "Structured fixed installment option seeded for local testing.",
         durationMonths: property.paymentPlan.durationMonths,
+        installmentCount: 2,
         depositPercent: property.paymentPlan.depositPercent,
       },
     });
@@ -355,6 +358,7 @@ async function main() {
           title: "Initial deposit",
           amount: depositAmount,
           dueInDays: 0,
+          scheduleLabel: "At reservation",
           sortOrder: 0,
         },
         {
@@ -363,6 +367,7 @@ async function main() {
           title: "Balance settlement",
           amount: balanceAmount,
           dueInDays: property.paymentPlan.durationMonths * 30,
+          scheduleLabel: "Before handover",
           sortOrder: 1,
         },
       ],
@@ -389,8 +394,9 @@ async function main() {
     });
   }
 
-  for (const member of teamMembers) {
-    await prisma.teamMember.create({
+  const createdTeamMembers: Array<{ id: string; fullName: string }> = [];
+  for (const [index, member] of teamMembers.entries()) {
+    const createdMember = await prisma.teamMember.create({
       data: {
         companyId: company.id,
         slug: member.slug,
@@ -400,7 +406,21 @@ async function main() {
         email: member.email,
         phone: member.phone,
         avatarUrl: member.image,
+        whatsappNumber: member.phone,
+        profileHighlights: [
+          "Visible in buyer selection flow",
+          "Supports property discovery and deal follow-up",
+        ],
+        portfolioText: "Experienced in guided reservations, property education, and transaction coordination.",
+        portfolioLinks: ["https://estateos.app/demo-marketer"],
+        specialties: index === 0 ? ["Luxury", "Off-plan"] : ["Residential", "Land"],
+        isActive: true,
+        isPublished: true,
       },
+    });
+    createdTeamMembers.push({
+      id: createdMember.id,
+      fullName: createdMember.fullName,
     });
   }
 
@@ -499,6 +519,8 @@ async function main() {
       companyId: company.id,
       propertyId: reservedProperty.id,
       userId: buyer.id,
+      marketerId: createdTeamMembers[0]?.id,
+      paymentPlanId: reservedPropertyPlan.id,
       reference: "RSV-2026-00018",
       status: "ACTIVE",
       reservationFee: 185000000,
@@ -511,6 +533,8 @@ async function main() {
       reservationId: reservation.id,
       propertyId: reservedProperty.id,
       userId: buyer.id,
+      marketerId: createdTeamMembers[0]?.id,
+      paymentPlanId: reservedPropertyPlan.id,
       currentStage: "ALLOCATION_IN_PROGRESS",
       totalValue: 185000000,
       outstandingBalance: 24500000,
@@ -541,6 +565,7 @@ async function main() {
       transactionId: transaction.id,
       installmentId: initialInstallment.id,
       userId: buyer.id,
+      marketerId: createdTeamMembers[0]?.id,
       providerReference: "PAY-11082",
       amount: 12500000,
       status: "SUCCESS",

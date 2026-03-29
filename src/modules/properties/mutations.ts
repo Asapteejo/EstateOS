@@ -246,6 +246,92 @@ async function syncPropertyMedia(
   }
 }
 
+async function syncPropertyPaymentPlans(
+  tx: Prisma.TransactionClient,
+  input: {
+    companyId: string;
+    propertyId: string;
+    plans: PropertyMutationInput["paymentPlans"];
+  },
+) {
+  const existingPlans = await tx.paymentPlan.findMany({
+    where: {
+      companyId: input.companyId,
+      propertyId: input.propertyId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  const incomingIds = new Set(input.plans.map((plan) => plan.id).filter(Boolean));
+
+  for (const existingPlan of existingPlans) {
+    if (!incomingIds.has(existingPlan.id)) {
+      await tx.paymentPlan.delete({
+        where: {
+          id: existingPlan.id,
+        },
+      });
+    }
+  }
+
+  for (const plan of input.plans) {
+    const planData = {
+      companyId: input.companyId,
+      propertyId: input.propertyId,
+      propertyUnitId: plan.propertyUnitId,
+      title: plan.title,
+      kind: plan.kind,
+      description: plan.description,
+      scheduleDescription: plan.scheduleDescription,
+      durationMonths: plan.durationMonths,
+      installmentCount: plan.installmentCount ?? (plan.installments.length > 0 ? plan.installments.length : null),
+      depositPercent: plan.depositPercent,
+      downPaymentAmount: plan.downPaymentAmount,
+      isActive: plan.isActive,
+    };
+
+    const persistedPlan = plan.id
+      ? await tx.paymentPlan.update({
+          where: {
+            id: plan.id,
+          },
+          data: planData,
+          select: {
+            id: true,
+          },
+        })
+      : await tx.paymentPlan.create({
+          data: planData,
+          select: {
+            id: true,
+          },
+        });
+
+    await tx.installment.deleteMany({
+      where: {
+        companyId: input.companyId,
+        paymentPlanId: persistedPlan.id,
+      },
+    });
+
+    if (plan.installments.length > 0) {
+      await tx.installment.createMany({
+        data: plan.installments.map((installment, index) => ({
+          companyId: input.companyId,
+          paymentPlanId: persistedPlan.id,
+          title: installment.title,
+          amount: installment.amount,
+          dueInDays: installment.dueInDays,
+          scheduleLabel: installment.scheduleLabel,
+          sortOrder: installment.sortOrder ?? index,
+        })),
+      });
+    }
+  }
+}
+
 async function replacePropertyFeatures(
   tx: Prisma.TransactionClient,
   input: {
@@ -361,6 +447,12 @@ export async function createPropertyForAdmin(
       media: rawInput.media,
     });
 
+    await syncPropertyPaymentPlans(tx, {
+      companyId: context.companyId!,
+      propertyId: created.id,
+      plans: rawInput.paymentPlans,
+    });
+
     return created;
   });
 
@@ -444,6 +536,12 @@ export async function updatePropertyForAdmin(
       companyId: context.companyId!,
       propertyId,
       media: rawInput.media,
+    });
+
+    await syncPropertyPaymentPlans(tx, {
+      companyId: context.companyId!,
+      propertyId,
+      plans: rawInput.paymentPlans,
     });
 
     return updated;

@@ -11,7 +11,7 @@ export default async function AdminPaymentsPage() {
     <DashboardShell area="admin" title="Payments Monitoring" subtitle="Provider verification status, reconciliation, and receipt generation foundation.">
       <DataTableCard
         title="Payments"
-        columns={["Reference", "Buyer", "Amount", "Status", "Method"]}
+        columns={["Reference", "Buyer", "Marketer", "Amount", "Status", "Method"]}
         rows={rows}
       />
     </DashboardShell>

@@ -9,6 +9,7 @@ import type { ReservationCreateInput } from "@/lib/validations/reservations";
 import type { SavedPropertyMutationInput } from "@/lib/validations/saved-properties";
 import { requireCompanyPlanAccess } from "@/modules/billing/service";
 import { createTransactionForReservation } from "@/modules/transactions/mutations";
+import { ensureVisibleTeamMember } from "@/modules/team/queries";
 
 type ScopedFindFirstDelegate = { findFirst: (args?: unknown) => Promise<unknown> };
 
@@ -170,6 +171,8 @@ export async function createReservationForBuyer(
   }
 
   let propertyUnitId: string | undefined;
+  let paymentPlanId = input.paymentPlanId;
+  let marketerId = input.marketerId;
   let reservationFee =
     typeof property.priceFrom === "number"
       ? property.priceFrom
@@ -211,6 +214,59 @@ export async function createReservationForBuyer(
         : unit.price.toNumber?.() ?? Number(unit.price);
   }
 
+  if (marketerId) {
+    const marketer = await ensureVisibleTeamMember(context, marketerId);
+    if (!marketer) {
+      throw new Error("Selected marketer is not available.");
+    }
+
+    marketerId = marketer.id;
+  }
+
+  if (paymentPlanId) {
+    const plan = (await findFirstForTenant(
+      prisma.paymentPlan as ScopedFindFirstDelegate,
+      context,
+      {
+        where: {
+          id: paymentPlanId,
+          propertyId: property.id,
+          isActive: true,
+          ...(propertyUnitId
+            ? { OR: [{ propertyUnitId }, { propertyUnitId: null }] }
+            : { propertyUnitId: null }),
+        },
+        select: {
+          id: true,
+          installments: {
+            orderBy: {
+              sortOrder: "asc",
+            },
+            take: 1,
+            select: {
+              amount: true,
+            },
+          },
+        },
+      } as Parameters<typeof prisma.paymentPlan.findFirst>[0],
+    )) as {
+      id: string;
+      installments: Array<{ amount: { toNumber?: () => number } | number }>;
+    } | null;
+
+    if (!plan) {
+      throw new Error("Selected payment plan is not available for this property.");
+    }
+
+    paymentPlanId = plan.id;
+    if (plan.installments[0]) {
+      reservationFee =
+        typeof plan.installments[0].amount === "number"
+          ? plan.installments[0].amount
+          : plan.installments[0].amount.toNumber?.() ?? Number(plan.installments[0].amount);
+    }
+  }
+
   assertReservableStatuses({
     propertyStatus: property.status,
     unitStatus,
@@ -247,6 +303,8 @@ export async function createReservationForBuyer(
         companyId: context.companyId!,
         propertyId: property.id,
         propertyUnitId,
+        marketerId,
+        paymentPlanId,
         userId: context.userId!,
         reference: buildReservationReference(),
         status: "PENDING",
@@ -264,10 +322,12 @@ export async function createReservationForBuyer(
       companyId: context.companyId!,
       reservationId: reservation.id,
       propertyId: property.id,
-      propertyUnitId,
-      userId: context.userId!,
-      totalValue: reservationFee,
-      currentStage: "INQUIRY_RECEIVED",
+        propertyUnitId,
+        marketerId,
+        paymentPlanId,
+        userId: context.userId!,
+        totalValue: reservationFee,
+        currentStage: "INQUIRY_RECEIVED",
     });
 
     if (propertyUnitId) {
@@ -303,6 +363,8 @@ export async function createReservationForBuyer(
     payload: {
       propertyId: property.id,
       propertyUnitId,
+      marketerId,
+      paymentPlanId,
       reservationFee,
     } as Prisma.InputJsonValue,
   });

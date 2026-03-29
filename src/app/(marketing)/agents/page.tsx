@@ -26,6 +26,10 @@ export default async function AgentsPage() {
               <h3 className="text-2xl font-semibold text-[var(--ink-950)]">{member.fullName}</h3>
               <p className="text-sm font-medium text-[var(--brand-700)]">{member.title}</p>
               <p className="text-sm leading-7 text-[var(--ink-600)]">{member.bio}</p>
+              <div className="space-y-1 text-sm text-[var(--ink-500)]">
+                {member.email ? <div>{member.email}</div> : null}
+                {member.phone ? <div>{member.phone}</div> : null}
+              </div>
             </div>
           </Card>
         ))}

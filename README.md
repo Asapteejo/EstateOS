@@ -6,6 +6,38 @@ EstateOS is a multi-tenant real estate SaaS foundation built for three surfaces:
 - Buyer transaction portal
 - Internal admin operations
 
+The current routing model now separates four distinct surfaces:
+
+- `/platform`
+  EstateOS SaaS marketing site for the platform itself
+- `/superadmin`
+  EstateOS platform-owner dashboard for `SUPER_ADMIN`
+- `/admin`
+  tenant/company operations for a single real estate company
+- tenant public marketing and property routes such as `/properties`
+  public company-facing discovery experience scoped to one tenant
+
+## Tenant Marketers And Buyer Guidance
+
+EstateOS now supports tenant-managed marketer profiles using the company-owned `TeamMember` domain.
+
+- tenant admins manage marketer/staff profiles under `/admin/team`
+- profiles are tenant-scoped and only visible to buyers/public pages when both `isActive` and `isPublished` are true
+- marketer profile fields now support:
+  full name
+  title
+  photo URL
+  bio
+  profile highlights
+  WhatsApp number
+  email
+  optional resume document link
+  portfolio text and links
+  specialties
+- buyers can optionally select a marketer during reservation flow
+- selected marketer is persisted on reservation, transaction, and payment records where applicable
+- tenant admins can see marketer attribution in payment and transaction views
+
 The codebase is designed for one-company MVP usage today and SaaS-style tenant isolation from day one.
 
 ## Stack
@@ -35,6 +67,7 @@ The codebase is designed for one-company MVP usage today and SaaS-style tenant i
 
 - `SUPER_ADMIN` can operate across tenants.
 - Non-super-admin users are restricted to one resolved tenant.
+- `SUPER_ADMIN` platform routes live under `/superadmin` and are intentionally separate from tenant admin routes under `/admin`.
 - Tenant resolution currently supports:
   session-based app usage
   public fallback via `DEFAULT_COMPANY_SLUG`
@@ -302,13 +335,25 @@ Notes:
 ## Auth, Session, And Tenancy Runtime Rules
 
 - Clerk is required in production.
-- Demo auth fallback is available only when Clerk is absent and `NODE_ENV !== "production"`.
+- In non-production, EstateOS exposes explicit demo access for `/portal`, `/admin`, and `/superadmin` even if Clerk is configured but no user is signed in.
+- Development mode now shows a small role switcher so you can jump between public, buyer, tenant admin, and superadmin surfaces without weakening production auth rules.
 - Public tenant rendering currently resolves through:
   `DEFAULT_COMPANY_SLUG`
   future host/subdomain lookup
   authenticated session context when applicable
 - Clerk webhook sync now validates referenced `companyId` and `branchId` against the database before persisting them.
-- Middleware protects `/portal` and `/admin` when Clerk is configured.
+- Middleware protects `/portal`, `/admin`, and `/superadmin` only in production when Clerk is configured.
+
+## Platform Owner Vs Tenant Admin
+
+- `SUPER_ADMIN`
+  sees cross-company subscription, billing, payout-readiness, payment, and audit visibility through `/superadmin`
+- tenant `ADMIN`
+  sees only company-scoped operational data through `/admin`
+- buyer users continue to operate through `/portal`
+- the default platform entry is `/`, which routes into the EstateOS SaaS marketing experience
+- `/platform` remains a stable alias for the EstateOS SaaS marketing site
+- tenant public property experiences remain separate and continue to resolve through the active/public tenant context
 
 ## Payment Authority Model
 
@@ -335,6 +380,42 @@ Webhook reconciliation currently handles:
 - transaction stage/milestone update
 - audit log write
 
+### Buyer Payment Progress
+
+Buyer payment transparency now renders from persisted database state:
+
+- total payable amount
+- amount paid so far
+- outstanding balance
+- installment schedule
+- selected payment plan
+- selected marketer
+- receipt access
+
+This is current-state rendering, not websocket-based realtime.
+
+### Purchase Installment Configuration
+
+Tenant admins can now configure purchase payment plans on properties with:
+
+- `ONE_TIME`
+- `FIXED`
+- `CUSTOM`
+
+Each plan can define:
+
+- property- or unit-level scope
+- title
+- duration
+- installment count
+- deposit percent
+- down payment amount
+- schedule description
+- active state
+- installment rows with amount and due offsets
+
+This is purchase-plan modeling only. It does not claim live recurring provider billing for buyer installments.
+
 Transaction payment initialization now also:
 
 - checks active company plan access for transaction flows
@@ -349,13 +430,24 @@ Transaction payment initialization now also:
 - Public brochure route: `/brochures/[slug]`
 - Only documents with `documentType = BROCHURE` and `visibility = PUBLIC` are eligible
 - Public brochure delivery is separate from private document vault access
+- Route-handler redirects now always resolve through `new URL(target, request.url)` semantics so internal brochure fallbacks do not throw malformed URL errors
+- If no public brochure asset URL can be resolved, the route falls back safely to the internal `/brochure` page without exposing private document paths
 
 ### Private Documents
 
 - Buyer/admin private download route: `/api/documents/[documentId]/download`
+- Buyer/admin private receipt render route: `/api/receipts/[receiptId]/download`
 - Access requires tenant match and ownership/staff entitlement
 - Upload signing uses tenant-namespaced keys
 - Missing R2 config falls back safely in non-production flows instead of exposing internals
+
+### Branded Receipt Behavior
+
+- receipts are rendered with tenant company branding and company contact data
+- buyer access remains ownership-safe
+- tenant admins can also view tenant receipts
+- current implementation is a private render-first receipt download pipeline
+- it does not pretend background PDF generation or email delivery is live unless separately configured
 
 ## Health And Readiness Endpoints
 
@@ -463,6 +555,36 @@ EstateOS is now development-ready in the following sense:
 - health and readiness endpoints exist
 - client/server config boundaries are cleaner
 - production-only missing-core-service states are surfaced through runtime readiness checks and startup logs
+
+## Platform Marketing Site
+
+EstateOS now has a dedicated SaaS marketing surface under `/platform` with:
+
+- Home
+- Features
+- How it works
+- Pricing
+- Why EstateOS
+- FAQ
+- Contact / demo request
+
+This site is intentionally separate from tenant public property routes so the SaaS product story does not get mixed with a tenant company's listing website.
+
+## Current Expansion Pass Status
+
+Implemented in the current pass:
+
+- brochure redirect bug fix for route-handler-safe absolute redirects
+- dedicated `SUPER_ADMIN` platform dashboard and company oversight views
+- public EstateOS SaaS marketing site under `/platform`
+
+Still follow-up work:
+
+- deeper superadmin action surfaces beyond inspection and navigation
+- tenant-aware custom-domain routing for platform-vs-tenant host separation
+- richer platform marketing lead capture and CRM handoff for the EstateOS SaaS site
+- richer marketer profile media and resume upload UX
+- provider-side recurring buyer installment collection is still follow-up work
 
 ## Known Remaining Risks
 

@@ -8,7 +8,7 @@ export function MarketingFooter() {
     <footer className="border-t border-[var(--line)] bg-white">
       <Container className="grid gap-10 py-14 md:grid-cols-[1.6fr_1fr_1fr]">
         <div className="space-y-4">
-          <Logo />
+          <Logo href="/properties" />
           <p className="max-w-md text-sm leading-7 text-[var(--ink-600)]">
             A modern real estate operating system for high-trust property discovery,
             reservations, payments, and transaction visibility.
