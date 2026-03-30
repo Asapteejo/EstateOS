@@ -1,35 +1,28 @@
-import { Prisma } from "@prisma/client";
-
-import { writeAuditLog } from "@/lib/audit/service";
+import { requirePortalSession } from "@/lib/auth/guards";
 import { ok, fail } from "@/lib/http";
-import { publishDomainEvent } from "@/lib/notifications/events";
 import { requirePublicTenantContext } from "@/lib/tenancy/context";
 import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
-import { inspectionSchema } from "@/lib/validations/inquiries";
+import { createInspectionBooking } from "@/modules/inspections/service";
 
 export async function POST(request: Request) {
   const tenant = await requirePublicTenantContext();
+  let viewer = null;
   const json = (await request.json()) as Record<string, unknown>;
+
+  try {
+    viewer = await requirePortalSession({ redirectOnMissingAuth: false });
+  } catch {}
+
   try {
     rejectUnsafeCompanyIdInput(json);
   } catch {
     return fail("Caller-provided companyId is not allowed.", 400);
   }
 
-  const body = inspectionSchema.safeParse(json);
-  if (!body.success) {
-    return fail("Invalid inspection booking payload.");
+  try {
+    const booking = await createInspectionBooking(tenant, json, viewer);
+    return ok({ message: "Inspection booking submitted.", bookingId: booking.id }, { status: 201 });
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "Invalid inspection booking payload.");
   }
-
-  await publishDomainEvent("inspection/booked", body.data);
-  await writeAuditLog({
-    companyId: tenant.companyId,
-    action: "CREATE",
-    entityType: "InspectionBooking",
-    entityId: body.data.propertyId,
-    summary: `Inspection booked by ${body.data.fullName}`,
-    payload: body.data as unknown as Prisma.JsonObject,
-  });
-
-  return ok({ message: "Inspection booking submitted." }, { status: 201 });
 }

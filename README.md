@@ -394,6 +394,59 @@ Buyer payment transparency now renders from persisted database state:
 
 This is current-state rendering, not websocket-based realtime.
 
+### Inquiry Workflow
+
+- Public visitors can submit tenant-scoped property or general inquiries through `/api/inquiries`.
+- Authenticated buyers can submit the same inquiry flow from inside the portal dashboard.
+- Inquiry lifecycle now supports:
+  `NEW`
+  `CONTACTED`
+  `INSPECTION_BOOKED`
+  `QUALIFIED`
+  `CONVERTED`
+  `CLOSED`
+  `LOST`
+- Tenant admins manage inquiries from `/admin/leads`, including status changes, assignable staff routing, and internal notes.
+
+### Inspection Workflow
+
+- Public property pages can submit inspection requests through `/api/inspections`.
+- Inspection bookings are persisted and tenant-scoped.
+- Inspection lifecycle now supports:
+  `REQUESTED`
+  `CONFIRMED`
+  `RESCHEDULED`
+  `COMPLETED`
+  `CANCELLED`
+  `NO_SHOW`
+- Tenant admins manage bookings from `/admin/bookings`.
+- Buyers can review persisted booking state from `/portal/inspections`.
+
+### Notification Behavior
+
+- In-app notifications remain the required channel.
+- This pass adds practical coverage for:
+  inquiry received
+  inquiry assigned
+  inspection requested
+  inspection updated
+  reservation created
+  transaction stage updates
+  payment and receipt visibility
+- Email uses the current Resend foundation when configured; otherwise notification records still persist and email falls back to demo behavior.
+- Superadmin notifications remain separate from tenant notification streams.
+
+### Sales Pipeline Behavior
+
+- Tenant admins now have a dedicated `/admin/pipeline` view.
+- The pipeline summarizes:
+  leads / inquiries
+  inspections
+  reservations
+  payments in progress
+  completed deals
+- Cards are drill-down oriented and link back to the operational lists for leads, bookings, transactions, and payments.
+
 ### Purchase Installment Configuration
 
 Tenant admins can now configure purchase payment plans on properties with:

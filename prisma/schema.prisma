@@ -49,13 +49,17 @@ enum InquiryStatus {
   NEW
   QUALIFIED
   CONTACTED
+  INSPECTION_BOOKED
+  CONVERTED
   CLOSED
   LOST
 }
 
 enum InspectionStatus {
   PENDING
+  REQUESTED
   CONFIRMED
+  RESCHEDULED
   COMPLETED
   CANCELLED
   NO_SHOW
@@ -186,11 +190,16 @@ enum DocumentVisibility {
 
 enum NotificationType {
   INQUIRY_RECEIVED
+  INQUIRY_ASSIGNED
   INSPECTION_BOOKED
+  INSPECTION_UPDATED
   RESERVATION_CREATED
   PAYMENT_CONFIRMED
   DOCUMENT_REQUESTED
+  KYC_REVIEWED
   MILESTONE_UPDATED
+  RECEIPT_AVAILABLE
+  INSTALLMENT_DUE
   SYSTEM
 }
 
@@ -507,6 +516,7 @@ model User {
   transactions    Transaction[]
   payments        Payment[]
   documents       Document[]
+  inspectionBookings InspectionBooking[]
   notifications   Notification[]
   auditLogs       AuditLog[]
   activityEvents  ActivityEvent[]
@@ -580,6 +590,7 @@ model StaffProfile {
   isAssignable  Boolean   @default(true)
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   assignedLeads Inquiry[] @relation("AssignedStaff")
+  assignedInspections InspectionBooking[] @relation("AssignedInspectionStaff")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -747,6 +758,7 @@ model InspectionBooking {
   propertyId   String
   inquiryId    String?
   userId       String?
+  assignedStaffId String?
   fullName     String
   email        String
   phone        String?
@@ -756,10 +768,13 @@ model InspectionBooking {
   company      Company          @relation(fields: [companyId], references: [id])
   property     Property         @relation(fields: [propertyId], references: [id])
   inquiry      Inquiry?         @relation(fields: [inquiryId], references: [id])
+  user         User?            @relation(fields: [userId], references: [id])
+  assignedStaff StaffProfile?   @relation("AssignedInspectionStaff", fields: [assignedStaffId], references: [id])
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
 
   @@index([companyId, propertyId, scheduledFor])
+  @@index([companyId, assignedStaffId, status])
 }
 
 model Reservation {

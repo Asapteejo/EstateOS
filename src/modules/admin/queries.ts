@@ -5,6 +5,8 @@ import type { TenantContext } from "@/lib/tenancy/context";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { properties as demoProperties } from "@/modules/properties/demo-data";
 import { adminMetrics, adminTables } from "@/modules/admin/demo-data";
+import { getInquiryManagementList } from "@/modules/inquiries/service";
+import { getInspectionManagementList } from "@/modules/inspections/service";
 
 type ScopedFindManyDelegate = { findMany: (args?: unknown) => Promise<unknown> };
 type ScopedCountDelegate = { count: (args?: unknown) => Promise<unknown> };
@@ -25,6 +27,50 @@ export function buildAdminNotificationWhere() {
       in: ["IN_APP", "EMAIL"],
     },
   };
+}
+
+export function buildSalesPipelineCards(input: {
+  inquiries: number;
+  newInquiries: number;
+  inspections: number;
+  confirmedInspections: number;
+  reservations: number;
+  paymentsInProgress: number;
+  outstandingBalance: number;
+  completedDeals: number;
+}) {
+  return [
+    {
+      label: "Leads / inquiries",
+      count: input.inquiries,
+      detail: `${input.newInquiries} new`,
+      href: "/admin/leads",
+    },
+    {
+      label: "Inspections",
+      count: input.inspections,
+      detail: `${input.confirmedInspections} confirmed`,
+      href: "/admin/bookings",
+    },
+    {
+      label: "Reservations",
+      count: input.reservations,
+      detail: "Pending + active",
+      href: "/admin/transactions",
+    },
+    {
+      label: "Payments in progress",
+      count: input.paymentsInProgress,
+      detail: formatCurrency(input.outstandingBalance),
+      href: "/admin/payments",
+    },
+    {
+      label: "Completed",
+      count: input.completedDeals,
+      detail: "Final payment or handover done",
+      href: "/admin/transactions",
+    },
+  ];
 }
 
 export type AdminNotificationListItem = {
@@ -109,56 +155,13 @@ export async function getAdminInquiriesTable(context: TenantContext) {
     ]);
   }
 
-  const inquiries = (await findManyForTenant(
-    prisma.inquiry as ScopedFindManyDelegate,
-    context,
-    {
-      orderBy: { createdAt: "desc" },
-      select: {
-        fullName: true,
-        source: true,
-        status: true,
-        property: {
-          select: {
-            title: true,
-            companyId: true,
-          },
-        },
-        assignedStaff: {
-          select: {
-            user: {
-              select: {
-                firstName: true,
-                lastName: true,
-                companyId: true,
-              },
-            },
-          },
-        },
-      },
-    } as Parameters<typeof prisma.inquiry.findMany>[0],
-  )) as Array<{
-    fullName: string;
-    source: string;
-    status: string;
-    property: { title: string; companyId: string } | null;
-    assignedStaff: {
-      user: {
-        firstName: string | null;
-        lastName: string | null;
-        companyId: string | null;
-      };
-    } | null;
-  }>;
-
-  return inquiries.map((inquiry) => [
+  const items = await getInquiryManagementList(context);
+  return items.map((inquiry) => [
     inquiry.fullName,
-    inquiry.property?.companyId === context.companyId ? inquiry.property.title : "Unlinked",
+    inquiry.propertyTitle,
     inquiry.source,
     inquiry.status,
-    inquiry.assignedStaff?.user.companyId === context.companyId
-      ? `${inquiry.assignedStaff.user.firstName ?? ""} ${inquiry.assignedStaff.user.lastName ?? ""}`.trim() || "Unassigned"
-      : "Unassigned",
+    inquiry.assignedStaffName,
   ]);
 }
 
@@ -172,38 +175,128 @@ export async function getAdminBookingsTable(context: TenantContext) {
     ]);
   }
 
-  const bookings = (await findManyForTenant(
-    prisma.inspectionBooking as ScopedFindManyDelegate,
-    context,
-    {
-      orderBy: {
-        scheduledFor: "desc",
-      },
-      select: {
-        fullName: true,
-        scheduledFor: true,
-        status: true,
-        property: {
-          select: {
-            title: true,
-            companyId: true,
-          },
-        },
-      },
-    } as Parameters<typeof prisma.inspectionBooking.findMany>[0],
-  )) as Array<{
-    fullName: string;
-    scheduledFor: Date;
-    status: string;
-    property: { title: string; companyId: string } | null;
-  }>;
-
-  return bookings.map((booking) => [
+  const items = await getInspectionManagementList(context);
+  return items.map((booking) => [
     booking.fullName,
-    booking.property?.companyId === context.companyId ? booking.property.title : "Unlinked",
-    formatDate(booking.scheduledFor),
+    booking.propertyTitle,
+    formatDate(new Date(booking.scheduledFor)),
     booking.status,
   ]);
+}
+
+export async function getAdminSalesPipeline(context: TenantContext) {
+  if (!featureFlags.hasDatabase || !context.companyId) {
+    return {
+      cards: [
+        { label: "Leads / inquiries", count: 18, detail: "5 new this week", href: "/admin/leads" },
+        { label: "Inspections", count: 7, detail: "3 upcoming", href: "/admin/bookings" },
+        { label: "Reservations", count: 4, detail: "2 pending activation", href: "/admin/transactions" },
+        { label: "Payments in progress", count: 6, detail: "NGN 124M outstanding", href: "/admin/payments" },
+        { label: "Completed", count: 2, detail: "NGN 310M closed", href: "/admin/transactions" },
+      ],
+      upcomingInspections: adminTables.bookings.map((item) => [
+        item.client,
+        item.property,
+        item.date,
+        item.status,
+      ]),
+      recentLeads: adminTables.inquiries.map((item) => [
+        item.lead,
+        item.property,
+        item.status,
+        item.owner,
+      ]),
+    };
+  }
+
+  const [
+    totalInquiries,
+    upcomingInspections,
+    reservationCounts,
+    paymentsInProgress,
+    outstandingBalanceRaw,
+    completedDeals,
+    recentLeads,
+    inspectionRows,
+  ] = await Promise.all([
+    countForTenant(prisma.inquiry as ScopedCountDelegate, context, {
+      where: {
+        status: {
+          in: ["NEW", "CONTACTED", "QUALIFIED", "INSPECTION_BOOKED"],
+        },
+      },
+    } as Parameters<typeof prisma.inquiry.count>[0]),
+    countForTenant(prisma.inspectionBooking as ScopedCountDelegate, context, {
+      where: {
+        status: {
+          in: ["REQUESTED", "CONFIRMED", "RESCHEDULED", "PENDING"],
+        },
+      },
+    } as Parameters<typeof prisma.inspectionBooking.count>[0]),
+    countForTenant(prisma.reservation as ScopedCountDelegate, context, {
+      where: {
+        status: {
+          in: ["PENDING", "ACTIVE"],
+        },
+      },
+    } as Parameters<typeof prisma.reservation.count>[0]),
+    countForTenant(prisma.payment as ScopedCountDelegate, context, {
+      where: {
+        status: {
+          in: ["PENDING", "PROCESSING", "OVERDUE"],
+        },
+      },
+    } as Parameters<typeof prisma.payment.count>[0]),
+    aggregateForTenant(prisma.transaction as ScopedAggregateDelegate, context, {
+      where: {
+        currentStage: {
+          notIn: ["FINAL_PAYMENT_COMPLETED", "HANDOVER_COMPLETED"],
+        },
+      },
+      _sum: {
+        outstandingBalance: true,
+      },
+    } as Parameters<typeof prisma.transaction.aggregate>[0]),
+    countForTenant(prisma.transaction as ScopedCountDelegate, context, {
+      where: {
+        currentStage: {
+          in: ["FINAL_PAYMENT_COMPLETED", "HANDOVER_COMPLETED"],
+        },
+      },
+    } as Parameters<typeof prisma.transaction.count>[0]),
+    getInquiryManagementList(context),
+    getInspectionManagementList(context),
+  ]);
+
+  const outstandingValue =
+    ((outstandingBalanceRaw as {
+      _sum: { outstandingBalance: { toNumber?: () => number } | null };
+    })._sum.outstandingBalance?.toNumber?.() ?? 0);
+
+  return {
+    cards: buildSalesPipelineCards({
+      inquiries: Number(totalInquiries),
+      newInquiries: recentLeads.filter((item) => item.status === "NEW").length,
+      inspections: Number(upcomingInspections),
+      confirmedInspections: inspectionRows.filter((item) => item.status === "CONFIRMED").length,
+      reservations: Number(reservationCounts),
+      paymentsInProgress: Number(paymentsInProgress),
+      outstandingBalance: outstandingValue,
+      completedDeals: Number(completedDeals),
+    }),
+    upcomingInspections: inspectionRows.slice(0, 6).map((item) => [
+      item.fullName,
+      item.propertyTitle,
+      formatDate(new Date(item.scheduledFor), "PPP p"),
+      item.status,
+    ]),
+    recentLeads: recentLeads.slice(0, 6).map((item) => [
+      item.fullName,
+      item.propertyTitle,
+      item.status,
+      item.assignedStaffName,
+    ]),
+  };
 }
 
 export async function getAdminClientsTable(context: TenantContext) {

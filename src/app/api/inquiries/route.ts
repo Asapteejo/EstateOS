@@ -1,16 +1,18 @@
-import { Prisma } from "@prisma/client";
-
-import { writeAuditLog } from "@/lib/audit/service";
 import { ok, fail } from "@/lib/http";
-import { publishDomainEvent } from "@/lib/notifications/events";
 import { inquiryRateLimit } from "@/lib/rate-limit";
+import { requirePortalSession } from "@/lib/auth/guards";
 import { requirePublicTenantContext } from "@/lib/tenancy/context";
 import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
-import { inquirySchema } from "@/lib/validations/inquiries";
+import { createInquiry } from "@/modules/inquiries/service";
 
 export async function POST(request: Request) {
   const tenant = await requirePublicTenantContext();
+  let viewer = null;
   const ip = request.headers.get("x-forwarded-for") ?? "local";
+
+  try {
+    viewer = await requirePortalSession({ redirectOnMissingAuth: false });
+  } catch {}
 
   if (inquiryRateLimit) {
     const { success } = await inquiryRateLimit.limit(ip);
@@ -26,20 +28,10 @@ export async function POST(request: Request) {
     return fail("Caller-provided companyId is not allowed.", 400);
   }
 
-  const body = inquirySchema.safeParse(json);
-  if (!body.success) {
-    return fail("Invalid inquiry payload.");
+  try {
+    const inquiry = await createInquiry(tenant, json, viewer);
+    return ok({ message: "Inquiry received.", inquiryId: inquiry.id }, { status: 201 });
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "Invalid inquiry payload.");
   }
-
-  await publishDomainEvent("inquiry/received", body.data);
-  await writeAuditLog({
-    companyId: tenant.companyId,
-    action: "CREATE",
-    entityType: "Inquiry",
-    entityId: body.data.propertyId ?? "general",
-    summary: `Inquiry received from ${body.data.fullName}`,
-    payload: body.data as unknown as Prisma.JsonObject,
-  });
-
-  return ok({ message: "Inquiry received." }, { status: 201 });
 }

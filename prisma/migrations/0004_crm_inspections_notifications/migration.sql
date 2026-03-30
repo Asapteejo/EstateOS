@@ -1,0 +1,26 @@
+ALTER TYPE "InquiryStatus" ADD VALUE IF NOT EXISTS 'INSPECTION_BOOKED';
+ALTER TYPE "InquiryStatus" ADD VALUE IF NOT EXISTS 'CONVERTED';
+
+ALTER TYPE "InspectionStatus" ADD VALUE IF NOT EXISTS 'REQUESTED';
+ALTER TYPE "InspectionStatus" ADD VALUE IF NOT EXISTS 'RESCHEDULED';
+
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'INQUIRY_ASSIGNED';
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'INSPECTION_UPDATED';
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'KYC_REVIEWED';
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'RECEIPT_AVAILABLE';
+ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'INSTALLMENT_DUE';
+
+ALTER TABLE "InspectionBooking"
+ADD COLUMN "assignedStaffId" TEXT,
+ADD COLUMN "userId" TEXT;
+
+CREATE INDEX "InspectionBooking_companyId_assignedStaffId_status_idx"
+ON "InspectionBooking"("companyId", "assignedStaffId", "status");
+
+ALTER TABLE "InspectionBooking"
+ADD CONSTRAINT "InspectionBooking_userId_fkey"
+FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+ALTER TABLE "InspectionBooking"
+ADD CONSTRAINT "InspectionBooking_assignedStaffId_fkey"
+FOREIGN KEY ("assignedStaffId") REFERENCES "StaffProfile"("id") ON DELETE SET NULL ON UPDATE CASCADE;

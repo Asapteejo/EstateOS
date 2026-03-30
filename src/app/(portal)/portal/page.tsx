@@ -6,6 +6,7 @@ import { formatCurrency } from "@/lib/utils";
 import { getBuyerDashboardSummary, getBuyerPaymentExperience } from "@/modules/portal/queries";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { InquiryForm } from "@/components/marketing/inquiry-form";
 
 export default async function PortalDashboardPage() {
   const tenant = await requirePortalSession();
@@ -98,6 +99,19 @@ export default async function PortalDashboardPage() {
               {paymentExperience.selectedPaymentPlan ?? "Unselected"}
             </div>
           </div>
+        </div>
+      </Card>
+      <Card className="p-8">
+        <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
+          <div>
+            <h2 className="text-2xl font-semibold text-[var(--ink-950)]">Need more information?</h2>
+            <p className="mt-3 text-sm leading-7 text-[var(--ink-600)]">
+              Submit a quick inquiry from inside your buyer workspace. The tenant sales team
+              will receive it in their inquiry queue and you will still see follow-up updates
+              through your normal portal notifications.
+            </p>
+          </div>
+          <InquiryForm />
         </div>
       </Card>
     </DashboardShell>
