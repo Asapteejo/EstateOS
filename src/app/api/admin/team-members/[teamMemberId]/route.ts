@@ -7,19 +7,19 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ teamMemberId: string }> },
 ) {
-  const tenant = await requireAdminSession();
+  const tenant = await requireAdminSession(["ADMIN"]);
   const { teamMemberId } = await params;
   const json = (await request.json()) as Record<string, unknown>;
   const body = teamMemberMutationSchema.safeParse(json);
 
   if (!body.success) {
-    return fail("Invalid marketer profile payload.");
+    return fail("Invalid staff profile payload.");
   }
 
   try {
     const result = await updateTeamMemberForAdmin(tenant, teamMemberId, body.data);
     return ok(result);
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "Unable to update marketer profile.", 400);
+    return fail(error instanceof Error ? error.message : "Unable to update staff profile.", 400);
   }
 }

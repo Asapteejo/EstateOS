@@ -18,10 +18,13 @@ export type TeamMemberManagementRecord = {
   email: string | null;
   phone: string | null;
   whatsappNumber: string | null;
+  staffCode: string | null;
+  officeLocation: string | null;
   resumeDocumentId: string | null;
   profileHighlights: string[];
   portfolioText: string | null;
   portfolioLinks: string[];
+  socialLinks: string[];
   specialties: string[];
   sortOrder: number;
   isActive: boolean;
@@ -37,10 +40,14 @@ export type VisibleMarketerProfile = {
   avatarUrl: string | null;
   whatsappNumber: string | null;
   email: string | null;
+  phone: string | null;
+  staffCode: string | null;
+  officeLocation: string | null;
   specialties: string[];
   profileHighlights: string[];
   portfolioText: string | null;
   portfolioLinks: string[];
+  socialLinks: string[];
 };
 
 function parseStringArray(value: unknown) {
@@ -76,10 +83,13 @@ export async function getAdminTeamMembers(context: TenantContext) {
         email: true,
         phone: true,
         whatsappNumber: true,
+        staffCode: true,
+        officeLocation: true,
         resumeDocumentId: true,
         profileHighlights: true,
         portfolioText: true,
         portfolioLinks: true,
+        socialLinks: true,
         specialties: true,
         sortOrder: true,
         isActive: true,
@@ -96,10 +106,13 @@ export async function getAdminTeamMembers(context: TenantContext) {
     email: string | null;
     phone: string | null;
     whatsappNumber: string | null;
+    staffCode: string | null;
+    officeLocation: string | null;
     resumeDocumentId: string | null;
     profileHighlights: unknown;
     portfolioText: string | null;
     portfolioLinks: unknown;
+    socialLinks: unknown;
     specialties: unknown;
     sortOrder: number;
     isActive: boolean;
@@ -110,6 +123,7 @@ export async function getAdminTeamMembers(context: TenantContext) {
     ...row,
     profileHighlights: parseStringArray(row.profileHighlights),
     portfolioLinks: parseStringArray(row.portfolioLinks),
+    socialLinks: parseStringArray(row.socialLinks),
     specialties: parseStringArray(row.specialties),
   }));
 }
@@ -125,10 +139,14 @@ export async function getVisibleTeamMembers(context: TenantContext) {
       avatarUrl: member.image,
       whatsappNumber: member.phone,
       email: member.email,
+      phone: member.phone,
+      staffCode: null,
+      officeLocation: null,
       specialties: [],
       profileHighlights: [],
       portfolioText: null,
       portfolioLinks: [],
+      socialLinks: [],
     }));
   }
 
@@ -150,9 +168,13 @@ export async function getVisibleTeamMembers(context: TenantContext) {
         avatarUrl: true,
         whatsappNumber: true,
         email: true,
+        phone: true,
+        staffCode: true,
+        officeLocation: true,
         profileHighlights: true,
         portfolioText: true,
         portfolioLinks: true,
+        socialLinks: true,
         specialties: true,
       },
     } as Parameters<typeof prisma.teamMember.findMany>[0],
@@ -165,9 +187,13 @@ export async function getVisibleTeamMembers(context: TenantContext) {
     avatarUrl: string | null;
     whatsappNumber: string | null;
     email: string | null;
+    phone: string | null;
+    staffCode: string | null;
+    officeLocation: string | null;
     profileHighlights: unknown;
     portfolioText: string | null;
     portfolioLinks: unknown;
+    socialLinks: unknown;
     specialties: unknown;
   }>;
 
@@ -175,8 +201,99 @@ export async function getVisibleTeamMembers(context: TenantContext) {
     ...row,
     profileHighlights: parseStringArray(row.profileHighlights),
     portfolioLinks: parseStringArray(row.portfolioLinks),
+    socialLinks: parseStringArray(row.socialLinks),
     specialties: parseStringArray(row.specialties),
   }));
+}
+
+export async function getVisibleTeamMemberBySlug(
+  context: TenantContext,
+  slug: string,
+) {
+  if (!featureFlags.hasDatabase || !context.companyId) {
+    const member = demoTeamMembers.find((entry) => entry.slug === slug);
+    if (!member) {
+      return null;
+    }
+
+    return {
+      id: member.slug,
+      slug: member.slug,
+      fullName: member.fullName,
+      title: member.title,
+      bio: member.bio,
+      avatarUrl: member.image,
+      whatsappNumber: member.phone,
+      email: member.email,
+      phone: member.phone,
+      staffCode: null,
+      officeLocation: null,
+      specialties: [],
+      profileHighlights: [],
+      portfolioText: null,
+      portfolioLinks: [],
+      socialLinks: [],
+    };
+  }
+
+  const row = (await findFirstForTenant(
+    prisma.teamMember as ScopedFindFirstDelegate,
+    context,
+    {
+      where: {
+        slug,
+        isPublished: true,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        slug: true,
+        fullName: true,
+        title: true,
+        bio: true,
+        avatarUrl: true,
+        whatsappNumber: true,
+        email: true,
+        phone: true,
+        staffCode: true,
+        officeLocation: true,
+        profileHighlights: true,
+        portfolioText: true,
+        portfolioLinks: true,
+        socialLinks: true,
+        specialties: true,
+      },
+    } as Parameters<typeof prisma.teamMember.findFirst>[0],
+  )) as {
+    id: string;
+    slug: string;
+    fullName: string;
+    title: string;
+    bio: string;
+    avatarUrl: string | null;
+    whatsappNumber: string | null;
+    email: string | null;
+    phone: string | null;
+    staffCode: string | null;
+    officeLocation: string | null;
+    profileHighlights: unknown;
+    portfolioText: string | null;
+    portfolioLinks: unknown;
+    socialLinks: unknown;
+    specialties: unknown;
+  } | null;
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    ...row,
+    profileHighlights: parseStringArray(row.profileHighlights),
+    portfolioLinks: parseStringArray(row.portfolioLinks),
+    socialLinks: parseStringArray(row.socialLinks),
+    specialties: parseStringArray(row.specialties),
+  };
 }
 
 export async function ensureVisibleTeamMember(

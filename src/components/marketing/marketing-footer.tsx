@@ -30,6 +30,7 @@ export function MarketingFooter() {
           </h4>
           <div className="space-y-2 text-sm text-[var(--ink-700)]">
             <Link href="/about" className="block">About</Link>
+            <Link href="/team" className="block">Team</Link>
             <Link href="/careers" className="block">Careers</Link>
             <Link href="/contact" className="block">Contact</Link>
           </div>

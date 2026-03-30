@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 
 import { writeAuditLog } from "@/lib/audit/service";
+import { hasRequiredRole } from "@/lib/auth/roles";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import type { TenantContext } from "@/lib/tenancy/context";
@@ -53,10 +54,13 @@ function buildTeamMemberData(
     email: input.email,
     phone: input.phone,
     whatsappNumber: input.whatsappNumber,
+    staffCode: input.staffCode,
+    officeLocation: input.officeLocation,
     resumeDocumentId: resumeDocumentId ?? null,
     profileHighlights: input.profileHighlights,
     portfolioText: input.portfolioText,
     portfolioLinks: input.portfolioLinks,
+    socialLinks: input.socialLinks,
     specialties: input.specialties,
     sortOrder: input.sortOrder,
     isActive: input.isActive,
@@ -64,10 +68,21 @@ function buildTeamMemberData(
   };
 }
 
+export function canTenantAdminManageTeamProfiles(context: TenantContext) {
+  return !context.isSuperAdmin && hasRequiredRole(context.roles, ["ADMIN"]);
+}
+
+function assertTenantAdminCanManageTeam(context: TenantContext) {
+  if (!canTenantAdminManageTeamProfiles(context)) {
+    throw new Error("Only tenant admins may manage staff profiles.");
+  }
+}
+
 export async function createTeamMemberForAdmin(
   context: TenantContext,
   rawInput: TeamMemberMutationInput & Record<string, unknown>,
 ) {
+  assertTenantAdminCanManageTeam(context);
   rejectUnsafeCompanyIdInput(rawInput);
 
   if (!featureFlags.hasDatabase || !context.companyId) {
@@ -112,6 +127,7 @@ export async function updateTeamMemberForAdmin(
   marketerId: string,
   rawInput: TeamMemberMutationInput & Record<string, unknown>,
 ) {
+  assertTenantAdminCanManageTeam(context);
   rejectUnsafeCompanyIdInput(rawInput);
 
   if (!featureFlags.hasDatabase || !context.companyId) {

@@ -17,23 +17,43 @@ The current routing model now separates four distinct surfaces:
 - tenant public marketing and property routes such as `/properties`
   public company-facing discovery experience scoped to one tenant
 
-## Tenant Marketers And Buyer Guidance
+## Tenant Staff Directory And Buyer Guidance
 
 EstateOS now supports tenant-managed marketer profiles using the company-owned `TeamMember` domain.
 
-- tenant admins manage marketer/staff profiles under `/admin/team`
+- tenant admins manage staff and marketer profiles under `/admin/team`
 - profiles are tenant-scoped and only visible to buyers/public pages when both `isActive` and `isPublished` are true
-- marketer profile fields now support:
+- staff profile fields now support:
   full name
   title
   photo URL
   bio
+  staff code
+  office location
   profile highlights
   WhatsApp number
   email
   optional resume document link
   portfolio text and links
+  social links
   specialties
+- public tenant directory now lives under `/team`
+- optional public profile detail pages now live under `/team/[slug]`
+- public contact actions render only when valid data exists:
+  `mailto:` for email
+  `https://wa.me/...` for WhatsApp
+- tenant admins can generate branded staff ID cards from `/admin/team`
+- ID cards are render-first HTML downloads and include:
+  company logo
+  company name and address
+  staff name and role
+  profile photo
+  contact details
+  staff code
+  QR code to the tenant public site
+- QR destination rules are:
+  custom domain when configured
+  otherwise tenant public route fallback under `/properties`
 - buyers can optionally select a marketer during reservation flow
 - selected marketer is persisted on reservation, transaction, and payment records where applicable
 - tenant admins can see marketer attribution in payment and transaction views
@@ -82,6 +102,8 @@ The codebase is designed for one-company MVP usage today and SaaS-style tenant i
 - Privileged writes reject caller-supplied `companyId`.
 - Private document access requires tenant match plus ownership or staff entitlement.
 - Payment references and storage keys are tenant-namespaced before leaving the app.
+- Public staff directory reads return only active + published `TeamMember` rows for the resolved tenant.
+- Staff ID-card generation is admin-only and uses the requesting tenant context before loading branding or profile data.
 
 ## Billing And Monetization Model
 

@@ -1,14 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Download, Eye, EyeOff, ShieldCheck, Users } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import type { TeamMemberManagementRecord } from "@/modules/team/queries";
 
 type TeamMemberFormState = {
@@ -20,10 +22,13 @@ type TeamMemberFormState = {
   email: string;
   phone: string;
   whatsappNumber: string;
+  staffCode: string;
+  officeLocation: string;
   resumeDocumentId: string;
   profileHighlights: string;
   portfolioText: string;
   portfolioLinks: string;
+  socialLinks: string;
   specialties: string;
   sortOrder: string;
   isActive: boolean;
@@ -40,10 +45,13 @@ function emptyState(): TeamMemberFormState {
     email: "",
     phone: "",
     whatsappNumber: "",
+    staffCode: "",
+    officeLocation: "",
     resumeDocumentId: "",
     profileHighlights: "",
     portfolioText: "",
     portfolioLinks: "",
+    socialLinks: "",
     specialties: "",
     sortOrder: "0",
     isActive: true,
@@ -61,10 +69,13 @@ function toFormState(record: TeamMemberManagementRecord): TeamMemberFormState {
     email: record.email ?? "",
     phone: record.phone ?? "",
     whatsappNumber: record.whatsappNumber ?? "",
+    staffCode: record.staffCode ?? "",
+    officeLocation: record.officeLocation ?? "",
     resumeDocumentId: record.resumeDocumentId ?? "",
     profileHighlights: record.profileHighlights.join(", "),
     portfolioText: record.portfolioText ?? "",
     portfolioLinks: record.portfolioLinks.join(", "),
+    socialLinks: record.socialLinks.join(", "),
     specialties: record.specialties.join(", "),
     sortOrder: String(record.sortOrder),
     isActive: record.isActive,
@@ -73,6 +84,12 @@ function toFormState(record: TeamMemberManagementRecord): TeamMemberFormState {
 }
 
 function serialize(state: TeamMemberFormState) {
+  const list = (value: string) =>
+    value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
   return {
     fullName: state.fullName,
     slug: state.slug || undefined,
@@ -82,20 +99,14 @@ function serialize(state: TeamMemberFormState) {
     email: state.email || undefined,
     phone: state.phone || undefined,
     whatsappNumber: state.whatsappNumber || undefined,
+    staffCode: state.staffCode || undefined,
+    officeLocation: state.officeLocation || undefined,
     resumeDocumentId: state.resumeDocumentId || undefined,
-    profileHighlights: state.profileHighlights
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean),
+    profileHighlights: list(state.profileHighlights),
     portfolioText: state.portfolioText || undefined,
-    portfolioLinks: state.portfolioLinks
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean),
-    specialties: state.specialties
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean),
+    portfolioLinks: list(state.portfolioLinks),
+    socialLinks: list(state.socialLinks),
+    specialties: list(state.specialties),
     sortOrder: Number(state.sortOrder || 0),
     isActive: state.isActive,
     isPublished: state.isPublished,
@@ -107,6 +118,19 @@ function SectionTitle({ title, description }: { title: string; description: stri
     <div>
       <h3 className="text-base font-semibold text-[var(--ink-950)]">{title}</h3>
       <p className="mt-1 text-sm text-[var(--ink-500)]">{description}</p>
+    </div>
+  );
+}
+
+function StatusPills({ member }: { member: TeamMemberManagementRecord }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <Badge className={member.isActive ? "" : "bg-[var(--sand-100)] text-[var(--ink-500)]"}>
+        {member.isActive ? "Active" : "Inactive"}
+      </Badge>
+      <Badge className={member.isPublished ? "" : "bg-[var(--sand-100)] text-[var(--ink-500)]"}>
+        {member.isPublished ? "Public" : "Private"}
+      </Badge>
     </div>
   );
 }
@@ -135,20 +159,18 @@ export function TeamManagement({
     setPending("create");
     const response = await fetch("/api/admin/team-members", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(serialize(createState)),
     });
     setPending(null);
 
     if (!response.ok) {
       const json = (await response.json().catch(() => null)) as { error?: string } | null;
-      toast.error(json?.error ?? "Unable to create marketer profile.");
+      toast.error(json?.error ?? "Unable to create staff profile.");
       return;
     }
 
-    toast.success("Marketer profile created.");
+    toast.success("Staff profile created.");
     setCreateState(emptyState());
     router.refresh();
   }
@@ -157,48 +179,59 @@ export function TeamManagement({
     setPending(memberId);
     const response = await fetch(`/api/admin/team-members/${memberId}`, {
       method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(serialize(drafts[memberId])),
     });
     setPending(null);
 
     if (!response.ok) {
       const json = (await response.json().catch(() => null)) as { error?: string } | null;
-      toast.error(json?.error ?? "Unable to update marketer profile.");
+      toast.error(json?.error ?? "Unable to update staff profile.");
       return;
     }
 
-    toast.success("Marketer profile updated.");
+    toast.success("Staff profile updated.");
     router.refresh();
   }
 
   return (
     <div className="space-y-8">
-      <Card className="p-6">
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <SectionTitle
-            title="Create marketer profile"
-            description="Manage the visible staff and marketer profiles buyers can choose during reservation and payment flows."
-          />
-          <Badge>Tenant-scoped</Badge>
+      <Card className="overflow-hidden border-[var(--line)] bg-white">
+        <div className="border-b border-[var(--line)] bg-[linear-gradient(135deg,#f7f1e7,#edf5f0)] px-6 py-5">
+          <div className="flex items-start justify-between gap-4">
+            <SectionTitle
+              title="Create staff profile"
+              description="Profiles here power the public staff directory, buyer contact experience, and printable branded ID cards."
+            />
+            <Badge className="gap-2">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Tenant-admin only
+            </Badge>
+          </div>
         </div>
-        <TeamMemberEditor
-          value={createState}
-          resumeDocuments={resumeDocuments}
-          onChange={setCreateState}
-          onSubmit={submitCreate}
-          submitLabel={pending === "create" ? "Creating..." : "Create marketer profile"}
-        />
+        <div className="p-6">
+          <TeamMemberEditor
+            value={createState}
+            resumeDocuments={resumeDocuments}
+            onChange={setCreateState}
+            onSubmit={submitCreate}
+            submitLabel={pending === "create" ? "Creating..." : "Create staff profile"}
+          />
+        </div>
       </Card>
 
       <div className="grid gap-6 xl:grid-cols-[0.38fr_0.62fr]">
-        <Card className="p-6">
-          <SectionTitle
-            title="Visible staff"
-            description="Choose a marketer profile to edit visibility, contact details, and portfolio information."
-          />
+        <Card className="border-[var(--line)] bg-white p-6">
+          <div className="flex items-start justify-between gap-4">
+            <SectionTitle
+              title="Current team directory"
+              description="Activate, hide, reorder, or open a profile to refine what appears on your public staff pages."
+            />
+            <Badge className="gap-2 bg-[var(--sand-100)] text-[var(--ink-600)]">
+              <Users className="h-3.5 w-3.5" />
+              {members.length} profiles
+            </Badge>
+          </div>
           <div className="mt-5 space-y-3">
             {members.map((member) => (
               <button
@@ -208,29 +241,48 @@ export function TeamManagement({
                 className={`w-full rounded-3xl border px-4 py-4 text-left transition ${
                   editingId === member.id
                     ? "border-[var(--brand-500)] bg-[var(--sand-100)]"
-                    : "border-[var(--line)] bg-white"
+                    : "border-[var(--line)] bg-white hover:border-[var(--brand-300)]"
                 }`}
               >
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <div className="font-semibold text-[var(--ink-950)]">{member.fullName}</div>
-                    <div className="mt-1 text-sm text-[var(--ink-500)]">{member.title}</div>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-2">
+                    <div>
+                      <div className="font-semibold text-[var(--ink-950)]">{member.fullName}</div>
+                      <div className="mt-1 text-sm text-[var(--ink-500)]">{member.title}</div>
+                    </div>
+                    <StatusPills member={member} />
+                    <div className="text-xs uppercase tracking-[0.18em] text-[var(--ink-400)]">
+                      {member.staffCode ?? "No staff code"} · order {member.sortOrder}
+                    </div>
                   </div>
-                  <Badge>{member.isActive && member.isPublished ? "visible" : "hidden"}</Badge>
+                  <div className="flex gap-2 text-[var(--ink-400)]">
+                    {member.isPublished ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                  </div>
                 </div>
               </button>
             ))}
+            {members.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-[var(--line)] px-4 py-10 text-center text-sm text-[var(--ink-500)]">
+                No staff profiles yet. Create the first profile to populate the tenant directory.
+              </div>
+            ) : null}
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="border-[var(--line)] bg-white p-6">
           {editingMember && editingId ? (
             <>
-              <div className="mb-6">
+              <div className="mb-6 flex items-start justify-between gap-4">
                 <SectionTitle
                   title={`Edit ${editingMember.fullName}`}
-                  description="Update biography, WhatsApp details, specialties, and visibility without crossing tenant boundaries."
+                  description="Adjust visibility, contact details, branding fields, and public profile content without crossing tenant boundaries."
                 />
+                <Link href={`/api/admin/team-members/${editingId}/id-card`} target="_blank">
+                  <Button type="button" variant="outline" className="gap-2">
+                    <Download className="h-4 w-4" />
+                    Download ID card
+                  </Button>
+                </Link>
               </div>
               <TeamMemberEditor
                 value={drafts[editingId] ?? toFormState(editingMember)}
@@ -247,7 +299,7 @@ export function TeamManagement({
             </>
           ) : (
             <div className="rounded-3xl border border-dashed border-[var(--line)] p-10 text-center text-sm text-[var(--ink-500)]">
-              Select a marketer profile to start editing.
+              Select a staff profile to edit its public presence and ID-card details.
             </div>
           )}
         </Card>
@@ -282,14 +334,16 @@ function TeamMemberEditor({
         <Input placeholder="Full name" value={value.fullName} onChange={(event) => update("fullName", event.target.value)} />
         <Input placeholder="Role or title" value={value.title} onChange={(event) => update("title", event.target.value)} />
         <Input placeholder="Profile slug (optional)" value={value.slug} onChange={(event) => update("slug", event.target.value)} />
-        <Input placeholder="Avatar URL" value={value.avatarUrl} onChange={(event) => update("avatarUrl", event.target.value)} />
+        <Input placeholder="Profile image URL" value={value.avatarUrl} onChange={(event) => update("avatarUrl", event.target.value)} />
+        <Input placeholder="Staff code" value={value.staffCode} onChange={(event) => update("staffCode", event.target.value)} />
+        <Input placeholder="Office location" value={value.officeLocation} onChange={(event) => update("officeLocation", event.target.value)} />
         <Input placeholder="Email" value={value.email} onChange={(event) => update("email", event.target.value)} />
         <Input placeholder="Phone" value={value.phone} onChange={(event) => update("phone", event.target.value)} />
         <Input placeholder="WhatsApp number" value={value.whatsappNumber} onChange={(event) => update("whatsappNumber", event.target.value)} />
-        <Input placeholder="Sort order" value={value.sortOrder} onChange={(event) => update("sortOrder", event.target.value)} />
+        <Input placeholder="Display order" value={value.sortOrder} onChange={(event) => update("sortOrder", event.target.value)} />
       </div>
 
-      <Textarea placeholder="Bio" value={value.bio} onChange={(event) => update("bio", event.target.value)} />
+      <Textarea placeholder="Bio / about" value={value.bio} onChange={(event) => update("bio", event.target.value)} />
       <Textarea
         placeholder="Profile highlights, comma separated"
         value={value.profileHighlights}
@@ -301,7 +355,7 @@ function TeamMemberEditor({
         onChange={(event) => update("specialties", event.target.value)}
       />
       <Textarea
-        placeholder="Portfolio text"
+        placeholder="Portfolio summary"
         value={value.portfolioText}
         onChange={(event) => update("portfolioText", event.target.value)}
       />
@@ -309,6 +363,11 @@ function TeamMemberEditor({
         placeholder="Portfolio links, comma separated"
         value={value.portfolioLinks}
         onChange={(event) => update("portfolioLinks", event.target.value)}
+      />
+      <Textarea
+        placeholder="Social links, comma separated"
+        value={value.socialLinks}
+        onChange={(event) => update("socialLinks", event.target.value)}
       />
 
       <select
@@ -324,14 +383,14 @@ function TeamMemberEditor({
         ))}
       </select>
 
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4 rounded-3xl border border-[var(--line)] bg-[var(--sand-50)] px-4 py-4">
         <label className="flex items-center gap-2 text-sm text-[var(--ink-700)]">
           <input
             type="checkbox"
             checked={value.isActive}
             onChange={(event) => update("isActive", event.target.checked)}
           />
-          Active
+          Active profile
         </label>
         <label className="flex items-center gap-2 text-sm text-[var(--ink-700)]">
           <input
@@ -339,7 +398,7 @@ function TeamMemberEditor({
             checked={value.isPublished}
             onChange={(event) => update("isPublished", event.target.checked)}
           />
-          Visible to buyers
+          Visible on public team pages
         </label>
         <Button type="button" onClick={onSubmit}>
           {submitLabel}

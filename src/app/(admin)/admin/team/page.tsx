@@ -4,7 +4,7 @@ import { requireAdminSession } from "@/lib/auth/guards";
 import { getAdminTeamMembers, getAvailableResumeDocuments } from "@/modules/team/queries";
 
 export default async function AdminTeamPage() {
-  const tenant = await requireAdminSession();
+  const tenant = await requireAdminSession(["ADMIN"]);
   const [members, resumeDocuments] = await Promise.all([
     getAdminTeamMembers(tenant),
     getAvailableResumeDocuments(tenant),
@@ -13,8 +13,8 @@ export default async function AdminTeamPage() {
   return (
     <DashboardShell
       area="admin"
-      title="Team & Marketers"
-      subtitle="Manage the visible staff profiles buyers can review and select during purchase flows."
+      title="Staff Directory"
+      subtitle="Manage the public-facing staff and marketer profiles your company presents to buyers and prospects."
     >
       <TeamManagement members={members} resumeDocuments={resumeDocuments} />
     </DashboardShell>

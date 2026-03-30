@@ -1074,10 +1074,13 @@ model TeamMember {
   email       String?
   phone       String?
   whatsappNumber String?
+  staffCode   String?
+  officeLocation String?
   resumeDocumentId String?
   profileHighlights Json?
   portfolioText String?
   portfolioLinks Json?
+  socialLinks Json?
   specialties Json?
   isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
@@ -1090,6 +1093,7 @@ model TeamMember {
   updatedAt   DateTime @updatedAt
 
   @@unique([companyId, slug])
+  @@unique([companyId, staffCode])
   @@index([companyId, isPublished, isActive, sortOrder])
 }
 

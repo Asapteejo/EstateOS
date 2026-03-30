@@ -4,18 +4,18 @@ import { teamMemberMutationSchema } from "@/lib/validations/team";
 import { createTeamMemberForAdmin } from "@/modules/team/mutations";
 
 export async function POST(request: Request) {
-  const tenant = await requireAdminSession();
+  const tenant = await requireAdminSession(["ADMIN"]);
   const json = (await request.json()) as Record<string, unknown>;
   const body = teamMemberMutationSchema.safeParse(json);
 
   if (!body.success) {
-    return fail("Invalid marketer profile payload.");
+    return fail("Invalid staff profile payload.");
   }
 
   try {
     const result = await createTeamMemberForAdmin(tenant, body.data);
     return ok(result, { status: 201 });
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "Unable to create marketer profile.", 400);
+    return fail(error instanceof Error ? error.message : "Unable to create staff profile.", 400);
   }
 }
