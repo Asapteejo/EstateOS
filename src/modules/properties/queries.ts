@@ -15,6 +15,10 @@ import {
   type PropertySearchParams,
 } from "@/lib/validations/properties";
 import { properties as demoProperties, getPropertyBySlug } from "@/modules/properties/demo-data";
+import {
+  buildPropertyVerificationPresentation,
+  buildPublicPropertyVerificationWhere,
+} from "@/modules/properties/verification";
 import type { PropertySummary } from "@/types/domain";
 
 type ScopedFindManyDelegate = { findMany: (args?: unknown) => Promise<unknown> };
@@ -83,6 +87,11 @@ type PropertyRow = {
   status: string;
   isFeatured: boolean;
   hasPaymentPlan: boolean;
+  lastVerifiedAt: Date | null;
+  verificationStatus: "VERIFIED" | "STALE" | "UNVERIFIED" | "HIDDEN";
+  verificationDueAt: Date;
+  isPubliclyVisible: boolean;
+  autoHiddenAt: Date | null;
   priceFrom: Decimalish;
   priceTo: Decimalish | null;
   bedrooms: number | null;
@@ -155,9 +164,13 @@ type DetailPropertyRow = Omit<PropertyRow, "units" | "paymentPlans"> & {
 export function buildPublicPropertyWhere(
   context: TenantContext,
   where?: Record<string, unknown>,
+  now = new Date(),
 ) {
   return scopeTenantWhere(context, {
-    ...(where ?? {}),
+    AND: [
+      where ?? {},
+      buildPublicPropertyVerificationWhere(),
+    ],
     status: {
       in: [...PUBLIC_PROPERTY_STATUSES],
     },
@@ -182,6 +195,7 @@ export function parsePropertySearchParams(
 export function buildPublicPropertyFilterWhere(
   context: TenantContext,
   filters: PublicPropertyFilters,
+  now = new Date(),
 ) {
   const andFilters: Array<Record<string, unknown>> = [];
 
@@ -257,7 +271,11 @@ export function buildPublicPropertyFilterWhere(
     });
   }
 
-  return buildPublicPropertyWhere(context, andFilters.length > 0 ? { AND: andFilters } : undefined);
+  return buildPublicPropertyWhere(
+    context,
+    andFilters.length > 0 ? { AND: andFilters } : undefined,
+    now,
+  );
 }
 
 export function buildPropertyBrochureHref(slug: string) {
@@ -306,6 +324,11 @@ export async function getPublicProperties(
           status: true,
           isFeatured: true,
           hasPaymentPlan: true,
+          lastVerifiedAt: true,
+          verificationStatus: true,
+          verificationDueAt: true,
+          isPubliclyVisible: true,
+          autoHiddenAt: true,
           priceFrom: true,
           priceTo: true,
           bedrooms: true,
@@ -444,6 +467,11 @@ export async function getPublicPropertyDetailBySlug(
         status: true,
         isFeatured: true,
         hasPaymentPlan: true,
+        lastVerifiedAt: true,
+        verificationStatus: true,
+        verificationDueAt: true,
+        isPubliclyVisible: true,
+        autoHiddenAt: true,
         priceFrom: true,
         priceTo: true,
         bedrooms: true,
@@ -693,6 +721,13 @@ function mapPropertyRowToSummary(property: PropertyRow): PropertySummary {
   const unitBedrooms = property.units
     .map((unit) => unit.bedrooms ?? 0)
     .filter((bedrooms) => bedrooms > 0);
+  const verification = buildPropertyVerificationPresentation({
+    lastVerifiedAt: property.lastVerifiedAt,
+    verificationStatus: property.verificationStatus,
+    verificationDueAt: property.verificationDueAt,
+    isPubliclyVisible: property.isPubliclyVisible,
+    autoHiddenAt: property.autoHiddenAt,
+  });
 
   return {
     id: property.id,
@@ -735,6 +770,15 @@ function mapPropertyRowToSummary(property: PropertyRow): PropertySummary {
       : [],
     brochureName: `${property.slug}-brochure.pdf`,
     inquiryCount: property.inquiries.length,
+    verification: {
+      status: verification.status,
+      label: verification.label,
+      detail: verification.detail,
+      tone: verification.tone,
+      isPubliclyVisible: verification.isPubliclyVisible,
+      lastVerifiedAt: verification.lastVerifiedAt?.toISOString(),
+      verificationDueAt: verification.verificationDueAt.toISOString(),
+    },
   };
 }
 

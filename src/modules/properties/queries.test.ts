@@ -20,9 +20,19 @@ const marketingTenant = {
   resolutionSource: "subdomain" as const,
 };
 
+const now = new Date("2026-04-02T00:00:00.000Z");
+
 test("public property where clause is tenant-aware", () => {
-  assert.deepEqual(buildPublicPropertyWhere(marketingTenant, { slug: "eko-atrium-residences" }), {
-    slug: "eko-atrium-residences",
+  assert.deepEqual(buildPublicPropertyWhere(marketingTenant, { slug: "eko-atrium-residences" }, now), {
+    AND: [
+      { slug: "eko-atrium-residences" },
+      {
+        isPubliclyVisible: true,
+        verificationStatus: {
+          in: ["VERIFIED", "STALE"],
+        },
+      },
+    ],
     status: {
       in: ["AVAILABLE", "RESERVED", "SOLD"],
     },
@@ -31,7 +41,16 @@ test("public property where clause is tenant-aware", () => {
 });
 
 test("public property where clause filters out draft and archived rows", () => {
-  assert.deepEqual(buildPublicPropertyWhere(marketingTenant), {
+  assert.deepEqual(buildPublicPropertyWhere(marketingTenant, undefined, now), {
+    AND: [
+      {},
+      {
+        isPubliclyVisible: true,
+        verificationStatus: {
+          in: ["VERIFIED", "STALE"],
+        },
+      },
+    ],
     status: {
       in: ["AVAILABLE", "RESERVED", "SOLD"],
     },
@@ -51,50 +70,60 @@ test("public property filter where includes URL-backed filters", () => {
       hasPaymentPlan: true,
       featured: true,
       page: 1,
-    }),
+    }, now),
     {
       companyId: "company_1",
+      AND: [
+        {
+          AND: [
+            {
+              OR: [
+                { locationSummary: { contains: "Lagos", mode: "insensitive" } },
+                { location: { city: { contains: "Lagos", mode: "insensitive" } } },
+                { location: { state: { contains: "Lagos", mode: "insensitive" } } },
+                { title: { contains: "Lagos", mode: "insensitive" } },
+              ],
+            },
+            { propertyType: "APARTMENT" },
+            { status: "AVAILABLE" },
+            { isFeatured: true },
+            {
+              OR: [
+                { hasPaymentPlan: true },
+                { paymentPlans: { some: { isActive: true } } },
+              ],
+            },
+            {
+              OR: [
+                { bedrooms: { gte: 3 } },
+                { units: { some: { bedrooms: { gte: 3 } } } },
+              ],
+            },
+            {
+              OR: [
+                { priceFrom: { gte: 1000000 } },
+                { units: { some: { price: { gte: 1000000 } } } },
+              ],
+            },
+            {
+              OR: [
+                { priceFrom: { lte: 5000000 } },
+                { priceTo: { lte: 5000000 } },
+                { units: { some: { price: { lte: 5000000 } } } },
+              ],
+            },
+          ],
+        },
+        {
+          isPubliclyVisible: true,
+          verificationStatus: {
+            in: ["VERIFIED", "STALE"],
+          },
+        },
+      ],
       status: {
         in: ["AVAILABLE", "RESERVED", "SOLD"],
       },
-      AND: [
-        {
-          OR: [
-            { locationSummary: { contains: "Lagos", mode: "insensitive" } },
-            { location: { city: { contains: "Lagos", mode: "insensitive" } } },
-            { location: { state: { contains: "Lagos", mode: "insensitive" } } },
-            { title: { contains: "Lagos", mode: "insensitive" } },
-          ],
-        },
-        { propertyType: "APARTMENT" },
-        { status: "AVAILABLE" },
-        { isFeatured: true },
-        {
-          OR: [
-            { hasPaymentPlan: true },
-            { paymentPlans: { some: { isActive: true } } },
-          ],
-        },
-        {
-          OR: [
-            { bedrooms: { gte: 3 } },
-            { units: { some: { bedrooms: { gte: 3 } } } },
-          ],
-        },
-        {
-          OR: [
-            { priceFrom: { gte: 1000000 } },
-            { units: { some: { price: { gte: 1000000 } } } },
-          ],
-        },
-        {
-          OR: [
-            { priceFrom: { lte: 5000000 } },
-            { priceTo: { lte: 5000000 } },
-            { units: { some: { price: { lte: 5000000 } } } },
-          ],
-        },
-      ],
     },
   );
 });

@@ -19,8 +19,9 @@ import {
   calculateOutstandingBalance,
   deriveTransactionStageFromPayment,
 } from "@/modules/transactions/workflow";
-import { syncTransactionMilestones } from "@/modules/transactions/mutations";
+import { syncTransactionMilestones, syncTransactionPaymentState } from "@/modules/transactions/mutations";
 import { buildSettlementQuote, getCompanyPlanStatus, recordBillingEvent } from "@/modules/billing/service";
+import { reconcilePaymentRequestFromPayment } from "@/modules/payment-requests/service";
 
 type PaystackWebhookPayload = {
   event: string;
@@ -467,6 +468,11 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
             currentStage: updatedTransaction.currentStage,
           });
 
+          await syncTransactionPaymentState(tx, {
+            companyId: company.id,
+            transactionId: updatedTransaction.id,
+          });
+
           if (updatedTransaction.currentStage === "FINAL_PAYMENT_COMPLETED" && updatedTransaction.reservation) {
             await tx.reservation.update({
               where: {
@@ -694,6 +700,17 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
         settlementReady: billingQuote.settlement.ready,
         commissionAmount: billingQuote.breakdown.platformCommission,
       } as Prisma.InputJsonValue,
+    });
+
+    await reconcilePaymentRequestFromPayment({
+      companyId: company.id,
+      paymentId: payment.id,
+      providerReference: reference,
+      metadata:
+        rawPayload.data?.metadata && typeof rawPayload.data.metadata === "object"
+          ? rawPayload.data.metadata
+          : undefined,
+      status,
     });
   }
 

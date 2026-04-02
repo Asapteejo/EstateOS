@@ -17,7 +17,7 @@ export default async function AdminListingsPage() {
     <DashboardShell
       area="admin"
       title="Listings Management"
-      subtitle="Create, edit, publish, and manage live inventory with unit and media controls."
+      subtitle="Create, edit, publish, and keep live inventory verified so outdated listings never leak publicly."
     >
       <PropertyManagement properties={properties} brochures={brochures} />
     </DashboardShell>

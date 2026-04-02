@@ -38,7 +38,7 @@ export default async function PropertiesPage({
       <SectionHeading
         eyebrow="Listings"
         title="Searchable inventory designed for conversion and trust."
-        description="Filter by city, property type, bedrooms, pricing, status, and payment-plan fit. URL query params are the source of truth so search is shareable and tenant-safe."
+        description="Filter by city, property type, bedrooms, pricing, status, and payment-plan fit. URL query params are the source of truth so search is shareable, tenant-safe, and limited to verified or clearly stale inventory."
       />
       <form className="space-y-4" method="GET">
         <Card className="grid gap-4 p-5 lg:grid-cols-4">
@@ -87,7 +87,7 @@ export default async function PropertiesPage({
         </div>
       </form>
       <div className="flex flex-wrap gap-3">
-        {(activeFilters.length > 0 ? activeFilters : ["Tenant-safe public inventory"]).map((label) => (
+        {(activeFilters.length > 0 ? activeFilters : ["Verified and recently updated public inventory"]).map((label) => (
           <Badge key={label}>{label}</Badge>
         ))}
       </div>

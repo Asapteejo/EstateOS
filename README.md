@@ -60,6 +60,118 @@ EstateOS now supports tenant-managed marketer profiles using the company-owned `
 
 The codebase is designed for one-company MVP usage today and SaaS-style tenant isolation from day one.
 
+## Wishlist And Client Activity Intelligence
+
+EstateOS now deepens buyer intent tracking through a tenant-scoped wishlist workflow built on the existing `SavedProperty` domain.
+
+- buyers can save properties to wishlist from public property pages after sign-in
+- each wishlist record is tenant-scoped and property-linked
+- re-saving an active wishlist item removes it; saving again reactivates the same record instead of creating duplicates
+- tenant admins receive in-app notifications when a client adds a property to wishlist
+- wishlist records now support:
+  expiry windows
+  reminder sent timestamps
+  selected marketer linkage
+  follow-up status
+  follow-up notes
+  optional internal follow-up owner
+- property admins can configure:
+  `wishlistDurationDays`
+  `wishlistReminderEnabled`
+- buyer wishlist state is shown in `/portal/saved` with:
+  saved date
+  expiry state
+  time-left label
+  selected marketer context
+- tenant admins can inspect each client in `/admin/clients/[clientId]` and see:
+  wishlist items
+  inquiries
+  inspections
+  reservations
+  payments
+  documents
+  KYC state
+  recent activity
+- tenant follow-up support currently includes:
+  WhatsApp deep-link generation
+  follow-up status tracking
+  follow-up note capture
+  internal follow-up owner assignment
+
+### Wishlist Duration And Reminder Rules
+
+- wishlist expiry is currently configured at the property level
+- if a property does not define a custom wishlist duration, EstateOS falls back to a 14-day default
+- reminder eligibility is currently "expiring within 3 days, still active, reminder not yet sent"
+- reminder workflow is implemented as:
+  service functions in `src/modules/wishlist/service.ts`
+  an admin-callable sweep route at `/api/admin/wishlists/reminders/run`
+  an Inngest event hook for `wishlist/reminder.send`
+- live scheduled automation still depends on production Inngest/cron setup
+- email reminders use Resend when configured and fail safely to non-delivery behavior when email is disabled
+
+### Marketer Ranking Logic
+
+- public tenant team pages now include a monthly top-marketer section
+- ranking is tenant-scoped and derived from persisted activity, not random weights
+- current composite score uses:
+  wishlist adds linked to the marketer
+  reservations linked to the marketer
+  successful payments linked to the marketer
+- star ratings are computed from that composite score and intentionally bounded to a credible 3.0 to 5.0 range
+- this model is designed to evolve as deeper attribution becomes available
+
+## Property Verification And Anti-Ghosting
+
+EstateOS now includes a trust-layer for property freshness so stale or ghost inventory does not continue appearing as valid public stock.
+
+- every property now carries:
+  `lastVerifiedAt`
+  `verificationStatus`
+  `verificationDueAt`
+  `isPubliclyVisible`
+  `autoHiddenAt`
+  `verificationNotes`
+- verification state is centralized in `src/modules/properties/verification.ts`
+- default thresholds are:
+  verified within 7 days
+  stale from day 8 through day 30
+  hidden after day 30
+- `UNVERIFIED` listings are hidden from public routes until a tenant admin verifies them
+- `HIDDEN` listings never appear in public listing or detail queries
+- `STALE` listings may remain public, but they render with visible warning labels instead of looking fresh
+- tenant admins can manually verify from `/admin/listings`
+- admin verification writes audit logs and resets the next due window
+- admin operators can also run a verification sweep from `/api/admin/properties/verification/run`
+- Inngest support is wired through the `property/verification.sync` event for production scheduling
+
+### Public Trust Behavior
+
+- public property listing and detail queries now filter through verification-safe services
+- hidden or never-verified inventory is excluded before it reaches public UI
+- visible properties now render trust badges such as:
+  `Verified 2 days ago`
+  `Last updated 14 days ago`
+- brochure access for hidden or unverified properties remains blocked because brochure lookup follows the same public property visibility rules
+
+### Admin Responsibilities
+
+- tenant admins are responsible for re-verifying public inventory on time
+- the admin dashboard now shows:
+  needs verification
+  stale listings
+  hidden listings
+  recently verified listings
+- notifications are sent for:
+  listings nearing the stale threshold
+  listings that were auto-hidden
+
+### Follow-up Improvements
+
+- verification thresholds are hardcoded today for safety and consistency
+- tenant-configurable verification policies can be added later without changing the public query boundary
+- scheduled production automation still depends on live Inngest or cron wiring in deployment
+
 ## Stack
 
 - Next.js App Router
@@ -668,3 +780,128 @@ Still follow-up work:
 - Sentry wiring is basic and should be expanded with richer tracing and release configuration before high-volume production use
 - Receipt documents are persisted, but receipt PDF generation is still deferred
 - Subscription checkout, renewal charging, and dunning are provider-ready in schema/service design but not live yet
+
+## Operating System Layer
+
+EstateOS now includes a tenant-scoped operating-system layer aimed at daily use by real estate companies.
+
+### Daily Dashboard
+- `/admin` is now a real today dashboard.
+- It surfaces follow-up work, expiring wishlists, upcoming inspections, overdue payments, pipeline counts, urgent alerts, and quick actions.
+- All dashboard metrics are tenant-scoped and derived from persisted data.
+
+### Payment Enforcement Model
+- Transactions now carry a deal-level `paymentStatus` (`PENDING`, `PARTIAL`, `COMPLETED`, `OVERDUE`).
+- Reservation-created transactions are initialized with payment-state context and next due date when a payment plan exists.
+- Admin stage updates cannot move a deal into final-payment or handover completion while money is still outstanding.
+- Successful payment reconciliation remains webhook-authoritative and now re-syncs transaction payment state.
+- Receipts remain accessible in both buyer and admin flows.
+
+### Automation Flows
+- Wishlist reminder sweep remains callable and can run through Inngest when configured.
+- Operational automation now supports:
+  - overdue payment reminders
+  - inspection reminders within 24 hours
+  - client follow-up attention alerts
+- No fake scheduling is assumed. In local/dev environments, these flows are callable through admin routes and Inngest wiring is production-ready but still requires live scheduler configuration.
+
+### Tenant CMS / Config UI
+- `/admin/settings` lets tenant admins manage:
+  - company identity and support channels
+  - logo and brand colors
+  - default wishlist duration
+  - future-ready verification settings
+  - payment display defaults
+  - staff public visibility preferences
+  - active-plan guardrails for operations
+- These settings are persisted in tenant-scoped `Company`, `SiteSettings`, and `CompanyBillingSettings` records.
+
+### Data Lock-In
+- Admins can now export tenant-scoped CSV data for:
+  - clients
+  - transactions
+  - payments
+- Client profiles remain the central operational record for KYC, wishlist, inquiries, inspections, reservations, payments, receipts, documents, and timeline activity.
+
+### Live-Service Caveats
+- Resend is required to fully verify email reminder delivery.
+- Inngest or an external scheduler is required for true production automation scheduling.
+- Paystack remains the payment authority for live reconciliation; no client-side success state is trusted.
+
+## Final Operational Hardening Pass
+
+### Payment Placeholder Model
+- Every new reservation now creates a tenant-scoped placeholder payment record immediately.
+- Placeholder payments use `AWAITING_INITIATION` so a deal never exists without payment context.
+- This placeholder is not authoritative payment proof. Webhook reconciliation still owns real payment success.
+
+### Automation Scheduling Model
+- Operational automation is now wrapped in a scheduled-job service that writes `BackgroundJobLog` records.
+- `/api/admin/automation/run` remains available for manual runs.
+- `/api/internal/automation/run` is the cron-safe endpoint for staging/production and requires `CRON_SECRET`.
+- Current scheduled sweep covers:
+  - wishlist reminders
+  - overdue payment reminders
+  - inspection reminders
+  - follow-up attention alerts
+  - property verification sync
+  - payment-request expiry sync
+
+### Verification Threshold Settings
+- Property verification thresholds are now tenant-configurable in `/admin/settings`.
+- Supported settings:
+  - `verificationFreshDays`
+  - `verificationStaleDays`
+  - `verificationHideDays`
+  - `verificationWarningReminderDays`
+- Safe validation enforces `fresh < stale < hide`.
+- Hidden listings still never leak publicly, and public listing queries now rely on persisted verification visibility rather than scattered date math.
+
+### Payment Request Workflow
+- Tenant admins can now create payment requests from `/admin/payments`.
+- Payment requests are provider-neutral at the domain level and support:
+  - `HOSTED_CHECKOUT`
+  - `BANK_TRANSFER_TEMP_ACCOUNT`
+  - `DEDICATED_VIRTUAL_ACCOUNT`
+  - `MANUAL_BANK_TRANSFER_REFERENCE`
+  - `CARD_LINK`
+- Request statuses:
+  - `DRAFT`
+  - `SENT`
+  - `AWAITING_PAYMENT`
+  - `PAID`
+  - `EXPIRED`
+  - `CANCELLED`
+- Buyers can view request state, due dates, and payment instructions in `/portal/payments`.
+
+### Paystack Temporary Transfer Account Notes
+- EstateOS now supports a Nigeria-specific Paystack payment-request path for bank-transfer-based collection.
+- This is implemented as provider-specific behavior inside the payment-request architecture, not as a global assumption.
+- If Paystack returns temporary transfer account details, EstateOS persists and shows:
+  - bank name
+  - account number
+  - account name
+  - expiry metadata
+- If Paystack does not return those details in the current environment, EstateOS falls back to showing the secure hosted payment link and does not fake transfer account data.
+
+### Webhook Authority Reminder
+- Payment request creation, placeholder payments, and checkout initialization do not prove money was received.
+- `charge.success` / webhook reconciliation remains the source of truth for:
+  - real payment success
+  - receipt generation
+  - commission capture
+  - split settlement records
+  - payment request `PAID` transitions
+
+### Live vs Prepared
+- Live now in code:
+  - placeholder payment creation
+  - request persistence and visibility
+  - tenant-configurable verification thresholds
+  - cron-safe automation route structure
+  - reconciliation updates from webhook into payment requests
+- Still requires live credentials/infrastructure to fully verify:
+  - Paystack hosted checkout and transfer-account responses
+  - webhook delivery
+  - Resend email delivery
+  - Inngest or external cron execution against the internal automation route

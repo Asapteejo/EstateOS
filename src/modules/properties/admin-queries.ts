@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { findManyForTenant } from "@/lib/tenancy/db";
+import { buildPropertyVerificationPresentation } from "@/modules/properties/verification";
 
 type ScopedFindManyDelegate = { findMany: (args?: unknown) => Promise<unknown> };
 type Decimalish = { toNumber?: () => number } | number;
@@ -27,6 +28,19 @@ export type AdminPropertyManagementRecord = {
   locationSummary: string | null;
   landmarks: string[];
   hasPaymentPlan: boolean;
+  lastVerifiedAt: string | null;
+  verificationStatus: "VERIFIED" | "STALE" | "UNVERIFIED" | "HIDDEN";
+  verificationDueAt: string;
+  isPubliclyVisible: boolean;
+  autoHiddenAt: string | null;
+  verificationNotes: string | null;
+  verification: {
+    label: string;
+    detail: string;
+    tone: "success" | "warning" | "muted";
+  };
+  wishlistDurationDays: number | null;
+  wishlistReminderEnabled: boolean;
   location: {
     addressLine1: string | null;
     city: string;
@@ -123,6 +137,14 @@ export async function getAdminPropertyManagementList(context: TenantContext) {
         locationSummary: true,
         landmarks: true,
         hasPaymentPlan: true,
+        lastVerifiedAt: true,
+        verificationStatus: true,
+        verificationDueAt: true,
+        isPubliclyVisible: true,
+        autoHiddenAt: true,
+        verificationNotes: true,
+        wishlistDurationDays: true,
+        wishlistReminderEnabled: true,
         location: {
           select: {
             addressLine1: true,
@@ -228,6 +250,14 @@ export async function getAdminPropertyManagementList(context: TenantContext) {
     locationSummary: string | null;
     landmarks: unknown;
     hasPaymentPlan: boolean;
+    lastVerifiedAt: Date | null;
+    verificationStatus: "VERIFIED" | "STALE" | "UNVERIFIED" | "HIDDEN";
+    verificationDueAt: Date;
+    isPubliclyVisible: boolean;
+    autoHiddenAt: Date | null;
+    verificationNotes: string | null;
+    wishlistDurationDays: number | null;
+    wishlistReminderEnabled: boolean;
     location: {
       addressLine1: string | null;
       city: string;
@@ -286,68 +316,91 @@ export async function getAdminPropertyManagementList(context: TenantContext) {
 
   return properties
     .filter((property) => property.location?.companyId === context.companyId)
-    .map((property) => ({
-      id: property.id,
-      title: property.title,
-      slug: property.slug,
-      shortDescription: property.shortDescription,
-      description: property.description,
-      propertyType: property.propertyType,
-      status: property.status,
-      isFeatured: property.isFeatured,
-      priceFrom: decimalToNumber(property.priceFrom) ?? 0,
-      priceTo: decimalToNumber(property.priceTo),
-      currency: property.currency,
-      bedrooms: property.bedrooms,
-      bathrooms: property.bathrooms,
-      parkingSpaces: property.parkingSpaces,
-      sizeSqm: decimalToNumber(property.sizeSqm),
-      brochureDocumentId: property.brochureDocumentId,
-      videoUrl: property.videoUrl,
-      locationSummary: property.locationSummary,
-      landmarks: Array.isArray(property.landmarks)
-        ? property.landmarks.filter((item): item is string => typeof item === "string")
-        : [],
-      hasPaymentPlan: property.hasPaymentPlan,
-      location: {
-        addressLine1: property.location?.addressLine1 ?? null,
-        city: property.location?.city ?? "",
-        state: property.location?.state ?? "",
-        country: property.location?.country ?? "Nigeria",
-        latitude: decimalToNumber(property.location?.latitude),
-        longitude: decimalToNumber(property.location?.longitude),
-        neighborhood: property.location?.neighborhood ?? null,
-        postalCode: property.location?.postalCode ?? null,
-      },
-      features: property.features,
-      units: property.units.map((unit) => ({
-        ...unit,
-        price: decimalToNumber(unit.price) ?? 0,
-        sizeSqm: decimalToNumber(unit.sizeSqm),
-      })),
-      media: property.media,
-      paymentPlans: property.paymentPlans.map((plan) => ({
-        id: plan.id,
-        propertyUnitId: plan.propertyUnitId,
-        title: plan.title,
-        kind: plan.kind,
-        description: plan.description,
-        scheduleDescription: plan.scheduleDescription,
-        durationMonths: plan.durationMonths,
-        installmentCount: plan.installmentCount,
-        depositPercent: decimalToNumber(plan.depositPercent),
-        downPaymentAmount: decimalToNumber(plan.downPaymentAmount),
-        isActive: plan.isActive,
-        installments: plan.installments.map((installment) => ({
-          id: installment.id,
-          title: installment.title,
-          amount: decimalToNumber(installment.amount) ?? 0,
-          dueInDays: installment.dueInDays,
-          scheduleLabel: installment.scheduleLabel,
-          sortOrder: installment.sortOrder,
+    .map((property) => {
+      const verification = buildPropertyVerificationPresentation({
+        lastVerifiedAt: property.lastVerifiedAt,
+        verificationStatus: property.verificationStatus,
+        verificationDueAt: property.verificationDueAt,
+        isPubliclyVisible: property.isPubliclyVisible,
+        autoHiddenAt: property.autoHiddenAt,
+      });
+
+      return {
+        id: property.id,
+        title: property.title,
+        slug: property.slug,
+        shortDescription: property.shortDescription,
+        description: property.description,
+        propertyType: property.propertyType,
+        status: property.status,
+        isFeatured: property.isFeatured,
+        priceFrom: decimalToNumber(property.priceFrom) ?? 0,
+        priceTo: decimalToNumber(property.priceTo),
+        currency: property.currency,
+        bedrooms: property.bedrooms,
+        bathrooms: property.bathrooms,
+        parkingSpaces: property.parkingSpaces,
+        sizeSqm: decimalToNumber(property.sizeSqm),
+        brochureDocumentId: property.brochureDocumentId,
+        videoUrl: property.videoUrl,
+        locationSummary: property.locationSummary,
+        landmarks: Array.isArray(property.landmarks)
+          ? property.landmarks.filter((item): item is string => typeof item === "string")
+          : [],
+        hasPaymentPlan: property.hasPaymentPlan,
+        lastVerifiedAt: property.lastVerifiedAt?.toISOString() ?? null,
+        verificationStatus: verification.status,
+        verificationDueAt: verification.verificationDueAt.toISOString(),
+        isPubliclyVisible: verification.isPubliclyVisible,
+        autoHiddenAt: verification.autoHiddenAt?.toISOString() ?? null,
+        verificationNotes: property.verificationNotes,
+        verification: {
+          label: verification.label,
+          detail: verification.detail,
+          tone: verification.tone,
+        },
+        wishlistDurationDays: property.wishlistDurationDays,
+        wishlistReminderEnabled: property.wishlistReminderEnabled,
+        location: {
+          addressLine1: property.location?.addressLine1 ?? null,
+          city: property.location?.city ?? "",
+          state: property.location?.state ?? "",
+          country: property.location?.country ?? "Nigeria",
+          latitude: decimalToNumber(property.location?.latitude),
+          longitude: decimalToNumber(property.location?.longitude),
+          neighborhood: property.location?.neighborhood ?? null,
+          postalCode: property.location?.postalCode ?? null,
+        },
+        features: property.features,
+        units: property.units.map((unit) => ({
+          ...unit,
+          price: decimalToNumber(unit.price) ?? 0,
+          sizeSqm: decimalToNumber(unit.sizeSqm),
         })),
-      })),
-    }));
+        media: property.media,
+        paymentPlans: property.paymentPlans.map((plan) => ({
+          id: plan.id,
+          propertyUnitId: plan.propertyUnitId,
+          title: plan.title,
+          kind: plan.kind,
+          description: plan.description,
+          scheduleDescription: plan.scheduleDescription,
+          durationMonths: plan.durationMonths,
+          installmentCount: plan.installmentCount,
+          depositPercent: decimalToNumber(plan.depositPercent),
+          downPaymentAmount: decimalToNumber(plan.downPaymentAmount),
+          isActive: plan.isActive,
+          installments: plan.installments.map((installment) => ({
+            id: installment.id,
+            title: installment.title,
+            amount: decimalToNumber(installment.amount) ?? 0,
+            dueInDays: installment.dueInDays,
+            scheduleLabel: installment.scheduleLabel,
+            sortOrder: installment.sortOrder,
+          })),
+        })),
+      };
+    });
 }
 
 export async function getAvailableBrochureDocuments(context: TenantContext) {

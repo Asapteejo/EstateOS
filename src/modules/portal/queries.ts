@@ -7,6 +7,8 @@ import { properties as demoProperties } from "@/modules/properties/demo-data";
 import { buyerNotifications, buyerOverview, buyerTimeline } from "@/modules/portal/demo-data";
 import { isBuyerOwnedDocumentRecord, isBuyerOwnedTransactionRecord } from "@/modules/portal/access";
 import { buildBuyerPaymentProgress } from "@/modules/portal/payments";
+import { buildTransactionInstallmentSchedule, summarizeTransactionPayment } from "@/modules/payments/progress";
+import { buildPropertyVerificationPresentation } from "@/modules/properties/verification";
 import type { PropertySummary } from "@/types/domain";
 
 type ScopedFindManyDelegate = { findMany: (args?: unknown) => Promise<unknown> };
@@ -119,11 +121,13 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
         totalPayableAmount: 185000000,
         amountPaidSoFar: 160500000,
         installmentSchedule: [
-          { title: "Reservation fee", amount: 12500000, status: "paid" as const },
-          { title: "Second tranche", amount: 48000000, status: "paid" as const },
-          { title: "Final settlement", amount: 124500000, status: "due" as const },
+          { title: "Reservation fee", amount: 12500000, status: "paid" as const, dueDate: "Mar 21, 2026" },
+          { title: "Second tranche", amount: 48000000, status: "paid" as const, dueDate: "Apr 18, 2026" },
+          { title: "Final settlement", amount: 124500000, status: "due" as const, dueDate: "May 20, 2026" },
         ],
       }),
+      paymentStatus: "PARTIAL" as const,
+      nextDueDate: "May 20, 2026",
       selectedMarketer: "Tobi Adewale",
       selectedPaymentPlan: "24-month plan",
       receipts: [
@@ -142,6 +146,21 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
           status: "SUCCESS",
           method: "PAYSTACK",
           receiptHref: "/api/receipts/demo-receipt/download",
+        },
+      ],
+      paymentRequests: [
+        {
+          id: "demo-request",
+          title: "Balance payment request",
+          amount: "NGN 124,500,000",
+          status: "AWAITING_PAYMENT",
+          collectionMethod: "BANK_TRANSFER_TEMP_ACCOUNT",
+          dueAt: "2026-05-20",
+          expiresAt: null,
+          reference: "acme-realty__REQ-DEMO",
+          checkoutUrl: "#",
+          transferSummary: "Complete the transfer from the secure payment link provided by Acme Realty.",
+          notes: null,
         },
       ],
     };
@@ -166,6 +185,11 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
             fullName: true,
           },
         },
+        reservation: {
+          select: {
+            createdAt: true,
+          },
+        },
         paymentPlan: {
           select: {
             title: true,
@@ -177,6 +201,7 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
                 id: true,
                 title: true,
                 amount: true,
+                dueInDays: true,
               },
             },
           },
@@ -202,6 +227,26 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
             },
           },
         },
+        paymentRequests: {
+          orderBy: {
+            createdAt: "desc",
+          },
+          select: {
+            id: true,
+            title: true,
+            amount: true,
+            status: true,
+            collectionMethod: true,
+            dueAt: true,
+            expiresAt: true,
+            providerReference: true,
+            checkoutUrl: true,
+            transferBankName: true,
+            transferAccountNumber: true,
+            transferAccountName: true,
+            notes: true,
+          },
+        },
       },
     } as Parameters<typeof prisma.transaction.findFirst>[0],
   )) as {
@@ -209,12 +254,14 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
     totalValue: { toNumber?: () => number } | number;
     outstandingBalance: { toNumber?: () => number } | number;
     marketer: { fullName: string } | null;
+    reservation: { createdAt: Date } | null;
     paymentPlan: {
       title: string;
       installments: Array<{
         id: string;
         title: string;
         amount: { toNumber?: () => number } | number;
+        dueInDays: number;
       }>;
     } | null;
     payments: Array<{
@@ -231,6 +278,21 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
         totalAmount: { toNumber?: () => number } | number;
       } | null;
     }>;
+    paymentRequests: Array<{
+      id: string;
+      title: string;
+      amount: { toNumber?: () => number } | number;
+      status: string;
+      collectionMethod: string;
+      dueAt: Date | null;
+      expiresAt: Date | null;
+      providerReference: string | null;
+      checkoutUrl: string | null;
+      transferBankName: string | null;
+      transferAccountNumber: string | null;
+      transferAccountName: string | null;
+      notes: string | null;
+    }>;
   } | null;
 
   if (!transaction) {
@@ -239,10 +301,13 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
         totalPayableAmount: 0,
         amountPaidSoFar: 0,
       }),
+      paymentStatus: "PENDING" as const,
+      nextDueDate: null,
       selectedMarketer: null,
       selectedPaymentPlan: null,
       receipts: [],
       payments: [],
+      paymentRequests: [],
     };
   }
 
@@ -256,37 +321,13 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
       return sum + amount;
     }, 0);
 
-  const installmentPaidMap = new Map<string, number>();
-  for (const payment of transaction.payments.filter((entry) => entry.status === "SUCCESS" && entry.installmentId)) {
-    const amount =
-      typeof payment.amount === "number"
-        ? payment.amount
-        : payment.amount.toNumber?.() ?? Number(payment.amount);
-    installmentPaidMap.set(
-      payment.installmentId!,
-      (installmentPaidMap.get(payment.installmentId!) ?? 0) + amount,
-    );
-  }
-
-  const installmentSchedule =
-    transaction.paymentPlan?.installments.map((installment) => {
-      const targetAmount =
-        typeof installment.amount === "number"
-          ? installment.amount
-          : installment.amount.toNumber?.() ?? Number(installment.amount);
-      const paidAgainstInstallment = installmentPaidMap.get(installment.id) ?? 0;
-
-      return {
-        title: installment.title,
-        amount: targetAmount,
-        status:
-          paidAgainstInstallment >= targetAmount
-            ? ("paid" as const)
-            : paidAgainstInstallment > 0
-              ? ("due" as const)
-              : ("upcoming" as const),
-      };
-    }) ?? [];
+  const schedule = transaction.paymentPlan?.installments.length
+    ? buildTransactionInstallmentSchedule({
+        startedAt: transaction.reservation?.createdAt ?? new Date(),
+        installments: transaction.paymentPlan.installments,
+        payments: transaction.payments,
+      })
+    : [];
 
   const progress = buildBuyerPaymentProgress({
     totalPayableAmount:
@@ -294,7 +335,19 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
         ? transaction.totalValue
         : transaction.totalValue.toNumber?.() ?? Number(transaction.totalValue),
     amountPaidSoFar: paidAmount,
-    installmentSchedule,
+    installmentSchedule: schedule.map((entry) => ({
+      title: entry.title,
+      amount: entry.amount,
+      status: entry.status,
+      dueDate: formatDate(entry.dueDate),
+    })),
+  });
+
+  const paymentSummary = summarizeTransactionPayment({
+    totalValue: transaction.totalValue,
+    outstandingBalance: transaction.outstandingBalance,
+    schedule,
+    payments: transaction.payments,
   });
 
   const receiptRows = transaction.payments
@@ -313,10 +366,14 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
 
   return {
     progress,
+    paymentStatus: paymentSummary.status,
+    nextDueDate: paymentSummary.nextDue ? formatDate(paymentSummary.nextDue.dueDate) : null,
     selectedMarketer: transaction.marketer?.fullName ?? null,
     selectedPaymentPlan: transaction.paymentPlan?.title ?? null,
     receipts: receiptRows,
-    payments: transaction.payments.map((payment) => ({
+    payments: transaction.payments
+      .filter((payment) => payment.status !== "AWAITING_INITIATION")
+      .map((payment) => ({
       reference: payment.providerReference,
       amount: formatCurrency(
         typeof payment.amount === "number"
@@ -326,6 +383,25 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
       status: payment.status,
       method: payment.method,
       receiptHref: payment.receipt ? `/api/receipts/${payment.receipt.id}/download` : null,
+    })),
+    paymentRequests: transaction.paymentRequests.map((request) => ({
+      id: request.id,
+      title: request.title,
+      amount: formatCurrency(
+        typeof request.amount === "number" ? request.amount : request.amount.toNumber?.() ?? Number(request.amount),
+      ),
+      status: request.status,
+      collectionMethod: request.collectionMethod,
+      dueAt: request.dueAt ? formatDate(request.dueAt) : null,
+      expiresAt: request.expiresAt ? formatDate(request.expiresAt) : null,
+      reference: request.providerReference,
+      checkoutUrl: request.checkoutUrl,
+      transferSummary: request.transferAccountNumber
+        ? `${request.transferBankName ?? "Bank"} / ${request.transferAccountNumber}${request.transferAccountName ? ` (${request.transferAccountName})` : ""}`
+        : request.collectionMethod === "BANK_TRANSFER_TEMP_ACCOUNT"
+          ? "Open the payment link to view the temporary transfer account issued by Paystack."
+          : null,
+      notes: request.notes,
     })),
   };
 }
@@ -486,6 +562,11 @@ export async function getBuyerSavedProperties(context: TenantContext): Promise<P
             propertyType: true,
             status: true,
             isFeatured: true,
+            lastVerifiedAt: true,
+            verificationStatus: true,
+            verificationDueAt: true,
+            isPubliclyVisible: true,
+            autoHiddenAt: true,
             priceFrom: true,
             priceTo: true,
             bedrooms: true,
@@ -556,6 +637,11 @@ export async function getBuyerSavedProperties(context: TenantContext): Promise<P
       propertyType: string;
       status: string;
       isFeatured: boolean;
+      lastVerifiedAt: Date | null;
+      verificationStatus: "VERIFIED" | "STALE" | "UNVERIFIED" | "HIDDEN";
+      verificationDueAt: Date;
+      isPubliclyVisible: boolean;
+      autoHiddenAt: Date | null;
       priceFrom: { toNumber?: () => number } | number;
       priceTo: { toNumber?: () => number } | number | null;
       bedrooms: number | null;
@@ -728,6 +814,8 @@ export async function getBuyerDashboardSummary(context: TenantContext) {
         },
         select: {
           outstandingBalance: true,
+          nextPaymentDueAt: true,
+          paymentStatus: true,
           reservation: {
             select: {
               reference: true,
@@ -773,6 +861,8 @@ export async function getBuyerDashboardSummary(context: TenantContext) {
   } | null;
   const currentTransaction = transaction as {
     outstandingBalance: { toNumber?: () => number } | number;
+    nextPaymentDueAt: Date | null;
+    paymentStatus: string;
     reservation: { reference: string } | null;
     payments: Array<{ createdAt: Date }>;
   } | null;
@@ -787,8 +877,8 @@ export async function getBuyerDashboardSummary(context: TenantContext) {
             ? currentTransaction.outstandingBalance
             : currentTransaction.outstandingBalance.toNumber?.() ??
               Number(currentTransaction.outstandingBalance),
-      nextPaymentDue: currentTransaction?.payments[0]?.createdAt
-        ? formatDate(currentTransaction.payments[0].createdAt)
+      nextPaymentDue: currentTransaction?.nextPaymentDueAt
+        ? formatDate(currentTransaction.nextPaymentDueAt)
         : "No due payment",
       activeReservation: currentTransaction?.reservation?.reference ?? "No reservation",
       notificationsUnread: (unreadNotifications as Array<{ id: string }>).length,
@@ -807,6 +897,11 @@ function mapPropertyRecordToSummary(property: {
   propertyType: string;
   status: string;
   isFeatured: boolean;
+  lastVerifiedAt: Date | null;
+  verificationStatus: "VERIFIED" | "STALE" | "UNVERIFIED" | "HIDDEN";
+  verificationDueAt: Date;
+  isPubliclyVisible: boolean;
+  autoHiddenAt: Date | null;
   priceFrom: { toNumber?: () => number } | number;
   priceTo: { toNumber?: () => number } | number | null;
   bedrooms: number | null;
@@ -833,6 +928,13 @@ function mapPropertyRecordToSummary(property: {
   inquiries: Array<{ id: string }>;
 }): PropertySummary {
   const paymentPlan = property.paymentPlans[0];
+  const verification = buildPropertyVerificationPresentation({
+    lastVerifiedAt: property.lastVerifiedAt,
+    verificationStatus: property.verificationStatus,
+    verificationDueAt: property.verificationDueAt,
+    isPubliclyVisible: property.isPubliclyVisible,
+    autoHiddenAt: property.autoHiddenAt,
+  });
 
   return {
     id: property.id,
@@ -895,6 +997,15 @@ function mapPropertyRecordToSummary(property: {
       : [],
     brochureName: "brochure.pdf",
     inquiryCount: property.inquiries.length,
+    verification: {
+      status: verification.status,
+      label: verification.label,
+      detail: verification.detail,
+      tone: verification.tone,
+      isPubliclyVisible: verification.isPubliclyVisible,
+      lastVerifiedAt: verification.lastVerifiedAt?.toISOString(),
+      verificationDueAt: verification.verificationDueAt.toISOString(),
+    },
   };
 }
 
@@ -911,3 +1022,9 @@ function mapMilestoneStatusToTimelineStatus(
 
   return "pending";
 }
+
+
+
+
+
+

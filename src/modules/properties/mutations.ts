@@ -7,6 +7,12 @@ import type { TenantContext } from "@/lib/tenancy/context";
 import { findFirstForTenant, rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import type { PropertyMutationInput } from "@/lib/validations/properties";
 import { slugify } from "@/lib/utils";
+import {
+  buildPropertyVerificationUpdateInput,
+  getVerificationThresholdsForCompany,
+  updateVerificationState,
+} from "@/modules/properties/verification";
+import { getCompanyOperationalDefaults } from "@/modules/settings/service";
 
 type ScopedFindFirstDelegate = { findFirst: (args?: unknown) => Promise<unknown> };
 
@@ -365,6 +371,7 @@ function buildPropertyBaseData(
   input: PropertyMutationInput,
   slug: string,
   brochureDocumentId?: string | null,
+  defaultWishlistDurationDays?: number,
 ) {
   return {
     title: input.title,
@@ -388,6 +395,8 @@ function buildPropertyBaseData(
       input.locationSummary ?? `${input.location.city}, ${input.location.state}`,
     landmarks: input.landmarks,
     hasPaymentPlan: input.hasPaymentPlan,
+    wishlistDurationDays: input.wishlistDurationDays ?? defaultWishlistDurationDays ?? null,
+    wishlistReminderEnabled: input.wishlistReminderEnabled,
   };
 }
 
@@ -407,12 +416,30 @@ export async function createPropertyForAdmin(
 
   const brochureDocumentId = await ensureBrochureDocument(context, rawInput.brochureDocumentId);
   const slug = await buildUniquePropertySlug(context.companyId, rawInput.title);
+  const defaults = await getCompanyOperationalDefaults(context.companyId);
+  const verificationThresholds = await getVerificationThresholdsForCompany(context.companyId);
+  const verificationState = updateVerificationState(
+    {
+      lastVerifiedAt: null,
+    },
+    verificationThresholds,
+  );
 
   const property = await prisma.$transaction(async (tx) => {
     const created = await tx.property.create({
       data: {
         companyId: context.companyId!,
-        ...buildPropertyBaseData(rawInput, slug, brochureDocumentId),
+        ...buildPropertyBaseData(
+          rawInput,
+          slug,
+          brochureDocumentId,
+          defaults.defaultWishlistDurationDays,
+        ),
+        verificationStatus: verificationState.verificationStatus,
+        verificationDueAt: verificationState.verificationDueAt,
+        isPubliclyVisible: verificationState.isPubliclyVisible,
+        autoHiddenAt: verificationState.autoHiddenAt,
+        verificationNotes: null,
       },
       select: {
         id: true,
@@ -494,13 +521,19 @@ export async function updatePropertyForAdmin(
 
   const brochureDocumentId = await ensureBrochureDocument(context, rawInput.brochureDocumentId);
   const slug = await buildUniquePropertySlug(context.companyId, rawInput.title, propertyId);
+  const defaults = await getCompanyOperationalDefaults(context.companyId);
 
   const property = await prisma.$transaction(async (tx) => {
     const updated = await tx.property.update({
       where: {
         id: propertyId,
       },
-      data: buildPropertyBaseData(rawInput, slug, brochureDocumentId),
+      data: buildPropertyBaseData(
+        rawInput,
+        slug,
+        brochureDocumentId,
+        defaults.defaultWishlistDurationDays,
+      ),
       select: {
         id: true,
         slug: true,
@@ -584,9 +617,17 @@ export async function updatePropertyStatusForAdmin(
     where: {
       id: propertyId,
     },
-    data: {
-      status,
-    },
+    data:
+      status === "ARCHIVED"
+        ? {
+            status,
+            verificationStatus: "HIDDEN",
+            isPubliclyVisible: false,
+            autoHiddenAt: new Date(),
+          }
+        : {
+            status,
+          },
     select: {
       id: true,
       status: true,
@@ -604,6 +645,57 @@ export async function updatePropertyStatusForAdmin(
     payload: {
       previousStatus: property.status,
       nextStatus: status,
+    } as Prisma.InputJsonValue,
+  });
+
+  return updated;
+}
+
+export async function verifyPropertyForAdmin(
+  context: TenantContext,
+  propertyId: string,
+  notes?: string,
+) {
+  if (!featureFlags.hasDatabase || !context.companyId) {
+    return {
+      id: propertyId,
+      verificationStatus: "VERIFIED" as const,
+    };
+  }
+
+  const property = await ensurePropertyBelongsToTenant(context, propertyId);
+  if (!property) {
+    throw new Error("Property not found.");
+  }
+
+  const now = new Date();
+  const verificationThresholds = await getVerificationThresholdsForCompany(context.companyId);
+  const updated = await prisma.property.update({
+    where: {
+      id: propertyId,
+    },
+    data: buildPropertyVerificationUpdateInput(now, notes, verificationThresholds),
+    select: {
+      id: true,
+      title: true,
+      verificationStatus: true,
+      lastVerifiedAt: true,
+      verificationDueAt: true,
+    },
+  });
+
+  await writeAuditLog({
+    companyId: context.companyId,
+    actorUserId: context.userId ?? undefined,
+    action: "VERIFY",
+    entityType: "Property",
+    entityId: updated.id,
+    summary: `Verified property ${updated.title}`,
+    payload: {
+      previousStatus: property.status,
+      verifiedAt: updated.lastVerifiedAt?.toISOString(),
+      verificationDueAt: updated.verificationDueAt.toISOString(),
+      notes: notes?.trim() || null,
     } as Prisma.InputJsonValue,
   });
 

@@ -16,6 +16,10 @@ import {
   derivePropertyStatusFromReservationStatus,
   type TransactionStageValue,
 } from "@/modules/transactions/workflow";
+import {
+  buildTransactionInstallmentSchedule,
+  summarizeTransactionPayment,
+} from "@/modules/payments/progress";
 
 type ScopedFindFirstDelegate = { findFirst: (args?: unknown) => Promise<unknown> };
 
@@ -109,6 +113,24 @@ export async function createTransactionForReservation(
   },
 ) {
   const currentStage = input.currentStage ?? "INQUIRY_RECEIVED";
+  let nextPaymentDueAt: Date | null = null;
+
+  if (input.paymentPlanId) {
+    const firstInstallment = await tx.installment.findFirst({
+      where: {
+        companyId: input.companyId,
+        paymentPlanId: input.paymentPlanId,
+      },
+      orderBy: {
+        sortOrder: "asc",
+      },
+      select: {
+        dueInDays: true,
+      },
+    });
+
+    nextPaymentDueAt = firstInstallment ? new Date(Date.now() + firstInstallment.dueInDays * 24 * 60 * 60 * 1000) : null;
+  }
 
   const created = await tx.transaction.create({
     data: {
@@ -122,6 +144,8 @@ export async function createTransactionForReservation(
       currentStage,
       totalValue: input.totalValue,
       outstandingBalance: input.totalValue,
+      paymentStatus: "PENDING",
+      nextPaymentDueAt,
     },
     select: {
       id: true,
@@ -136,6 +160,93 @@ export async function createTransactionForReservation(
   });
 
   return created;
+}
+
+export async function syncTransactionPaymentState(
+  tx: Prisma.TransactionClient,
+  input: {
+    companyId: string;
+    transactionId: string;
+    now?: Date;
+  },
+) {
+  const now = input.now ?? new Date();
+  const transaction = await tx.transaction.findFirst({
+    where: {
+      companyId: input.companyId,
+      id: input.transactionId,
+    },
+    select: {
+      id: true,
+      totalValue: true,
+      outstandingBalance: true,
+      paymentPlan: {
+        select: {
+          installments: {
+            orderBy: {
+              sortOrder: "asc",
+            },
+            select: {
+              id: true,
+              title: true,
+              amount: true,
+              dueInDays: true,
+            },
+          },
+        },
+      },
+      reservation: {
+        select: {
+          createdAt: true,
+        },
+      },
+      payments: {
+        select: {
+          status: true,
+          amount: true,
+          installmentId: true,
+          paidAt: true,
+        },
+      },
+    },
+  });
+
+  if (!transaction) {
+    return null;
+  }
+
+  const schedule = transaction.paymentPlan?.installments
+    ? buildTransactionInstallmentSchedule({
+        startedAt: transaction.reservation.createdAt,
+        installments: transaction.paymentPlan.installments,
+        payments: transaction.payments,
+        now,
+      })
+    : [];
+
+  const summary = summarizeTransactionPayment({
+    totalValue: transaction.totalValue,
+    outstandingBalance: transaction.outstandingBalance,
+    schedule,
+    payments: transaction.payments,
+  });
+
+  return tx.transaction.update({
+    where: {
+      id: transaction.id,
+    },
+    data: {
+      paymentStatus: summary.status,
+      nextPaymentDueAt: summary.nextDue?.dueDate ?? null,
+      lastPaymentAt: summary.lastPaymentAt,
+    },
+    select: {
+      id: true,
+      paymentStatus: true,
+      nextPaymentDueAt: true,
+      lastPaymentAt: true,
+    },
+  });
 }
 
 async function ensureReservationForAdmin(context: TenantContext, reservationId: string) {
@@ -306,6 +417,32 @@ export async function updateTransactionStageForAdmin(
     throw new Error("Transaction not found.");
   }
 
+  const paymentSummary = await prisma.transaction.findFirst({
+    where: {
+      companyId: context.companyId,
+      id: transactionId,
+    },
+    select: {
+      outstandingBalance: true,
+      payments: {
+        where: {
+          status: "SUCCESS",
+        },
+        select: {
+          id: true,
+        },
+      },
+    },
+  });
+
+  if (
+    (input.stage === "FINAL_PAYMENT_COMPLETED" || input.stage === "HANDOVER_COMPLETED") &&
+    ((paymentSummary?.outstandingBalance.toNumber?.() ?? Number(paymentSummary?.outstandingBalance ?? 0)) > 0 ||
+      (paymentSummary?.payments.length ?? 0) === 0)
+  ) {
+    throw new Error("A transaction cannot be completed before the required payments are recorded.");
+  }
+
   const updated = await prisma.$transaction(async (tx) => {
     const next = await tx.transaction.update({
       where: {
@@ -325,6 +462,11 @@ export async function updateTransactionStageForAdmin(
       companyId: context.companyId!,
       transactionId,
       currentStage: input.stage,
+    });
+
+    await syncTransactionPaymentState(tx, {
+      companyId: context.companyId!,
+      transactionId,
     });
 
     return next;

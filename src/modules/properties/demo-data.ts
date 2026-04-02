@@ -42,6 +42,15 @@ export const properties: PropertySummary[] = [
     landmarks: ["Landmark Beach", "The Delborough", "Eko Hotel", "British International School"],
     brochureName: "eko-atrium-brochure.pdf",
     inquiryCount: 42,
+    verification: {
+      status: "VERIFIED",
+      label: "Verified 2 days ago",
+      detail: "Next verification due Apr 07, 2026.",
+      tone: "success",
+      isPubliclyVisible: true,
+      lastVerifiedAt: "2026-03-31T09:00:00.000Z",
+      verificationDueAt: "2026-04-07T09:00:00.000Z",
+    },
   },
   {
     id: "prop-ikoyi-gardens",
@@ -83,6 +92,15 @@ export const properties: PropertySummary[] = [
     landmarks: ["Lagos Polo Club", "Murtala Mohammed Park", "Ikoyi Club"],
     brochureName: "ikoyi-garden-villas.pdf",
     inquiryCount: 19,
+    verification: {
+      status: "STALE",
+      label: "Last updated 14 days ago",
+      detail: "This listing is stale. Buyers can still view it, but admins should re-verify it soon.",
+      tone: "warning",
+      isPubliclyVisible: true,
+      lastVerifiedAt: "2026-03-19T09:00:00.000Z",
+      verificationDueAt: "2026-03-26T09:00:00.000Z",
+    },
   },
   {
     id: "prop-abuja-rise",
@@ -124,6 +142,15 @@ export const properties: PropertySummary[] = [
     landmarks: ["Aso Rock", "Transcorp Hilton", "ICRC Headquarters"],
     brochureName: "asokoro-rise-terraces.pdf",
     inquiryCount: 57,
+    verification: {
+      status: "VERIFIED",
+      label: "Verified 5 days ago",
+      detail: "Next verification due Apr 04, 2026.",
+      tone: "success",
+      isPubliclyVisible: true,
+      lastVerifiedAt: "2026-03-28T09:00:00.000Z",
+      verificationDueAt: "2026-04-04T09:00:00.000Z",
+    },
   },
 ];
 

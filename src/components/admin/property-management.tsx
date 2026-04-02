@@ -30,6 +30,8 @@ type PropertyFormState = {
   locationSummary: string;
   landmarks: string;
   hasPaymentPlan: boolean;
+  wishlistDurationDays: string;
+  wishlistReminderEnabled: boolean;
   location: {
     addressLine1: string;
     city: string;
@@ -105,6 +107,8 @@ function emptyFormState(): PropertyFormState {
     locationSummary: "",
     landmarks: "",
     hasPaymentPlan: false,
+    wishlistDurationDays: "14",
+    wishlistReminderEnabled: true,
     location: {
       addressLine1: "",
       city: "",
@@ -142,6 +146,9 @@ function toFormState(property: AdminPropertyManagementRecord): PropertyFormState
     locationSummary: property.locationSummary ?? "",
     landmarks: property.landmarks.join(", "),
     hasPaymentPlan: property.hasPaymentPlan,
+    wishlistDurationDays:
+      property.wishlistDurationDays == null ? "" : String(property.wishlistDurationDays),
+    wishlistReminderEnabled: property.wishlistReminderEnabled,
     location: {
       addressLine1: property.location.addressLine1 ?? "",
       city: property.location.city,
@@ -233,6 +240,8 @@ function serializeForm(state: PropertyFormState) {
       .map((item) => item.trim())
       .filter(Boolean),
     hasPaymentPlan: state.hasPaymentPlan,
+    wishlistDurationDays: state.wishlistDurationDays ? Number(state.wishlistDurationDays) : undefined,
+    wishlistReminderEnabled: state.wishlistReminderEnabled,
     location: {
       addressLine1: state.location.addressLine1 || undefined,
       city: state.location.city,
@@ -324,6 +333,9 @@ export function PropertyManagement({
   const [drafts, setDrafts] = useState<Record<string, PropertyFormState>>(
     Object.fromEntries(properties.map((property) => [property.id, toFormState(property)])),
   );
+  const [verificationNotes, setVerificationNotes] = useState<Record<string, string>>(
+    Object.fromEntries(properties.map((property) => [property.id, property.verificationNotes ?? ""])),
+  );
   const [pending, setPending] = useState<string | null>(null);
 
   const editingProperty = useMemo(
@@ -405,6 +417,46 @@ export function PropertyManagement({
     router.refresh();
   }
 
+  async function verifyProperty(propertyId: string) {
+    setPending(`${propertyId}:verify`);
+    const response = await fetch(`/api/admin/properties/${propertyId}/verify`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        notes: verificationNotes[propertyId] || undefined,
+      }),
+    });
+    setPending(null);
+
+    if (!response.ok) {
+      const json = (await response.json().catch(() => null)) as { error?: string } | null;
+      toast.error(json?.error ?? "Unable to verify property.");
+      return;
+    }
+
+    toast.success("Property verified and kept public.");
+    router.refresh();
+  }
+
+  async function runVerificationSweep() {
+    setPending("verification-sweep");
+    const response = await fetch("/api/admin/properties/verification/run", {
+      method: "POST",
+    });
+    setPending(null);
+
+    if (!response.ok) {
+      const json = (await response.json().catch(() => null)) as { error?: string } | null;
+      toast.error(json?.error ?? "Unable to refresh verification state.");
+      return;
+    }
+
+    toast.success("Verification states refreshed.");
+    router.refresh();
+  }
+
   return (
     <div className="space-y-8">
       <Card className="p-6">
@@ -413,7 +465,17 @@ export function PropertyManagement({
             title="Create property"
             description="Add a new listing or project with unit, media, and publication details."
           />
-          <Badge>Tenant-safe</Badge>
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={runVerificationSweep}
+              disabled={pending === "verification-sweep"}
+            >
+              {pending === "verification-sweep" ? "Refreshing..." : "Refresh verification"}
+            </Button>
+            <Badge>Tenant-safe</Badge>
+          </div>
         </div>
         <PropertyEditor
           value={createState}
@@ -444,11 +506,25 @@ export function PropertyManagement({
                 }`}
               >
                 <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <div className="font-semibold text-[var(--ink-950)]">{property.title}</div>
-                    <div className="mt-1 text-sm text-[var(--ink-500)]">{property.location.city}, {property.location.state}</div>
+                    <div>
+                      <div className="font-semibold text-[var(--ink-950)]">{property.title}</div>
+                      <div className="mt-1 text-sm text-[var(--ink-500)]">{property.location.city}, {property.location.state}</div>
+                      <div className="mt-2 text-xs font-medium text-[var(--ink-500)]">{property.verification.label}</div>
+                    </div>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <Badge>{property.status.toLowerCase()}</Badge>
+                    <Badge
+                      className={
+                        property.verification.tone === "success"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : property.verification.tone === "warning"
+                            ? "bg-amber-100 text-amber-800"
+                            : "bg-slate-200 text-slate-800"
+                      }
+                    >
+                      {property.verificationStatus.toLowerCase()}
+                    </Badge>
                   </div>
-                  <Badge>{property.status.toLowerCase()}</Badge>
                 </div>
               </button>
             ))}
@@ -464,6 +540,13 @@ export function PropertyManagement({
                   description="Persist real changes to copy, pricing, units, media, and public status."
                 />
                 <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => verifyProperty(editingId)}
+                    disabled={pending === `${editingId}:verify`}
+                  >
+                    {pending === `${editingId}:verify` ? "Verifying..." : "Verify property"}
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
@@ -498,6 +581,40 @@ export function PropertyManagement({
                 submitLabel={pending === editingId ? "Saving..." : "Save changes"}
                 disabled={pending === editingId}
               />
+              <div className="mt-6 rounded-3xl border border-[var(--line)] bg-[var(--sand-100)] p-5">
+                <SectionTitle
+                  title="Verification trust layer"
+                  description={editingProperty.verification.detail}
+                />
+                <div className="mt-4 grid gap-4 md:grid-cols-[1fr_auto]">
+                  <Textarea
+                    placeholder="Optional verification note for internal audit context"
+                    value={verificationNotes[editingId] ?? ""}
+                    onChange={(event) =>
+                      setVerificationNotes((current) => ({
+                        ...current,
+                        [editingId]: event.target.value,
+                      }))
+                    }
+                  />
+                  <div className="flex flex-col gap-2">
+                    <Badge
+                      className={
+                        editingProperty.verification.tone === "success"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : editingProperty.verification.tone === "warning"
+                            ? "bg-amber-100 text-amber-800"
+                            : "bg-slate-200 text-slate-800"
+                      }
+                    >
+                      {editingProperty.verification.label}
+                    </Badge>
+                    <Badge>
+                      {editingProperty.isPubliclyVisible ? "Publicly visible" : "Hidden from public"}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
             </>
           ) : (
             <div className="rounded-3xl border border-dashed border-[var(--line)] p-10 text-center text-sm text-[var(--ink-500)]">
@@ -574,6 +691,7 @@ function PropertyEditor({
         <Input placeholder="Bathrooms" value={value.bathrooms} onChange={(event) => update("bathrooms", event.target.value)} />
         <Input placeholder="Parking spaces" value={value.parkingSpaces} onChange={(event) => update("parkingSpaces", event.target.value)} />
         <Input placeholder="Size (sqm)" value={value.sizeSqm} onChange={(event) => update("sizeSqm", event.target.value)} />
+        <Input placeholder="Wishlist duration (days)" value={value.wishlistDurationDays} onChange={(event) => update("wishlistDurationDays", event.target.value)} />
         <Input placeholder="Video walkthrough URL" value={value.videoUrl} onChange={(event) => update("videoUrl", event.target.value)} />
         <select
           className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
@@ -605,6 +723,25 @@ function PropertyEditor({
         value={value.landmarks}
         onChange={(event) => update("landmarks", event.target.value)}
       />
+
+      <div className="flex flex-wrap items-center gap-4 rounded-3xl border border-[var(--line)] bg-[var(--sand-50)] px-4 py-4">
+        <label className="flex items-center gap-2 text-sm text-[var(--ink-700)]">
+          <input
+            type="checkbox"
+            checked={value.hasPaymentPlan}
+            onChange={(event) => update("hasPaymentPlan", event.target.checked)}
+          />
+          Payment plan available
+        </label>
+        <label className="flex items-center gap-2 text-sm text-[var(--ink-700)]">
+          <input
+            type="checkbox"
+            checked={value.wishlistReminderEnabled}
+            onChange={(event) => update("wishlistReminderEnabled", event.target.checked)}
+          />
+          Wishlist reminder email enabled
+        </label>
+      </div>
 
       <ArraySection title="Features" onAdd={() => update("features", [...value.features, { label: "", value: "" }])}>
         {value.features.map((feature, index) => (

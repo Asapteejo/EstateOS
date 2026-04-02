@@ -36,6 +36,15 @@ export default async function PropertyDetailPage({
           <Badge>{property.status}</Badge>
           <Badge>{property.type}</Badge>
           <Badge>{property.city}</Badge>
+          <Badge
+            className={
+              property.verification.tone === "success"
+                ? "bg-emerald-100 text-emerald-800"
+                : "bg-amber-100 text-amber-800"
+            }
+          >
+            {property.verification.label}
+          </Badge>
         </div>
         <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-6">
@@ -83,7 +92,17 @@ export default async function PropertyDetailPage({
 
           <div className="space-y-6">
             <Card className="p-8">
-              <div className="text-sm uppercase tracking-[0.18em] text-[var(--ink-500)]">Price</div>
+              <div
+                className={`rounded-3xl px-4 py-4 text-sm ${
+                  property.verification.tone === "success"
+                    ? "bg-emerald-50 text-emerald-900"
+                    : "bg-amber-50 text-amber-900"
+                }`}
+              >
+                <div className="font-semibold">{property.verification.label}</div>
+                <p className="mt-2 leading-6">{property.verification.detail}</p>
+              </div>
+              <div className="mt-6 text-sm uppercase tracking-[0.18em] text-[var(--ink-500)]">Price</div>
               <div className="mt-2 text-4xl font-semibold text-[var(--ink-950)]">
                 {formatCurrency(property.priceFrom)}
                 {property.priceTo ? ` - ${formatCurrency(property.priceTo)}` : ""}

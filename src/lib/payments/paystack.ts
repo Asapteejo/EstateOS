@@ -12,12 +12,70 @@ export type PaymentInitializationInput = {
   reference: string;
   callbackUrl: string;
   metadata?: Record<string, unknown>;
+  channels?: Array<"bank_transfer" | "card" | "bank" | "ussd">;
   splitConfig?: {
     subaccount?: string;
     transactionCharge?: number;
     bearer?: string;
   };
 };
+
+export type PaystackTransferInstructions = {
+  bankName: string | null;
+  accountNumber: string | null;
+  accountName: string | null;
+  expiresAt: string | null;
+};
+
+export function extractTransferInstructions(payload: Record<string, unknown> | null | undefined): PaystackTransferInstructions | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const data =
+    typeof payload["data"] === "object" && payload["data"] !== null
+      ? (payload["data"] as Record<string, unknown>)
+      : payload;
+
+  const recipient =
+    typeof data["customer"] === "object" && data["customer"] !== null
+      ? (data["customer"] as Record<string, unknown>)
+      : null;
+
+  const instructions =
+    typeof data["transfer_instruction"] === "object" && data["transfer_instruction"] !== null
+      ? (data["transfer_instruction"] as Record<string, unknown>)
+      : typeof data["authorization"] === "object" && data["authorization"] !== null
+        ? (data["authorization"] as Record<string, unknown>)
+        : null;
+
+  if (!instructions && !recipient) {
+    return null;
+  }
+
+  return {
+    bankName:
+      typeof instructions?.["bank_name"] === "string"
+        ? instructions["bank_name"]
+        : null,
+    accountNumber:
+      typeof instructions?.["account_number"] === "string"
+        ? instructions["account_number"]
+        : null,
+    accountName:
+      typeof instructions?.["account_name"] === "string"
+        ? instructions["account_name"]
+        : typeof recipient?.["name"] === "string"
+          ? recipient["name"]
+          : null,
+    expiresAt:
+      typeof instructions?.["expiration"] === "string"
+        ? instructions["expiration"]
+        : typeof instructions?.["expires_at"] === "string"
+          ? instructions["expires_at"]
+          : null,
+  };
+}
 
 export async function initializePayment(input: PaymentInitializationInput) {
   if (!featureFlags.hasPaystack) {
@@ -28,6 +86,16 @@ export async function initializePayment(input: PaymentInitializationInput) {
       accessCode: "demo-access-code",
       reference: input.reference,
       mode: "demo" as const,
+      transferInstructions:
+        input.channels?.includes("bank_transfer")
+          ? {
+              bankName: null,
+              accountNumber: null,
+              accountName: null,
+              expiresAt: null,
+            }
+          : null,
+      providerPayload: { demo: true },
     };
   }
 
@@ -44,6 +112,7 @@ export async function initializePayment(input: PaymentInitializationInput) {
       reference: input.reference,
       callback_url: input.callbackUrl,
       metadata: input.metadata,
+      channels: input.channels,
       ...(input.splitConfig?.subaccount
         ? {
             subaccount: input.splitConfig.subaccount,
@@ -61,16 +130,20 @@ export async function initializePayment(input: PaymentInitializationInput) {
     throw new Error("Failed to initialize Paystack payment.");
   }
 
-  const json = (await response.json()) as {
-    data: { authorization_url: string; access_code: string; reference: string };
-  };
+  const json = (await response.json()) as Record<string, unknown>;
+  const data =
+    typeof json["data"] === "object" && json["data"] !== null
+      ? (json["data"] as Record<string, unknown>)
+      : {};
 
   return {
     provider: "PAYSTACK",
-    authorizationUrl: json.data.authorization_url,
-    accessCode: json.data.access_code,
-    reference: json.data.reference,
+    authorizationUrl: typeof data["authorization_url"] === "string" ? data["authorization_url"] : "#",
+    accessCode: typeof data["access_code"] === "string" ? data["access_code"] : null,
+    reference: typeof data["reference"] === "string" ? data["reference"] : input.reference,
     mode: "live" as const,
+    transferInstructions: extractTransferInstructions(json),
+    providerPayload: json,
   };
 }
 

@@ -35,6 +35,7 @@ const serverEnvSchema = z
     INNGEST_EVENT_KEY: optionalString,
     INNGEST_SIGNING_KEY: optionalString,
     INNGEST_BASE_URL: optionalUrl,
+    CRON_SECRET: optionalString,
     UPSTASH_REDIS_REST_URL: optionalUrl,
     UPSTASH_REDIS_REST_TOKEN: optionalString,
     RESEND_API_KEY: optionalString,

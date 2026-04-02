@@ -64,6 +64,8 @@ export function PropertyActions({
       },
       body: JSON.stringify({
         propertyId,
+        marketerId: selectedMarketerId || undefined,
+        paymentPlanId: selectedPaymentPlanId || undefined,
       }),
     });
 

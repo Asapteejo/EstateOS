@@ -106,6 +106,8 @@ export const propertyMutationSchema = z.object({
   locationSummary: optionalTrimmedString,
   landmarks: z.array(z.string().trim().min(2)).default([]),
   hasPaymentPlan: z.coerce.boolean().default(false),
+  wishlistDurationDays: z.coerce.number().int().min(1).max(365).optional(),
+  wishlistReminderEnabled: z.coerce.boolean().default(true),
   location: propertyLocationInputSchema,
   features: z.array(propertyFeatureInputSchema).default([]),
   units: z.array(propertyUnitInputSchema).default([]),
@@ -164,6 +166,10 @@ export const propertyStatusUpdateSchema = z.object({
   status: propertyStatusSchema,
 });
 
+export const propertyVerifySchema = z.object({
+  notes: z.string().trim().max(500).optional(),
+});
+
 export const propertySearchParamsSchema = z.object({
   location: z.string().trim().min(1).optional(),
   propertyType: propertyTypeSchema.optional(),
@@ -191,3 +197,4 @@ export type PropertyUnitInput = z.infer<typeof propertyUnitInputSchema>;
 export type PropertyMediaInput = z.infer<typeof propertyMediaInputSchema>;
 export type PaymentPlanInput = z.infer<typeof paymentPlanInputSchema>;
 export type InstallmentInput = z.infer<typeof installmentInputSchema>;
+export type PropertyVerifyInput = z.infer<typeof propertyVerifySchema>;

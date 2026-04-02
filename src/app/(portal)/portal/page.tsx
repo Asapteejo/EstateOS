@@ -21,11 +21,12 @@ export default async function PortalDashboardPage() {
       title="Buyer Portal"
       subtitle="A calm workspace for profile completion, reservations, payments, documents, and transaction updates."
     >
-      <div className="grid gap-6 md:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-5">
         {[
           ["Profile completion", `${summary.overview.completion}%`],
           ["Outstanding balance", formatCurrency(summary.overview.outstandingBalance)],
           ["Next payment due", summary.overview.nextPaymentDue],
+          ["Payment state", paymentExperience.paymentStatus],
           ["Unread updates", String(summary.overview.notificationsUnread)],
         ].map(([label, value]) => (
           <Card key={label} className="p-6">

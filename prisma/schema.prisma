@@ -24,6 +24,13 @@ enum PropertyStatus {
   ARCHIVED
 }
 
+enum PropertyVerificationStatus {
+  VERIFIED
+  STALE
+  UNVERIFIED
+  HIDDEN
+}
+
 enum PropertyType {
   APARTMENT
   DUPLEX
@@ -157,11 +164,20 @@ enum PaymentProviderCode {
 }
 
 enum PaymentStatus {
+  AWAITING_INITIATION
   PENDING
   PROCESSING
   SUCCESS
   FAILED
+  EXPIRED
   REFUNDED
+  OVERDUE
+}
+
+enum DealPaymentStatus {
+  PENDING
+  PARTIAL
+  COMPLETED
   OVERDUE
 }
 
@@ -170,6 +186,29 @@ enum PaymentMethod {
   BANK_TRANSFER
   CARD
   CASH
+}
+
+enum PaymentRequestStatus {
+  DRAFT
+  SENT
+  AWAITING_PAYMENT
+  PAID
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentRequestChannel {
+  IN_APP
+  EMAIL
+  SHARE_LINK
+}
+
+enum PaymentRequestCollectionMethod {
+  HOSTED_CHECKOUT
+  BANK_TRANSFER_TEMP_ACCOUNT
+  DEDICATED_VIRTUAL_ACCOUNT
+  MANUAL_BANK_TRANSFER_REFERENCE
+  CARD_LINK
 }
 
 enum DocumentType {
@@ -193,6 +232,10 @@ enum NotificationType {
   INQUIRY_ASSIGNED
   INSPECTION_BOOKED
   INSPECTION_UPDATED
+  PROPERTY_VERIFICATION_DUE
+  PROPERTY_HIDDEN
+  WISHLIST_ADDED
+  WISHLIST_EXPIRING
   RESERVATION_CREATED
   PAYMENT_CONFIRMED
   DOCUMENT_REQUESTED
@@ -200,6 +243,9 @@ enum NotificationType {
   MILESTONE_UPDATED
   RECEIPT_AVAILABLE
   INSTALLMENT_DUE
+  PAYMENT_REQUEST_SENT
+  PAYMENT_REQUEST_PAID
+  PAYMENT_REQUEST_EXPIRED
   SYSTEM
 }
 
@@ -208,6 +254,20 @@ enum NotificationChannel {
   EMAIL
   SMS
   WHATSAPP
+}
+
+enum WishlistStatus {
+  ACTIVE
+  EXPIRED
+  REMOVED
+}
+
+enum FollowUpStatus {
+  NONE
+  PENDING_CALL
+  CONTACTED
+  FOLLOW_UP_SCHEDULED
+  CLOSED
 }
 
 enum AuditAction {
@@ -252,6 +312,7 @@ model Company {
   paymentPlans    PaymentPlan[]
   installments    Installment[]
   payments        Payment[]
+  paymentRequests PaymentRequest[]
   receipts        Receipt[]
   documents       Document[]
   kycSubmissions  KYCSubmission[]
@@ -510,11 +571,12 @@ model User {
   profile         Profile?
   roles           UserRole[]
   staffProfile    StaffProfile?
-  savedProperties SavedProperty[]
+  savedProperties SavedProperty[] @relation("BuyerWishlists")
   inquiries       Inquiry[]
   reservations    Reservation[]
   transactions    Transaction[]
   payments        Payment[]
+  paymentRequests PaymentRequest[]
   documents       Document[]
   inspectionBookings InspectionBooking[]
   notifications   Notification[]
@@ -522,6 +584,7 @@ model User {
   activityEvents  ActivityEvent[]
   accessLogs      DocumentAccessLog[]
   kycSubmissions  KYCSubmission[]
+  wishlistAssignments SavedProperty[] @relation("WishlistAssignedStaff")
   grantedSubscriptions CompanySubscription[] @relation("GrantedSubscriptions")
   billingEvents   BillingEvent[]        @relation("BillingEvents")
   createdAt       DateTime            @default(now())
@@ -618,6 +681,16 @@ model Property {
   locationSummary    String?
   landmarks          Json?
   hasPaymentPlan     Boolean        @default(false)
+  lastVerifiedAt     DateTime?
+  verificationStatus PropertyVerificationStatus @default(UNVERIFIED)
+  verificationDueAt  DateTime       @default(now())
+  isPubliclyVisible  Boolean        @default(false)
+  autoHiddenAt       DateTime?
+  verificationNotes  String?
+  verificationWarningSentAt DateTime?
+  hiddenNotificationSentAt DateTime?
+  wishlistDurationDays Int?
+  wishlistReminderEnabled Boolean   @default(true)
   company            Company        @relation(fields: [companyId], references: [id])
   branch             Branch?        @relation(fields: [branchId], references: [id])
   location           PropertyLocation?
@@ -637,6 +710,8 @@ model Property {
   @@index([companyId, branchId])
   @@index([companyId, status, propertyType])
   @@index([companyId, isFeatured])
+  @@index([companyId, verificationStatus, verificationDueAt])
+  @@index([companyId, isPubliclyVisible, status])
 }
 
 model PropertyUnit {
@@ -657,6 +732,7 @@ model PropertyUnit {
   reservations Reservation[]
   transactions Transaction[]
   paymentPlans  PaymentPlan[]
+  savedProperties SavedProperty[]
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 
@@ -713,17 +789,33 @@ model PropertyLocation {
 }
 
 model SavedProperty {
-  id         String   @id @default(cuid())
-  companyId  String
-  userId     String
-  propertyId String
-  company    Company  @relation(fields: [companyId], references: [id])
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
+  id                String         @id @default(cuid())
+  companyId         String
+  userId            String
+  propertyId        String
+  propertyUnitId    String?
+  selectedMarketerId String?
+  assignedStaffId   String?
+  status            WishlistStatus @default(ACTIVE)
+  expiresAt         DateTime?
+  reminderSentAt    DateTime?
+  followUpStatus    FollowUpStatus @default(NONE)
+  followUpNote      String?
+  removedAt         DateTime?
+  company           Company        @relation(fields: [companyId], references: [id])
+  user              User           @relation("BuyerWishlists", fields: [userId], references: [id], onDelete: Cascade)
+  property          Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyUnit      PropertyUnit?  @relation(fields: [propertyUnitId], references: [id])
+  selectedMarketer  TeamMember?    @relation("WishlistSelectedMarketer", fields: [selectedMarketerId], references: [id])
+  assignedStaff     User?          @relation("WishlistAssignedStaff", fields: [assignedStaffId], references: [id])
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
   @@unique([companyId, userId, propertyId])
-  @@index([companyId, propertyId])
+  @@index([companyId, propertyId, status])
+  @@index([companyId, userId, status])
+  @@index([companyId, expiresAt, status])
+  @@index([companyId, assignedStaffId, followUpStatus])
 }
 
 model Inquiry {
@@ -765,6 +857,7 @@ model InspectionBooking {
   scheduledFor DateTime
   status       InspectionStatus @default(PENDING)
   notes        String?
+  reminderSentAt DateTime?
   company      Company          @relation(fields: [companyId], references: [id])
   property     Property         @relation(fields: [propertyId], references: [id])
   inquiry      Inquiry?         @relation(fields: [inquiryId], references: [id])
@@ -797,6 +890,7 @@ model Reservation {
   marketer       TeamMember?       @relation("SelectedMarketerReservations", fields: [marketerId], references: [id])
   paymentPlan    PaymentPlan?      @relation(fields: [paymentPlanId], references: [id])
   transaction    Transaction?
+  paymentRequests PaymentRequest[]
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 
@@ -818,6 +912,10 @@ model Transaction {
   currentStage       TransactionStage      @default(INQUIRY_RECEIVED)
   totalValue         Decimal               @db.Decimal(12, 2)
   outstandingBalance Decimal               @db.Decimal(12, 2)
+  paymentStatus      DealPaymentStatus     @default(PENDING)
+  nextPaymentDueAt   DateTime?
+  lastPaymentAt      DateTime?
+  lastPaymentReminderAt DateTime?
   company            Company               @relation(fields: [companyId], references: [id])
   reservation        Reservation           @relation(fields: [reservationId], references: [id])
   property           Property              @relation(fields: [propertyId], references: [id])
@@ -827,6 +925,7 @@ model Transaction {
   paymentPlan        PaymentPlan?          @relation(fields: [paymentPlanId], references: [id])
   milestones         TransactionMilestone[]
   payments           Payment[]
+  paymentRequests    PaymentRequest[]
   receipts           Receipt[]
   documents          Document[]
   commissionRecords  CommissionRecord[]
@@ -836,6 +935,7 @@ model Transaction {
   @@index([companyId, propertyId])
   @@index([companyId, userId, currentStage])
   @@index([companyId, marketerId])
+  @@index([companyId, paymentStatus, nextPaymentDueAt])
 }
 
 model TransactionMilestone {
@@ -895,6 +995,7 @@ model Installment {
   company       Company     @relation(fields: [companyId], references: [id])
   paymentPlan   PaymentPlan @relation(fields: [paymentPlanId], references: [id], onDelete: Cascade)
   payments      Payment[]
+  paymentRequests PaymentRequest[]
 
   @@index([companyId, paymentPlanId, sortOrder])
 }
@@ -906,6 +1007,7 @@ model Payment {
   installmentId     String?
   userId            String?
   marketerId        String?
+  paymentRequestId  String?
   provider          String        @default("PAYSTACK")
   providerReference String
   amount            Decimal       @db.Decimal(12, 2)
@@ -919,6 +1021,7 @@ model Payment {
   installment       Installment?  @relation(fields: [installmentId], references: [id])
   user              User?         @relation(fields: [userId], references: [id])
   marketer          TeamMember?   @relation("SelectedMarketerPayments", fields: [marketerId], references: [id])
+  paymentRequest    PaymentRequest? @relation(fields: [paymentRequestId], references: [id])
   receipt           Receipt?
   webhookEvents     WebhookEvent[]
   commissionRecord  CommissionRecord?
@@ -931,8 +1034,50 @@ model Payment {
   @@index([companyId, installmentId])
   @@index([companyId, userId])
   @@index([companyId, marketerId])
+  @@index([companyId, paymentRequestId])
 }
 
+
+model PaymentRequest {
+  id                    String                          @id @default(cuid())
+  companyId             String
+  userId                String
+  reservationId         String?
+  transactionId         String?
+  installmentId         String?
+  provider              PaymentProviderCode            @default(PAYSTACK)
+  channel               PaymentRequestChannel          @default(IN_APP)
+  collectionMethod      PaymentRequestCollectionMethod @default(HOSTED_CHECKOUT)
+  status                PaymentRequestStatus           @default(DRAFT)
+  title                 String
+  purpose               String
+  amount                Decimal                        @db.Decimal(12, 2)
+  currency              String                         @default("NGN")
+  dueAt                 DateTime?
+  sentAt                DateTime?
+  expiresAt             DateTime?
+  paidAt                DateTime?
+  notes                 String?
+  providerReference     String?
+  checkoutUrl           String?
+  transferBankName      String?
+  transferAccountNumber String?
+  transferAccountName   String?
+  providerPayload       Json?
+  company               Company                        @relation(fields: [companyId], references: [id])
+  user                  User                           @relation(fields: [userId], references: [id])
+  reservation           Reservation?                   @relation(fields: [reservationId], references: [id])
+  transaction           Transaction?                   @relation(fields: [transactionId], references: [id])
+  installment           Installment?                   @relation(fields: [installmentId], references: [id])
+  payments              Payment[]
+  createdAt             DateTime                       @default(now())
+  updatedAt             DateTime                       @updatedAt
+
+  @@index([companyId, status, dueAt])
+  @@index([companyId, userId, status])
+  @@index([companyId, transactionId])
+  @@unique([companyId, providerReference])
+}
 model Receipt {
   id            String    @id @default(cuid())
   companyId     String
@@ -1089,6 +1234,7 @@ model TeamMember {
   reservations Reservation[] @relation("SelectedMarketerReservations")
   transactions Transaction[] @relation("SelectedMarketerTransactions")
   payments    Payment[] @relation("SelectedMarketerPayments")
+  savedProperties SavedProperty[] @relation("WishlistSelectedMarketer")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -1120,6 +1266,10 @@ model SiteSettings {
   address         String?
   socialLinks     Json?
   marketingConfig Json?
+  verificationFreshDays Int?
+  verificationStaleDays Int?
+  verificationHideDays Int?
+  verificationWarningReminderDays Int?
   company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -1207,3 +1357,6 @@ model BackgroundJobLog {
 
   @@index([companyId, jobName, status])
 }
+
+
+

@@ -8,24 +8,13 @@ import { findFirstForTenant, rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db
 import type { ReservationCreateInput } from "@/lib/validations/reservations";
 import type { SavedPropertyMutationInput } from "@/lib/validations/saved-properties";
 import { requireCompanyPlanAccess } from "@/modules/billing/service";
+import { ensureReservationPaymentPlaceholder } from "@/modules/payment-requests/service";
 import { createTransactionForReservation } from "@/modules/transactions/mutations";
 import { ensureVisibleTeamMember } from "@/modules/team/queries";
+import { toggleWishlistPropertyForBuyer } from "@/modules/wishlist/service";
 
 type ScopedFindFirstDelegate = { findFirst: (args?: unknown) => Promise<unknown> };
-
-export function buildSavedPropertyUniqueInput(input: {
-  companyId: string;
-  userId: string;
-  propertyId: string;
-}) {
-  return {
-    companyId_userId_propertyId: {
-      companyId: input.companyId,
-      userId: input.userId,
-      propertyId: input.propertyId,
-    },
-  };
-}
+export { buildSavedPropertyUniqueInput } from "@/modules/wishlist/service";
 
 export function assertReservableStatuses(input: {
   propertyStatus: string;
@@ -55,75 +44,7 @@ export async function savePropertyForBuyer(
   context: TenantContext,
   input: SavedPropertyMutationInput & Record<string, unknown>,
 ) {
-  rejectUnsafeCompanyIdInput(input);
-
-  if (!context.companyId || !context.userId) {
-    throw new Error("Authentication and tenant context are required.");
-  }
-
-  if (!featureFlags.hasDatabase) {
-    return {
-      status: "saved" as const,
-      propertyId: input.propertyId,
-    };
-  }
-
-  const property = (await findFirstForTenant(
-    prisma.property as ScopedFindFirstDelegate,
-    context,
-    {
-      where: {
-        id: input.propertyId,
-        status: {
-          in: ["AVAILABLE", "RESERVED", "SOLD"],
-        },
-      },
-      select: {
-        id: true,
-      },
-    } as Parameters<typeof prisma.property.findFirst>[0],
-  )) as { id: string } | null;
-
-  if (!property) {
-    throw new Error("Property not found.");
-  }
-
-  const existing = await prisma.savedProperty.findUnique({
-    where: buildSavedPropertyUniqueInput({
-      companyId: context.companyId,
-      userId: context.userId,
-      propertyId: property.id,
-    }),
-    select: {
-      id: true,
-    },
-  });
-
-  if (existing) {
-    await prisma.savedProperty.delete({
-      where: {
-        id: existing.id,
-      },
-    });
-
-    return {
-      status: "removed" as const,
-      propertyId: property.id,
-    };
-  }
-
-  await prisma.savedProperty.create({
-    data: {
-      companyId: context.companyId,
-      userId: context.userId,
-      propertyId: property.id,
-    },
-  });
-
-  return {
-    status: "saved" as const,
-    propertyId: property.id,
-  };
+  return toggleWishlistPropertyForBuyer(context, input);
 }
 
 export async function createReservationForBuyer(
@@ -318,7 +239,7 @@ export async function createReservationForBuyer(
       },
     });
 
-    await createTransactionForReservation(tx, {
+    const transaction = await createTransactionForReservation(tx, {
       companyId: context.companyId!,
       reservationId: reservation.id,
       propertyId: property.id,
@@ -328,6 +249,17 @@ export async function createReservationForBuyer(
         userId: context.userId!,
         totalValue: reservationFee,
         currentStage: "INQUIRY_RECEIVED",
+    });
+
+    await ensureReservationPaymentPlaceholder(tx, {
+      companyId: context.companyId!,
+      userId: context.userId!,
+      transactionId: transaction.id,
+      reservationId: reservation.id,
+      reservationReference: reservation.reference,
+      amount: reservationFee,
+      currency: "NGN",
+      marketerId: marketerId ?? null,
     });
 
     if (propertyUnitId) {

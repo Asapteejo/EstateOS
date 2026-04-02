@@ -28,6 +28,15 @@ export type PropertySummary = {
   landmarks: string[];
   brochureName: string;
   inquiryCount: number;
+  verification: {
+    status: "VERIFIED" | "STALE" | "UNVERIFIED" | "HIDDEN";
+    label: string;
+    detail: string;
+    tone: "success" | "warning" | "muted";
+    isPubliclyVisible: boolean;
+    lastVerifiedAt?: string;
+    verificationDueAt: string;
+  };
 };
 
 export type TeamMember = {

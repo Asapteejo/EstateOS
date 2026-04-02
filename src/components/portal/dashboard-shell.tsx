@@ -29,6 +29,7 @@ const adminLinks = [
   ["Transactions", "/admin/transactions"],
   ["Payments", "/admin/payments"],
   ["Billing", "/admin/billing"],
+  ["Settings", "/admin/settings"],
   ["Documents", "/admin/documents"],
   ["Notifications", "/admin/notifications"],
   ["Analytics", "/admin/analytics"],

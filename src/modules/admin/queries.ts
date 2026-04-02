@@ -7,6 +7,7 @@ import { properties as demoProperties } from "@/modules/properties/demo-data";
 import { adminMetrics, adminTables } from "@/modules/admin/demo-data";
 import { getInquiryManagementList } from "@/modules/inquiries/service";
 import { getInspectionManagementList } from "@/modules/inspections/service";
+import { buildPropertyVerificationPresentation } from "@/modules/properties/verification";
 
 type ScopedFindManyDelegate = { findMany: (args?: unknown) => Promise<unknown> };
 type ScopedCountDelegate = { count: (args?: unknown) => Promise<unknown> };
@@ -796,6 +797,17 @@ export async function getAdminDashboardSummary(context: TenantContext) {
   if (!featureFlags.hasDatabase || !context.companyId) {
     return {
       metrics: adminMetrics,
+      verificationSummary: {
+        needsVerification: 2,
+        staleListings: 1,
+        hiddenListings: 1,
+        recentlyVerified: 3,
+        queue: [
+          ["Eko Atrium Residences", "Verified 2 days ago", "Public"],
+          ["Ikoyi Garden Villas", "Last updated 14 days ago", "At risk"],
+          ["Draft Waterfront Scheme", "Verification required", "Hidden"],
+        ],
+      },
       topDeals: adminTables.transactions.map((item) => [
         item.ref,
         item.property,
@@ -862,6 +874,12 @@ export async function getAdminDashboardSummary(context: TenantContext) {
       select: {
         id: true,
         title: true,
+        status: true,
+        lastVerifiedAt: true,
+        verificationStatus: true,
+        verificationDueAt: true,
+        isPubliclyVisible: true,
+        autoHiddenAt: true,
       },
     } as Parameters<typeof prisma.property.findMany>[0]),
     findManyForTenant(prisma.inquiry as ScopedFindManyDelegate, context, {
@@ -887,7 +905,16 @@ export async function getAdminDashboardSummary(context: TenantContext) {
     } as Parameters<typeof prisma.inquiry.findMany>[0]),
   ]);
 
-  const propertyRows = properties as Array<{ id: string; title: string }>;
+  const propertyRows = properties as Array<{
+    id: string;
+    title: string;
+    status: string;
+    lastVerifiedAt: Date | null;
+    verificationStatus: "VERIFIED" | "STALE" | "UNVERIFIED" | "HIDDEN";
+    verificationDueAt: Date;
+    isPubliclyVisible: boolean;
+    autoHiddenAt: Date | null;
+  }>;
   const topListingsCounts = await Promise.all(
     propertyRows.map(async (property) => {
       const count = (await countForTenant(prisma.inquiry as ScopedCountDelegate, context, {
@@ -934,6 +961,32 @@ export async function getAdminDashboardSummary(context: TenantContext) {
     .slice(0, 3)
     .map(([name, count]) => [name, String(count)]);
 
+  const verificationRows = propertyRows
+    .map((property) => ({
+      title: property.title,
+      presentation: buildPropertyVerificationPresentation({
+        status: property.status,
+        lastVerifiedAt: property.lastVerifiedAt,
+        verificationStatus: property.verificationStatus,
+        verificationDueAt: property.verificationDueAt,
+        isPubliclyVisible: property.isPubliclyVisible,
+        autoHiddenAt: property.autoHiddenAt,
+      }),
+    }))
+    .sort((left, right) => left.presentation.verificationDueAt.getTime() - right.presentation.verificationDueAt.getTime());
+
+  const verificationSummary = {
+    needsVerification: verificationRows.filter((row) => row.presentation.status === "UNVERIFIED").length,
+    staleListings: verificationRows.filter((row) => row.presentation.status === "STALE").length,
+    hiddenListings: verificationRows.filter((row) => row.presentation.status === "HIDDEN").length,
+    recentlyVerified: verificationRows.filter((row) => row.presentation.status === "VERIFIED").length,
+    queue: verificationRows.slice(0, 6).map((row) => [
+      row.title,
+      row.presentation.label,
+      row.presentation.isPubliclyVisible ? "Public" : "Hidden",
+    ]),
+  };
+
   const metrics = [
     { label: "Total inquiries", value: String(totalInquiries as number), delta: "Tenant-scoped" },
     { label: "Reservations made", value: String(reservationsMade as number), delta: "Tenant-scoped" },
@@ -968,6 +1021,7 @@ export async function getAdminDashboardSummary(context: TenantContext) {
 
   return {
     metrics,
+    verificationSummary,
     topDeals,
     topListings,
     topStaff,
