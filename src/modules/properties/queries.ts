@@ -164,8 +164,10 @@ type DetailPropertyRow = Omit<PropertyRow, "units" | "paymentPlans"> & {
 export function buildPublicPropertyWhere(
   context: TenantContext,
   where?: Record<string, unknown>,
-  now = new Date(),
+  _now = new Date(),
 ) {
+  void _now;
+
   return scopeTenantWhere(context, {
     AND: [
       where ?? {},

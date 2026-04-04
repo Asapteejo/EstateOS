@@ -1,6 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 
+import { OptimizedImage } from "@/components/media/optimized-image";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
@@ -10,7 +10,7 @@ export function PropertyCard({ property }: { property: PropertySummary }) {
   return (
     <Card className="overflow-hidden">
       <div className="relative h-72">
-        <Image src={property.images[0]} alt={property.title} fill className="object-cover" />
+        <OptimizedImage src={property.images[0]} alt={property.title} fill preset="card" className="object-cover" />
         <div className="absolute left-4 top-4 flex flex-wrap gap-2">
           <Badge className="bg-white/90">{property.status}</Badge>
           <Badge

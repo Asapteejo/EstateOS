@@ -36,7 +36,17 @@ export function Button({
   className,
   variant,
   size,
+  style,
   ...props
 }: ButtonProps) {
-  return <button className={cn(buttonVariants({ variant, size, className }))} {...props} />;
+  return (
+    <button
+      className={cn(buttonVariants({ variant, size, className }))}
+      style={{
+        borderRadius: "var(--tenant-button-radius, 999px)",
+        ...style,
+      }}
+      {...props}
+    />
+  );
 }

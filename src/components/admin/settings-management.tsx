@@ -13,13 +13,10 @@ export function SettingsManagement({ settings }: { settings: TenantAdminSettings
   const [pending, setPending] = useState(false);
   const [form, setForm] = useState({
     ...settings,
-    logoUrl: settings.logoUrl ?? "",
     supportEmail: settings.supportEmail ?? "",
     supportPhone: settings.supportPhone ?? "",
     whatsappNumber: settings.whatsappNumber ?? "",
     address: settings.address ?? "",
-    primaryColor: settings.primaryColor ?? "",
-    accentColor: settings.accentColor ?? "",
     paymentDisplayLabel: settings.paymentDisplayLabel ?? "",
     receiptFooterNote: settings.receiptFooterNote ?? "",
   });
@@ -52,9 +49,6 @@ export function SettingsManagement({ settings }: { settings: TenantAdminSettings
           <Field label="Company name">
             <input className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]" value={form.companyName} onChange={(event) => setForm((current) => ({ ...current, companyName: event.target.value }))} />
           </Field>
-          <Field label="Logo URL">
-            <input className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]" value={form.logoUrl} onChange={(event) => setForm((current) => ({ ...current, logoUrl: event.target.value }))} />
-          </Field>
           <Field label="Support email">
             <input className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]" value={form.supportEmail} onChange={(event) => setForm((current) => ({ ...current, supportEmail: event.target.value }))} />
           </Field>
@@ -69,13 +63,7 @@ export function SettingsManagement({ settings }: { settings: TenantAdminSettings
           </Field>
         </SettingsSection>
 
-        <SettingsSection title="Branding" description="Public theme direction and receipt-facing brand cues.">
-          <Field label="Primary color">
-            <input className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]" value={form.primaryColor} onChange={(event) => setForm((current) => ({ ...current, primaryColor: event.target.value }))} />
-          </Field>
-          <Field label="Accent color">
-            <input className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]" value={form.accentColor} onChange={(event) => setForm((current) => ({ ...current, accentColor: event.target.value }))} />
-          </Field>
+        <SettingsSection title="Billing and receipts" description="Operational labels that complement the separate branding studio.">
           <Field label="Payment display label">
             <input className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]" value={form.paymentDisplayLabel} onChange={(event) => setForm((current) => ({ ...current, paymentDisplayLabel: event.target.value }))} />
           </Field>

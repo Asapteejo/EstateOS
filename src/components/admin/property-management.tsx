@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import type { AdminPropertyManagementRecord } from "@/modules/properties/admin-queries";
+import { MultiUploadDropzone } from "@/components/uploads/multi-upload-dropzone";
+import { UploadField } from "@/components/uploads/upload-field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -309,6 +311,15 @@ function serializeForm(state: PropertyFormState) {
           })),
       })),
   };
+}
+
+function normalizeMediaSortOrder(
+  media: PropertyFormState["media"],
+): PropertyFormState["media"] {
+  return media.map((item, index) => ({
+    ...item,
+    sortOrder: String(index),
+  }));
 }
 
 function SectionTitle({ title, description }: { title: string; description: string }) {
@@ -693,18 +704,37 @@ function PropertyEditor({
         <Input placeholder="Size (sqm)" value={value.sizeSqm} onChange={(event) => update("sizeSqm", event.target.value)} />
         <Input placeholder="Wishlist duration (days)" value={value.wishlistDurationDays} onChange={(event) => update("wishlistDurationDays", event.target.value)} />
         <Input placeholder="Video walkthrough URL" value={value.videoUrl} onChange={(event) => update("videoUrl", event.target.value)} />
-        <select
-          className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
-          value={value.brochureDocumentId}
-          onChange={(event) => update("brochureDocumentId", event.target.value)}
-        >
-          <option value="">No brochure linked</option>
-          {brochures.map((brochure) => (
-            <option key={brochure.id} value={brochure.id}>
-              {brochure.fileName}
-            </option>
-          ))}
-        </select>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <UploadField
+          label="Brochure"
+          purpose="BROCHURE"
+          surface="admin"
+          mode="document"
+          helperText="Public brochure document used on the tenant property page."
+          value={{
+            documentId: value.brochureDocumentId || null,
+            fileName:
+              brochures.find((brochure) => brochure.id === value.brochureDocumentId)?.fileName ?? null,
+          }}
+          onChange={(uploaded) => update("brochureDocumentId", uploaded.documentId ?? "")}
+        />
+        <label className="block space-y-2">
+          <span className="text-sm font-medium text-[var(--ink-700)]">Existing uploaded brochure</span>
+          <select
+            className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+            value={value.brochureDocumentId}
+            onChange={(event) => update("brochureDocumentId", event.target.value)}
+          >
+            <option value="">No brochure linked</option>
+            {brochures.map((brochure) => (
+              <option key={brochure.id} value={brochure.id}>
+                {brochure.fileName}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -772,6 +802,24 @@ function PropertyEditor({
       </ArraySection>
 
       <ArraySection title="Media" onAdd={() => update("media", [...value.media, { title: "", url: "", mimeType: "", sortOrder: String(value.media.length), isPrimary: false, visibility: "PUBLIC" }])}>
+        <MultiUploadDropzone
+          purpose="PROPERTY_MEDIA"
+          surface="admin"
+          helperText="Upload a full gallery in one pass. Newly uploaded media lands below where you can set titles, primary image, ordering, and visibility."
+          onUploaded={(assets) =>
+            update("media", [
+              ...value.media,
+              ...assets.map((asset, index) => ({
+                title: asset.fileName?.replace(/\.[^.]+$/, "") ?? "",
+                url: asset.url ?? "",
+                mimeType: asset.mimeType ?? "",
+                sortOrder: String(value.media.length + index),
+                isPrimary: value.media.every((item) => !item.url) && index === 0,
+                visibility: "PUBLIC" as const,
+              })),
+            ])
+          }
+        />
         {value.media.map((media, index) => (
           <div key={`media-${index}`} className="grid gap-3 rounded-3xl border border-[var(--line)] p-4">
             <div className="grid gap-3 md:grid-cols-2">
@@ -804,6 +852,29 @@ function PropertyEditor({
                 }
               />
             </div>
+            <UploadField
+              label={`Media file ${index + 1}`}
+              purpose="PROPERTY_MEDIA"
+              surface="admin"
+              mode="publicAsset"
+              allowExternalUrl
+              helperText="Upload tenant-scoped public media or keep an external media URL when appropriate."
+              value={{ url: media.url, fileName: media.title || null }}
+              onChange={(uploaded) =>
+                update(
+                  "media",
+                  value.media.map((item, itemIndex) =>
+                    itemIndex === index
+                      ? {
+                          ...item,
+                          url: uploaded.url ?? "",
+                          mimeType: uploaded.mimeType ?? item.mimeType,
+                        }
+                      : item,
+                  ),
+                )
+              }
+            />
             <div className="flex flex-wrap items-center gap-4">
               <label className="flex items-center gap-2 text-sm text-[var(--ink-700)]">
                 <input
@@ -833,6 +904,40 @@ function PropertyEditor({
               </select>
               <Button type="button" variant="outline" onClick={() => update("media", value.media.filter((_, itemIndex) => itemIndex !== index))}>
                 Remove
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={index === 0}
+                onClick={() =>
+                  update(
+                    "media",
+                    normalizeMediaSortOrder(value.media.map((item, itemIndex) => {
+                      if (itemIndex === index - 1) return value.media[index];
+                      if (itemIndex === index) return value.media[index - 1];
+                      return item;
+                    })),
+                  )
+                }
+              >
+                Move up
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={index === value.media.length - 1}
+                onClick={() =>
+                  update(
+                    "media",
+                    normalizeMediaSortOrder(value.media.map((item, itemIndex) => {
+                      if (itemIndex === index + 1) return value.media[index];
+                      if (itemIndex === index) return value.media[index + 1];
+                      return item;
+                    })),
+                  )
+                }
+              >
+                Move down
               </Button>
             </div>
           </div>

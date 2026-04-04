@@ -1266,6 +1266,9 @@ model SiteSettings {
   address         String?
   socialLinks     Json?
   marketingConfig Json?
+  draftBrandingConfig Json?
+  publishedBrandingConfig Json?
+  brandingPublishedAt DateTime?
   verificationFreshDays Int?
   verificationStaleDays Int?
   verificationHideDays Int?

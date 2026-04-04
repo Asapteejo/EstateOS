@@ -1,13 +1,14 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { OptimizedImage } from "@/components/media/optimized-image";
 import { Container } from "@/components/shared/container";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { requirePublicTenantContext } from "@/lib/tenancy/context";
 import { buildMailtoHref, buildWhatsAppHref } from "@/modules/team/contact";
+import { getTenantMarketerPerformanceSummary } from "@/modules/team/performance";
 import { getVisibleTeamMemberBySlug } from "@/modules/team/queries";
 
 export default async function TeamProfilePage({
@@ -23,6 +24,8 @@ export default async function TeamProfilePage({
     notFound();
   }
 
+  const performance = await getTenantMarketerPerformanceSummary(tenant, member.id, new Date());
+
   const mailtoHref = buildMailtoHref(member.email);
   const whatsappHref = buildWhatsAppHref(member.whatsappNumber);
 
@@ -31,7 +34,7 @@ export default async function TeamProfilePage({
       <Card className="overflow-hidden rounded-[32px] border-[var(--line)] bg-white">
         <div className="relative h-[420px] bg-[linear-gradient(140deg,#f7f1e7,#edf5f0)]">
           {member.avatarUrl ? (
-            <Image src={member.avatarUrl} alt={member.fullName} fill className="object-cover" />
+            <OptimizedImage src={member.avatarUrl} alt={member.fullName} fill preset="profile" className="object-cover" />
           ) : (
             <div className="flex h-full items-center justify-center text-7xl font-semibold text-[var(--ink-300)]">
               {member.fullName.charAt(0)}
@@ -51,6 +54,13 @@ export default async function TeamProfilePage({
           </div>
           <h1 className="text-4xl font-semibold text-[var(--ink-950)]">{member.fullName}</h1>
           <p className="text-lg font-medium text-[var(--brand-700)]">{member.title}</p>
+          {performance ? (
+            <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--ink-500)]">
+              <Badge>#{performance.rank} this month</Badge>
+              <span className="font-semibold text-[var(--brand-700)]">{performance.starRating.toFixed(1)} / 5.0 stars</span>
+              <span>{performance.summary}</span>
+            </div>
+          ) : null}
           <p className="max-w-3xl text-base leading-8 text-[var(--ink-600)]">{member.bio}</p>
         </div>
 
@@ -80,6 +90,39 @@ export default async function TeamProfilePage({
             </div>
           </Card>
         </div>
+
+        {performance ? (
+          <Card className="rounded-[28px] border-[var(--line)] bg-white p-6">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="text-xs uppercase tracking-[0.2em] text-[var(--ink-500)]">Performance snapshot</div>
+                <h2 className="mt-2 text-lg font-semibold text-[var(--ink-950)]">Recent deal activity</h2>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-semibold text-[var(--brand-700)]">{performance.starRating.toFixed(1)} / 5.0 stars</div>
+                <div className="text-xs text-[var(--ink-500)]">Based on current tenant activity</div>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-2xl bg-[var(--sand-50)] px-4 py-4">
+                <div className="text-xs uppercase tracking-[0.16em] text-[var(--ink-500)]">Deals closed</div>
+                <div className="mt-2 text-2xl font-semibold text-[var(--ink-950)]">{performance.metrics.completedDeals}</div>
+              </div>
+              <div className="rounded-2xl bg-[var(--sand-50)] px-4 py-4">
+                <div className="text-xs uppercase tracking-[0.16em] text-[var(--ink-500)]">Payments</div>
+                <div className="mt-2 text-2xl font-semibold text-[var(--ink-950)]">{performance.metrics.successfulPayments}</div>
+              </div>
+              <div className="rounded-2xl bg-[var(--sand-50)] px-4 py-4">
+                <div className="text-xs uppercase tracking-[0.16em] text-[var(--ink-500)]">Reservations</div>
+                <div className="mt-2 text-2xl font-semibold text-[var(--ink-950)]">{performance.metrics.reservations}</div>
+              </div>
+              <div className="rounded-2xl bg-[var(--sand-50)] px-4 py-4">
+                <div className="text-xs uppercase tracking-[0.16em] text-[var(--ink-500)]">Inspections</div>
+                <div className="mt-2 text-2xl font-semibold text-[var(--ink-950)]">{performance.metrics.inspectionsHandled}</div>
+              </div>
+            </div>
+          </Card>
+        ) : null}
 
         {member.profileHighlights.length > 0 ? (
           <Card className="rounded-[28px] border-[var(--line)] bg-white p-6">

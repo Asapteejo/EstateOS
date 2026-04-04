@@ -1,4 +1,5 @@
 import { PropertyCard } from "@/components/marketing/property-card";
+import { TopMarketersSection } from "@/components/marketing/top-marketers-section";
 import { Container } from "@/components/shared/container";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SectionHeading } from "@/components/shared/section-heading";
@@ -11,6 +12,7 @@ import {
   getPublicPropertiesContext,
   parsePropertySearchParams,
 } from "@/modules/properties/queries";
+import { getTenantMarketerLeaderboard } from "@/modules/team/performance";
 import Link from "next/link";
 
 export default async function PropertiesPage({
@@ -20,7 +22,10 @@ export default async function PropertiesPage({
 }) {
   const tenant = await getPublicPropertiesContext();
   const filters = parsePropertySearchParams(await searchParams);
-  const properties = await getPublicProperties(tenant, filters);
+  const [properties, leaderboard] = await Promise.all([
+    getPublicProperties(tenant, filters),
+    getTenantMarketerLeaderboard(tenant, new Date(), 3),
+  ]);
 
   const activeFilters = [
     filters.location ? `Location: ${filters.location}` : null,
@@ -103,6 +108,12 @@ export default async function PropertiesPage({
           description="No public inventory matched the current filters for this tenant. Adjust the filters and try again."
         />
       )}
+      <TopMarketersSection
+        leaderboard={leaderboard}
+        compact
+        title="Need a trusted closer?"
+        description="These marketers are ranked from current tenant activity, with buyer-selected attribution taking precedence over assigned inquiry and inspection fallback."
+      />
       <div className="flex items-center justify-between gap-4 rounded-3xl border border-[var(--line)] px-5 py-4 text-sm text-[var(--ink-600)]">
         <span>
           Showing page {properties.page} of {properties.totalPages} · {properties.total} result(s)

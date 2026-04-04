@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { Container } from "@/components/shared/container";
 import { Logo } from "@/components/shared/logo";
+import { requireAdminSession, requirePortalSession } from "@/lib/auth/guards";
+import { getTenantPresentation } from "@/modules/branding/service";
 import { cn } from "@/lib/utils";
 
 const portalLinks = [
@@ -28,6 +30,7 @@ const adminLinks = [
   ["Clients", "/admin/clients"],
   ["Transactions", "/admin/transactions"],
   ["Payments", "/admin/payments"],
+  ["Assets", "/admin/assets"],
   ["Billing", "/admin/billing"],
   ["Settings", "/admin/settings"],
   ["Documents", "/admin/documents"],
@@ -36,7 +39,7 @@ const adminLinks = [
   ["Audit Logs", "/admin/audit-logs"],
 ] as const;
 
-export function DashboardShell({
+export async function DashboardShell({
   area,
   title,
   subtitle,
@@ -48,12 +51,17 @@ export function DashboardShell({
   children: React.ReactNode;
 }) {
   const links = area === "portal" ? portalLinks : adminLinks;
+  const tenant = area === "portal"
+    ? await requirePortalSession({ redirectOnMissingAuth: false })
+    : await requireAdminSession(["ADMIN"], { redirectOnMissingAuth: false });
+  const presentation = await getTenantPresentation(tenant);
+  const branding = presentation.branding;
 
   return (
-    <Container className="grid gap-6 py-8 lg:grid-cols-[260px_1fr]">
-      <aside className="rounded-[28px] border border-[var(--line)] bg-white p-5">
-        <Logo href={`/${area}`} />
-        <div className="mt-8 space-y-2">
+    <Container className="grid gap-6 py-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:py-8">
+      <aside className="rounded-[var(--tenant-card-radius,28px)] border border-[var(--tenant-nav-border)] bg-[var(--tenant-nav-surface)] p-5 shadow-[var(--tenant-nav-shadow)] lg:sticky lg:top-6 lg:self-start">
+        <Logo href={`/${area}`} name={presentation.companyName} tagline={area === "portal" ? "Buyer workspace" : "Company workspace"} logoUrl={branding.logoUrl} />
+        <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:mt-8 lg:block lg:space-y-2">
           {links.map(([label, href]) => (
             <Link
               key={href}
@@ -68,9 +76,9 @@ export function DashboardShell({
           ))}
         </div>
       </aside>
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         <div>
-          <h1 className="font-serif text-4xl text-[var(--ink-950)]">{title}</h1>
+          <h1 className="font-serif text-3xl text-[var(--ink-950)] sm:text-4xl">{title}</h1>
           <p className="mt-2 text-sm leading-7 text-[var(--ink-600)]">{subtitle}</p>
         </div>
         {children}

@@ -13,11 +13,17 @@ const links = [
   { href: "/contact", label: "Contact" },
 ];
 
-export function MarketingHeader() {
+export function MarketingHeader({
+  companyName = "Acme Realty",
+  logoUrl = null,
+}: {
+  companyName?: string;
+  logoUrl?: string | null;
+}) {
   return (
-    <header className="sticky top-0 z-40 border-b border-white/20 bg-[rgba(248,246,240,0.82)] backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-[var(--tenant-nav-border,var(--line))] bg-[var(--tenant-nav-surface)] shadow-[var(--tenant-nav-shadow,none)] backdrop-blur-xl">
       <Container className="flex h-20 items-center justify-between gap-6">
-        <Logo href="/properties" />
+        <Logo href="/properties" name={companyName} tagline="Trusted Transactions" logoUrl={logoUrl} />
         <nav className="hidden items-center gap-6 md:flex">
           {links.map((link) => (
             <Link

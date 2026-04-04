@@ -112,14 +112,21 @@ EstateOS now deepens buyer intent tracking through a tenant-scoped wishlist work
 
 ### Marketer Ranking Logic
 
-- public tenant team pages now include a monthly top-marketer section
-- ranking is tenant-scoped and derived from persisted activity, not random weights
-- current composite score uses:
-  wishlist adds linked to the marketer
-  reservations linked to the marketer
-  successful payments linked to the marketer
-- star ratings are computed from that composite score and intentionally bounded to a credible 3.0 to 5.0 range
-- this model is designed to evolve as deeper attribution becomes available
+- Top Marketers now appears on both the tenant public `/team` page and the tenant public `/properties` discovery page
+- ranking is tenant-scoped and fetched from current persisted DB activity, not demo data or vanity metrics
+- attribution precedence is:
+  1. buyer-selected marketer persisted on reservation, transaction, and payment records
+  2. fallback staff assignment on qualified inquiries and handled inspections when no marketer was explicitly selected
+- current weighted score uses:
+  completed deals
+  successful payments
+  linked reservations
+  handled inspections
+  qualified or converted inquiries
+  wishlist saves linked to the marketer
+- only active, published tenant team members are eligible for public ranking
+- public marketer profile pages now also show the current performance snapshot and star rating
+- star ratings are derived from the composite score with bounded output from 3.0 to 5.0 so low-signal profiles are not falsely over-promoted
 
 ## Property Verification And Anti-Ghosting
 
@@ -171,6 +178,160 @@ EstateOS now includes a trust-layer for property freshness so stale or ghost inv
 - verification thresholds are hardcoded today for safety and consistency
 - tenant-configurable verification policies can be added later without changing the public query boundary
 - scheduled production automation still depends on live Inngest or cron wiring in deployment
+
+## Tenant Branding Customization
+
+EstateOS now supports a controlled tenant-branding workflow for company-owned experiences without turning the product into a freeform website builder.
+
+- tenant branding is stored in `SiteSettings` as:
+  `draftBrandingConfig`
+  `publishedBrandingConfig`
+  `brandingPublishedAt`
+- tenant admins manage branding from `/admin/settings/branding`
+- branding supports:
+  primary color
+  secondary color
+  accent color
+  background style
+  background color
+  surface color
+  text mode
+  logo URL
+  favicon URL
+  optional hero image URL
+  button style preset
+  card style preset
+  navigation style preset
+
+### Draft vs Published Workflow
+
+- edits save into draft branding only
+- preview panels in the branding studio render the draft state
+- live tenant experiences render published branding only
+- tenant admins can:
+  save draft
+  reset draft to published
+  publish branding
+- publish actions are written to audit logs
+
+### Theme Application Boundaries
+
+- tenant public routes use branding more expressively
+- tenant admin and buyer portal apply branding in a restrained way through shared CSS variables
+- platform marketing routes under `/platform` and platform-owner routes under `/superadmin` do not inherit tenant branding
+- there is no arbitrary CSS injection or freeform style editing
+
+### Safe Design Rails
+
+- colors must be valid 6-digit hex values
+- publish is blocked if key app-surface contrast becomes unsafe
+- `IMAGE_HERO` requires a hero image URL before publish
+- navigation, button, and card styling are constrained to supported presets
+- tenant branding assets are URL-based in this pass and only affect tenant-owned public/admin/portal surfaces
+
+### Branding Presets And Preview
+
+- the branding studio now includes curated presets such as:
+  Modern Blue
+  Luxury Gold
+  Corporate Clean
+  Elegant Dark
+  Warm Terracotta
+  Emerald Professional
+- presets apply to the draft branding only until the tenant admin publishes
+- admins can preview branding in both:
+  Desktop mode
+  Mobile mode
+- preview remains representative and clearly marked as `DRAFT PREVIEW`
+
+## Universal Upload System
+
+EstateOS now uses one tenant-scoped upload pattern for reusable media and document handling.
+
+- signed upload preparation lives at `/api/uploads/sign`
+- document finalization lives at `/api/uploads/documents`
+- public asset resolution lives at `/api/assets/public/[...key]`
+- upload purposes are centrally mapped in `src/modules/uploads/config.ts`
+
+### Where Shared Uploads Now Apply
+
+- tenant branding assets:
+  logo
+  favicon
+  hero image
+- tenant media library:
+  reusable asset picking for branding, staff, property, brochure, and document-backed uploads
+- staff management:
+  profile image
+  resume upload
+- property management:
+  brochure upload
+  property media upload
+- buyer KYC:
+  private KYC document upload
+
+### Public vs Private Asset Rules
+
+- public assets use controlled public storage domains such as:
+  branding
+  property-media
+  staff-media
+- private documents remain document-vault backed and are not exposed as public assets:
+  KYC
+  resumes
+- brochures remain public documents, but are still modeled separately from private vault documents
+- uploads remain tenant-scoped through namespaced storage keys and tenant-authenticated routes
+
+### Future Enhancements
+
+- stronger media-library indexing and bulk management
+- tenant-side upload analytics and optimization metadata
+
+## Media Library And Responsive Polish
+
+EstateOS now includes a tenant-scoped media library and final UX polish for image-heavy surfaces.
+
+- `/admin/assets` provides a reusable media library for tenant-owned assets
+- tenant admins can:
+  search assets
+  filter by purpose
+  filter by image vs document
+  filter by public vs private visibility
+  choose an existing asset from the branding/staff/property flows
+- media library respects tenant scoping and does not expose cross-tenant assets
+- public/private distinctions stay intact:
+  public branding/property/staff media can be previewed
+  private documents remain document-backed and are not exposed through public asset URLs
+
+### Image Rendering And Optimization Notes
+
+- EstateOS now uses a shared image wrapper for key public and tenant image surfaces
+- image handling is improved through:
+  consistent sizing presets
+  responsive `sizes` hints
+  safer fallback to `unoptimized` rendering for unknown external hosts
+- this is a real rendering/layout optimization improvement
+- it does not claim remote provider-side image transforms where those are not available
+
+### Logo-Based Auto Theme
+
+- branding studio now supports an optional `Generate from logo` action
+- the selected logo is sampled client-side to produce a safe draft palette suggestion
+- generated theme applies to draft only after explicit admin confirmation
+- if extraction fails or the logo cannot be sampled safely, the draft is not mutated
+
+### Drag-And-Drop Multi Upload
+
+- property media management now supports drag-and-drop multi-upload
+- admins can upload multiple gallery assets in one pass, preview them, and reorder them
+- uploads still use the shared tenant-scoped upload pipeline and existing visibility rules
+
+### Responsive Hardening Notes
+
+- tenant admin and buyer dashboard shells are now more mobile-friendly
+- branding preview supports explicit desktop/mobile framing
+- media picker dialogs, asset grids, and team/property image surfaces were tightened for cleaner mobile behavior
+- the goal is responsive usability, not a separate mobile-only code path
 
 ## Stack
 

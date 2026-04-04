@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Download, Eye, EyeOff, ShieldCheck, Users } from "lucide-react";
 
+import { UploadField } from "@/components/uploads/upload-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -334,7 +335,6 @@ function TeamMemberEditor({
         <Input placeholder="Full name" value={value.fullName} onChange={(event) => update("fullName", event.target.value)} />
         <Input placeholder="Role or title" value={value.title} onChange={(event) => update("title", event.target.value)} />
         <Input placeholder="Profile slug (optional)" value={value.slug} onChange={(event) => update("slug", event.target.value)} />
-        <Input placeholder="Profile image URL" value={value.avatarUrl} onChange={(event) => update("avatarUrl", event.target.value)} />
         <Input placeholder="Staff code" value={value.staffCode} onChange={(event) => update("staffCode", event.target.value)} />
         <Input placeholder="Office location" value={value.officeLocation} onChange={(event) => update("officeLocation", event.target.value)} />
         <Input placeholder="Email" value={value.email} onChange={(event) => update("email", event.target.value)} />
@@ -342,6 +342,17 @@ function TeamMemberEditor({
         <Input placeholder="WhatsApp number" value={value.whatsappNumber} onChange={(event) => update("whatsappNumber", event.target.value)} />
         <Input placeholder="Display order" value={value.sortOrder} onChange={(event) => update("sortOrder", event.target.value)} />
       </div>
+
+      <UploadField
+        label="Staff profile image"
+        purpose="STAFF_PHOTO"
+        surface="admin"
+        mode="publicAsset"
+        allowExternalUrl
+        helperText="Public-facing profile image shown on the tenant team directory and marketer cards."
+        value={{ url: value.avatarUrl }}
+        onChange={(uploaded) => update("avatarUrl", uploaded.url ?? "")}
+      />
 
       <Textarea placeholder="Bio / about" value={value.bio} onChange={(event) => update("bio", event.target.value)} />
       <Textarea
@@ -370,18 +381,36 @@ function TeamMemberEditor({
         onChange={(event) => update("socialLinks", event.target.value)}
       />
 
-      <select
-        className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
-        value={value.resumeDocumentId}
-        onChange={(event) => update("resumeDocumentId", event.target.value)}
-      >
-        <option value="">No resume linked</option>
-        {resumeDocuments.map((document) => (
-          <option key={document.id} value={document.id}>
-            {document.fileName}
-          </option>
-        ))}
-      </select>
+      <div className="grid gap-4 md:grid-cols-2">
+        <UploadField
+          label="Resume attachment"
+          purpose="RESUME"
+          surface="admin"
+          mode="document"
+          helperText="Private document stored in the tenant vault for internal use."
+          value={{
+            documentId: value.resumeDocumentId || null,
+            fileName:
+              resumeDocuments.find((document) => document.id === value.resumeDocumentId)?.fileName ?? null,
+          }}
+          onChange={(uploaded) => update("resumeDocumentId", uploaded.documentId ?? "")}
+        />
+        <label className="block space-y-2">
+          <span className="text-sm font-medium text-[var(--ink-700)]">Existing uploaded resume</span>
+          <select
+            className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+            value={value.resumeDocumentId}
+            onChange={(event) => update("resumeDocumentId", event.target.value)}
+          >
+            <option value="">No resume linked</option>
+            {resumeDocuments.map((document) => (
+              <option key={document.id} value={document.id}>
+                {document.fileName}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       <div className="flex flex-wrap items-center gap-4 rounded-3xl border border-[var(--line)] bg-[var(--sand-50)] px-4 py-4">
         <label className="flex items-center gap-2 text-sm text-[var(--ink-700)]">

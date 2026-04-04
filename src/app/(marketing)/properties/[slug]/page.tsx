@@ -1,6 +1,6 @@
 import Link from "next/link";
-import Image from "next/image";
 
+import { OptimizedImage } from "@/components/media/optimized-image";
 import { InquiryForm } from "@/components/marketing/inquiry-form";
 import { InspectionForm } from "@/components/marketing/inspection-form";
 import { MapSection } from "@/components/marketing/map-section";
@@ -49,23 +49,24 @@ export default async function PropertyDetailPage({
         <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="space-y-6">
             <div>
-              <h1 className="font-serif text-5xl text-[var(--ink-950)]">{property.title}</h1>
+              <h1 className="font-serif text-4xl text-[var(--ink-950)] sm:text-5xl">{property.title}</h1>
               <p className="mt-4 max-w-3xl text-lg leading-8 text-[var(--ink-600)]">
                 {property.description}
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="relative h-[440px] md:col-span-2">
-                <Image
+                <OptimizedImage
                   src={property.images[0] ?? "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80"}
                   alt={property.title}
                   fill
+                  preset="hero"
                   className="rounded-[32px] object-cover"
                 />
               </div>
               {property.images.slice(1).map((image) => (
                 <div key={image} className="relative h-56">
-                  <Image src={image} alt={property.title} fill className="rounded-[28px] object-cover" />
+                  <OptimizedImage src={image} alt={property.title} fill preset="card" className="rounded-[28px] object-cover" />
                 </div>
               ))}
             </div>

@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import { UploadField } from "@/components/uploads/upload-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 type BuyerKycSubmissionListItem = {
@@ -30,54 +30,21 @@ export function KycSubmissionManager({
   const router = useRouter();
   const [documentType, setDocumentType] = useState("KYC_ID");
   const [notes, setNotes] = useState("");
-  const [file, setFile] = useState<File | null>(null);
+  const [uploaded, setUploaded] = useState<{
+    fileName?: string | null;
+    storageKey?: string | null;
+    mimeType?: string | null;
+    sizeBytes?: number | null;
+  }>({});
   const [pending, setPending] = useState(false);
 
   async function submit() {
-    if (!file) {
+    if (!uploaded.fileName || !uploaded.storageKey) {
       toast.error("Choose a document file before submitting.");
       return;
     }
 
     setPending(true);
-
-    const signResponse = await fetch("/api/uploads/sign", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        domain: "kyc",
-        fileName: file.name,
-        contentType: file.type || "application/octet-stream",
-      }),
-    });
-
-    if (!signResponse.ok) {
-      setPending(false);
-      toast.error("Unable to prepare KYC upload.");
-      return;
-    }
-
-    const signed = (await signResponse.json()) as {
-      data?: { url: string; key: string; mode: "demo" | "live" };
-    };
-
-    if (signed.data?.mode === "live" && signed.data.url) {
-      const uploadResponse = await fetch(signed.data.url, {
-        method: "PUT",
-        body: file,
-        headers: {
-          "Content-Type": file.type || "application/octet-stream",
-        },
-      });
-
-      if (!uploadResponse.ok) {
-        setPending(false);
-        toast.error("Unable to upload KYC file.");
-        return;
-      }
-    }
 
     const submissionResponse = await fetch("/api/portal/kyc-submissions", {
       method: "POST",
@@ -86,10 +53,10 @@ export function KycSubmissionManager({
       },
       body: JSON.stringify({
         documentType,
-        fileName: file.name,
-        storageKey: signed.data?.key,
-        mimeType: file.type || "application/octet-stream",
-        sizeBytes: file.size,
+        fileName: uploaded.fileName,
+        storageKey: uploaded.storageKey,
+        mimeType: uploaded.mimeType ?? undefined,
+        sizeBytes: uploaded.sizeBytes ?? undefined,
         notes: notes || undefined,
       }),
     });
@@ -104,7 +71,7 @@ export function KycSubmissionManager({
 
     toast.success("KYC document submitted for review.");
     setNotes("");
-    setFile(null);
+    setUploaded({});
     router.refresh();
   }
 
@@ -130,7 +97,22 @@ export function KycSubmissionManager({
             <option value="KYC_PROOF_OF_ADDRESS">Proof of address</option>
             <option value="PASSPORT_PHOTO">Passport photograph</option>
           </select>
-          <Input type="file" onChange={(event) => setFile(event.target.files?.[0] ?? null)} />
+          <UploadField
+            label="KYC file"
+            purpose="KYC_DOCUMENT"
+            surface="portal"
+            mode="preparedUpload"
+            value={uploaded}
+            onChange={(value) =>
+              setUploaded({
+                fileName: value.fileName,
+                storageKey: value.storageKey,
+                mimeType: value.mimeType,
+                sizeBytes: value.sizeBytes,
+              })
+            }
+            helperText="Private upload routed through the tenant-scoped document vault."
+          />
         </div>
         <Textarea
           placeholder="Optional note for operations or legal"
