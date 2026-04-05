@@ -6,11 +6,14 @@ import {
   buildMarketerPerformanceScore,
   buildMarketerPerformanceSummary,
   buildMarketerPerformanceTrend,
+  buildMarketerRevenueMetrics,
   buildMarketerSnapshotDate,
   buildMarketerSnapshotRecords,
   buildMarketerStarRating,
-  sortMarketerPerformanceEntries,
+  getMarketerPeriodWindowStart,
   resolveAttributedMarketerId,
+  resolveRevenueAttributedMarketerId,
+  sortMarketerPerformanceEntries,
 } from "@/modules/team/performance";
 
 test("marketer performance score weights closed revenue signals above soft intent", () => {
@@ -151,10 +154,10 @@ test("snapshot records preserve ranking metrics for history tracking", () => {
         avatarUrl: null,
         isActive: true,
         isPublished: true,
-        monthlyScore: 28,
+        score: 28,
         starRating: 4.8,
         rank: 1,
-        summary: "1 closed deal • 2 successful payments",
+        summary: "1 closed deal â€¢ 2 successful payments",
         metrics: {
           wishlistAdds: 2,
           qualifiedInquiries: 1,
@@ -163,6 +166,7 @@ test("snapshot records preserve ranking metrics for history tracking", () => {
           successfulPayments: 2,
           completedDeals: 1,
         },
+        period: "MONTHLY",
       },
     ],
     new Date("2026-04-04T12:00:00.000Z"),
@@ -180,7 +184,7 @@ test("snapshot records preserve ranking metrics for history tracking", () => {
 test("performance trend compares current live ranking against the prior snapshot", () => {
   assert.deepEqual(
     buildMarketerPerformanceTrend(
-      { monthlyScore: 24, rank: 1 },
+      { score: 24, rank: 1 },
       { score: 18, rank: 3, snapshotDate: new Date("2026-04-03T00:00:00.000Z") },
     ),
     {
@@ -203,7 +207,7 @@ test("admin marketer sorting can prioritize payment and deal outcomes", () => {
         avatarUrl: null,
         isActive: true,
         isPublished: true,
-        monthlyScore: 10,
+        score: 10,
         starRating: 4.2,
         rank: 2,
         summary: "",
@@ -215,7 +219,13 @@ test("admin marketer sorting can prioritize payment and deal outcomes", () => {
           successfulPayments: 1,
           completedDeals: 1,
         },
+        period: "MONTHLY",
         trend: null,
+        revenue: {
+          weekly: 1250000,
+          monthly: 2000000,
+          lifetime: 4500000,
+        },
       },
       {
         id: "marketer_2",
@@ -225,7 +235,7 @@ test("admin marketer sorting can prioritize payment and deal outcomes", () => {
         avatarUrl: null,
         isActive: true,
         isPublished: false,
-        monthlyScore: 8,
+        score: 8,
         starRating: 3.9,
         rank: 1,
         summary: "",
@@ -237,13 +247,97 @@ test("admin marketer sorting can prioritize payment and deal outcomes", () => {
           successfulPayments: 3,
           completedDeals: 0,
         },
+        period: "MONTHLY",
         trend: null,
+        revenue: {
+          weekly: 2250000,
+          monthly: 4750000,
+          lifetime: 9000000,
+        },
       },
     ],
     "payments",
+    "MONTHLY",
   );
 
   assert.equal(sorted[0].id, "marketer_2");
   assert.equal(sorted[0].rank, 1);
   assert.equal(sorted[1].rank, 2);
+});
+
+test("weekly and monthly period windows stay stable", () => {
+  assert.equal(
+    getMarketerPeriodWindowStart("WEEKLY", new Date("2026-04-05T12:00:00.000Z"))?.toISOString(),
+    "2026-03-29T12:00:00.000Z",
+  );
+  assert.equal(
+    getMarketerPeriodWindowStart("MONTHLY", new Date("2026-04-05T12:00:00.000Z"))?.toISOString(),
+    "2026-04-01T00:00:00.000Z",
+  );
+  assert.equal(getMarketerPeriodWindowStart("LIFETIME", new Date("2026-04-05T12:00:00.000Z")), null);
+});
+
+test("revenue attribution follows payment, transaction, then reservation precedence", () => {
+  assert.equal(
+    resolveRevenueAttributedMarketerId({
+      paymentMarketerId: "payment_marketer",
+      transactionMarketerId: "transaction_marketer",
+      reservationMarketerId: "reservation_marketer",
+    }),
+    "payment_marketer",
+  );
+  assert.equal(
+    resolveRevenueAttributedMarketerId({
+      paymentMarketerId: null,
+      transactionMarketerId: "transaction_marketer",
+      reservationMarketerId: "reservation_marketer",
+    }),
+    "transaction_marketer",
+  );
+  assert.equal(
+    resolveRevenueAttributedMarketerId({
+      paymentMarketerId: null,
+      transactionMarketerId: null,
+      reservationMarketerId: "reservation_marketer",
+    }),
+    "reservation_marketer",
+  );
+  assert.equal(
+    resolveRevenueAttributedMarketerId({
+      paymentMarketerId: null,
+      transactionMarketerId: null,
+      reservationMarketerId: null,
+    }),
+    null,
+  );
+});
+
+test("admin-side revenue metrics stay conservative and period-aware", () => {
+  const totals = buildMarketerRevenueMetrics(
+    [
+      {
+        marketerId: "marketer_1",
+        amount: 1500000,
+        paidAt: new Date("2026-04-03T10:00:00.000Z"),
+      },
+      {
+        marketerId: "marketer_1",
+        amount: 3000000,
+        paidAt: new Date("2026-03-12T10:00:00.000Z"),
+      },
+      {
+        marketerId: null,
+        amount: 999999,
+        paidAt: new Date("2026-04-04T10:00:00.000Z"),
+      },
+    ],
+    new Date("2026-04-05T12:00:00.000Z"),
+  );
+
+  assert.deepEqual(totals.get("marketer_1"), {
+    weekly: 1500000,
+    monthly: 1500000,
+    lifetime: 4500000,
+  });
+  assert.equal(totals.has("unknown_marketer"), false);
 });

@@ -14,7 +14,8 @@ export async function GET(request: Request) {
     resolveSafeRedirectUrl(buildServerDomainConfig(env), redirectTo, "/"),
   );
 
-  if (featureFlags.isProduction) {
+  if (!featureFlags.allowDevBypass) {
+    response.cookies.delete(DEV_SESSION_COOKIE);
     return response;
   }
 

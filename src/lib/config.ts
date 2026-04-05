@@ -11,6 +11,28 @@ const optionalUrl = emptyStringToUndefined(z.string().trim().url().optional());
 const optionalSlug = emptyStringToUndefined(
   z.string().trim().regex(/^[a-z0-9-]+$/).optional(),
 );
+const optionalBoolean = z.preprocess((value) => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "") {
+      return undefined;
+    }
+
+    if (normalized === "true") {
+      return true;
+    }
+
+    if (normalized === "false") {
+      return false;
+    }
+  }
+
+  return value;
+}, z.boolean().optional());
 
 const serverEnvSchema = z
   .object({
@@ -23,6 +45,7 @@ const serverEnvSchema = z
     PLATFORM_BASE_URL: optionalUrl,
     PORTAL_BASE_URL: optionalUrl,
     DEFAULT_COMPANY_SLUG: optionalSlug,
+    ESTATEOS_ENABLE_DEV_BYPASS: optionalBoolean,
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: optionalString,
     CLERK_SECRET_KEY: optionalString,
     CLERK_WEBHOOK_SECRET: optionalString,
@@ -191,6 +214,9 @@ export function buildFeatureFlags(env: ServerEnv) {
   return {
     isProduction: env.NODE_ENV === "production",
     isTest: env.NODE_ENV === "test",
+    allowDevBypass:
+      env.NODE_ENV === "test" ||
+      (env.NODE_ENV !== "production" && env.ESTATEOS_ENABLE_DEV_BYPASS === true),
     hasDatabase: Boolean(env.DATABASE_URL),
     hasClerk:
       Boolean(env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) &&

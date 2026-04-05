@@ -93,3 +93,30 @@ test("server env derives platform and portal base urls from public values", () =
   assert.equal(env.PLATFORM_BASE_URL, "https://estateos.example.com");
   assert.equal(env.PORTAL_BASE_URL, "https://portal.estateos.example.com");
 });
+
+test("dev bypass stays opt-in in development and disabled in production", () => {
+  const development = buildFeatureFlags(
+    parseServerEnv({
+      NODE_ENV: "development",
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+      ESTATEOS_ENABLE_DEV_BYPASS: "true",
+    }),
+  );
+  const developmentDefault = buildFeatureFlags(
+    parseServerEnv({
+      NODE_ENV: "development",
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+    }),
+  );
+  const production = buildFeatureFlags(
+    parseServerEnv({
+      NODE_ENV: "production",
+      NEXT_PUBLIC_APP_URL: "https://estateos.example.com",
+      ESTATEOS_ENABLE_DEV_BYPASS: "true",
+    }),
+  );
+
+  assert.equal(development.allowDevBypass, true);
+  assert.equal(developmentDefault.allowDevBypass, false);
+  assert.equal(production.allowDevBypass, false);
+});

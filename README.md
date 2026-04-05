@@ -113,12 +113,18 @@ EstateOS now deepens buyer intent tracking through a tenant-scoped wishlist work
 ### Marketer Ranking Logic
 
 - Top Marketers now appears on both the tenant public `/team` page and the tenant public `/properties` discovery page
+- public Top Marketers supports `WEEKLY` and `MONTHLY` ranking views only
 - ranking is tenant-scoped and fetched from current persisted DB activity, not demo data or vanity metrics
 - `StaffProfile.teamMemberId` is now the canonical relation for inquiry and inspection attribution
 - existing staff-to-marketer links are backfilled during migration using the previous email/staff-code heuristic, then live ranking reads the explicit relation
 - attribution precedence is:
   1. buyer-selected marketer persisted on reservation, transaction, and payment records
   2. fallback staff assignment on qualified inquiries and handled inspections when no marketer was explicitly selected
+- revenue attribution for admin analytics is stricter and uses:
+  1. `payment.marketerId`
+  2. `transaction.marketerId`
+  3. `reservation.marketerId`
+  4. no attribution if all three are empty
 - current weighted score uses:
   completed deals
   successful payments
@@ -128,13 +134,16 @@ EstateOS now deepens buyer intent tracking through a tenant-scoped wishlist work
   wishlist saves linked to the marketer
 - only active, published tenant team members are eligible for public ranking
 - public marketer profile pages now also show the current performance snapshot and star rating
+- public marketer surfaces never expose private revenue figures
 - star ratings are derived from the composite score with bounded output from 3.0 to 5.0 so low-signal profiles are not falsely over-promoted
-- tenant admins now have a dedicated `/admin/marketers` view for the full ranked list, score breakdowns, and recent trend indicators
+- tenant admins now have a dedicated `/admin/marketers` view for the full ranked list, private revenue analytics, score breakdowns, and recent trend indicators
+- admin marketer analytics support `WEEKLY`, `MONTHLY`, and `LIFETIME` period views
 - daily `MarketerRankingSnapshot` rows are written by the operational automation sweep so historical rank and score movement can be compared safely over time
 - buyer payment surfaces now resolve marketer attribution in this order:
   1. `payment.marketerId`
   2. `transaction.marketerId`
   3. `reservation.marketerId`
+- marketers do not have a private self-dashboard yet; admin-only visibility is intentional because marketers do not have login in the current phase
 - snapshot scheduling depends on the same automation runner used for other operational jobs; deployment still needs live cron or Inngest scheduling to execute it automatically
 
 ## Property Verification And Anti-Ghosting
@@ -1128,3 +1137,97 @@ EstateOS now includes a tenant-scoped operating-system layer aimed at daily use 
   - webhook delivery
   - Resend email delivery
   - Inngest or external cron execution against the internal automation route
+
+## Pilot Readiness
+
+### Payment Authority Model
+- Checkout initialization and admin-created payment requests are intent only.
+- Buyer-facing `POST /api/payments/verify` is read-only and non-authoritative.
+- `POST /api/webhooks/paystack` remains the source of truth for:
+  - payment `SUCCESS`
+  - receipt creation
+  - transaction payment-state sync
+  - payment-request `PAID` transition
+  - commission record upsert
+  - split-settlement record upsert
+- Failed or expired provider events no longer generate receipts, commission records, or split-settlement records.
+
+### Split-Payment Caveats
+- EstateOS computes split settlement from the active company commission rule and payout account readiness.
+- Paystack-backed live checkout now refuses to initialize if split settlement is not ready for that tenant.
+- Admin-created Paystack payment requests use the same settlement quote and split metadata path as buyer-initiated checkout.
+- EstateOS does not fake provider settlement confirmation:
+  - `SplitSettlement.status = READY` means the split payload was valid for initialization
+  - live subaccount settlement still requires real Paystack processing and payout configuration
+- Granted-plan tenants still generate platform commission on successful payments.
+
+### Auth / Domain Model
+- Public tenant browsing stays on the tenant site.
+- Auth-required actions redirect to the central `PORTAL_BASE_URL`.
+- Production auth boundaries are enforced through Clerk plus server-side tenant/role guards.
+- Dev bypass is now explicit:
+  - disabled by default
+  - available only outside production
+  - enabled only when `ESTATEOS_ENABLE_DEV_BYPASS=true`
+- The dev access switcher and `/api/dev/session` are hidden/inert unless that flag is enabled.
+
+### Role Access Model
+- Public visitor: tenant public pages only
+- Buyer: `/portal`
+- Tenant admin: `/admin`
+- Superadmin: `/superadmin`
+- Buyer cannot inspect another buyer's payment verification state.
+- Tenant admin remains tenant-scoped.
+- Superadmin stays separate from tenant admin surfaces.
+
+### Required Production Environment
+- `DATABASE_URL`
+- `DEFAULT_COMPANY_SLUG`
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `CLERK_SECRET_KEY`
+- `CLERK_WEBHOOK_SECRET`
+- `PAYSTACK_SECRET_KEY`
+- `PAYSTACK_PUBLIC_KEY`
+- `PAYSTACK_WEBHOOK_SECRET`
+- `R2_ACCOUNT_ID`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `R2_BUCKET_NAME`
+- `PORTAL_BASE_URL`
+- `PLATFORM_BASE_URL`
+- `CRON_SECRET` if scheduled automation is enabled
+- `RESEND_API_KEY` and `EMAIL_FROM` for live transactional email
+
+### First-Tenant Onboarding Checklist
+1. Create the tenant company with correct slug, public domain, and billing settings.
+2. Configure the company payout account and confirm Paystack subaccount readiness.
+3. Confirm an active billing plan or approved grant exists for transaction operations.
+4. Publish tenant branding and public homepage content.
+5. Publish at least one verified property and one public marketer/team profile.
+6. Configure Clerk production keys and webhook endpoint.
+7. Configure Paystack callback URL and webhook URL.
+8. Configure R2 document storage and public asset base URL if used.
+9. Set `ESTATEOS_ENABLE_DEV_BYPASS=false` in any shared staging or production environment.
+
+### Live Validation Checklist Before Pilot Launch
+1. Hosted checkout payment:
+   Create an admin payment request with `HOSTED_CHECKOUT`, pay it through Paystack test mode, confirm webhook delivery, confirm the payment row flips to `SUCCESS`, confirm the payment request becomes `PAID`, and confirm the receipt appears in both admin and buyer views.
+2. Temporary transfer account request:
+   Create an admin payment request with `BANK_TRANSFER_TEMP_ACCOUNT`, confirm Paystack returns transfer instructions, confirm they appear in buyer/admin UI, complete the transfer in test mode if supported, and confirm webhook reconciliation updates the request and payment records.
+3. Split-settlement readiness:
+   Remove the tenant payout subaccount or mark it inactive, attempt checkout, and confirm initialization is blocked with a clear operator error. Restore readiness and confirm initialization succeeds with split metadata.
+4. Buyer portal visibility:
+   Confirm amount paid, remaining balance, next due date, receipts, active payment requests, and marketer attribution all match the reconciled payment state.
+5. Admin monitoring:
+   Confirm `/admin/payments` shows the same request/payment lifecycle, outstanding balance, receipt link, and marketer attribution.
+6. Superadmin revenue visibility:
+   Confirm successful payments produce commission records and split-settlement records visible through platform-owner billing views without exposing tenant-private data publicly.
+7. Auth and redirects:
+   From the tenant public site, click buyer portal, admin, and start-purchase CTAs and confirm they land on the central auth domain with the correct return target. Confirm invalid external redirect targets are rejected.
+8. Role boundaries:
+   Confirm buyer cannot access `/admin`, tenant admin cannot access `/superadmin`, and tenant admin cannot cross tenant boundaries through IDs or redirect parameters.
+
+### Local Development Notes
+- With Clerk configured, local auth uses real Clerk sessions.
+- Without Clerk, local demo access works only when `ESTATEOS_ENABLE_DEV_BYPASS=true`.
+- If that flag is left `false`, local auth-required routes will redirect to sign-in and require real auth configuration.

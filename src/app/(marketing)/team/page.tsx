@@ -12,11 +12,20 @@ import { buildMailtoHref, buildWhatsAppHref } from "@/modules/team/contact";
 import { getTenantMarketerLeaderboard } from "@/modules/team/performance";
 import { getVisibleTeamMembers } from "@/modules/team/queries";
 
-export default async function TeamDirectoryPage() {
+export default async function TeamDirectoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const tenant = await requirePublicTenantContext();
+  const params = await searchParams;
+  const leaderboardPeriod =
+    typeof params.topMarketers === "string" && params.topMarketers === "WEEKLY"
+      ? "WEEKLY"
+      : "MONTHLY";
   const [teamMembers, leaderboard] = await Promise.all([
     getVisibleTeamMembers(tenant),
-    getTenantMarketerLeaderboard(tenant, new Date(), 4),
+    getTenantMarketerLeaderboard(tenant, new Date(), 4, leaderboardPeriod),
   ]);
 
   return (
@@ -29,7 +38,9 @@ export default async function TeamDirectoryPage() {
 
       <TopMarketersSection
         leaderboard={leaderboard}
-        title="This month&apos;s strongest conversion team"
+        period={leaderboardPeriod}
+        periodHrefBuilder={(period) => `/team?topMarketers=${period}`}
+        title={leaderboardPeriod === "WEEKLY" ? "This week's strongest conversion team" : "This month's strongest conversion team"}
         description="Ranked from real tenant-scoped activity using buyer-selected marketer attribution first, then qualified inquiry and inspection assignment when no marketer was explicitly chosen."
       />
 

@@ -21,6 +21,9 @@ export async function PATCH(
       where: {
         id: params.paymentRequestId,
         companyId: tenant.companyId ?? "",
+        status: {
+          in: ["DRAFT", "SENT", "AWAITING_PAYMENT"],
+        },
       },
       data: {
         status: body.data.status,
@@ -28,7 +31,7 @@ export async function PATCH(
     });
 
     if (updated.count === 0) {
-      return fail("Payment request not found.", 404);
+      return fail("Payment request not found or can no longer be updated.", 404);
     }
 
     await writeAuditLog({

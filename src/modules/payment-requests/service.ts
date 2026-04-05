@@ -1,4 +1,4 @@
-import { Prisma, type PaymentProviderCode, type PrismaClient, type Prisma as PrismaNamespace } from "@prisma/client";
+import { Prisma, type PrismaClient, type Prisma as PrismaNamespace } from "@prisma/client";
 
 import { writeAuditLog } from "@/lib/audit/service";
 import { prisma } from "@/lib/db/prisma";
@@ -9,6 +9,7 @@ import { initializePayment } from "@/lib/payments/paystack";
 import { namespacePaymentReference } from "@/lib/payments/references";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
+import { buildSettlementQuote, requireCompanyPlanAccess } from "@/modules/billing/service";
 import type { PaymentRequestCreateInput } from "@/types/payment-requests";
 
 type DbClient = PrismaNamespace.TransactionClient | PrismaClient;
@@ -20,6 +21,25 @@ function buildPaymentRequestReference(input: { transactionId?: string | null; re
 
 export function buildReservationPlaceholderReference(reservationReference: string) {
   return `placeholder-${reservationReference}`.toLowerCase();
+}
+
+export function derivePaymentRequestStatusFromPayment(input: {
+  currentStatus: "DRAFT" | "SENT" | "AWAITING_PAYMENT" | "PAID" | "EXPIRED" | "CANCELLED";
+  paymentStatus: "SUCCESS" | "FAILED" | "PENDING" | "PROCESSING" | "AWAITING_INITIATION" | "EXPIRED" | "REFUNDED" | "OVERDUE";
+}) {
+  if (input.paymentStatus === "SUCCESS") {
+    return "PAID" as const;
+  }
+
+  if (input.currentStatus === "PAID" || input.currentStatus === "CANCELLED") {
+    return input.currentStatus;
+  }
+
+  if (input.paymentStatus === "EXPIRED" || input.currentStatus === "EXPIRED") {
+    return "EXPIRED" as const;
+  }
+
+  return "AWAITING_PAYMENT" as const;
 }
 
 export async function ensureReservationPaymentPlaceholder(
@@ -185,15 +205,6 @@ async function resolvePaymentRequestScope(
   };
 }
 
-async function resolveTransactionProvider(companyId: string): Promise<PaymentProviderCode> {
-  const settings = await prisma.companyBillingSettings.findUnique({
-    where: { companyId },
-    select: { transactionProvider: true },
-  });
-
-  return settings?.transactionProvider ?? "PAYSTACK";
-}
-
 export async function createPaymentRequestForAdmin(
   context: TenantContext,
   rawInput: PaymentRequestCreateInput & Record<string, unknown>,
@@ -214,8 +225,15 @@ export async function createPaymentRequestForAdmin(
     };
   }
 
+  await requireCompanyPlanAccess(context, "TRANSACTIONS");
+
   const scoped = await resolvePaymentRequestScope(context, rawInput);
-  const provider = await resolveTransactionProvider(context.companyId);
+  const settlementQuote = await buildSettlementQuote({
+    companyId: context.companyId,
+    amount: rawInput.amount,
+    currency: rawInput.currency,
+  });
+  const provider = settlementQuote.provider;
   const reference = buildPaymentRequestReference({
     transactionId: scoped.transaction?.id,
     reservationId: scoped.reservation?.id,
@@ -234,6 +252,10 @@ export async function createPaymentRequestForAdmin(
 
   if (rawInput.collectionMethod === "BANK_TRANSFER_TEMP_ACCOUNT" && !featureFlags.hasPaystack) {
     throw new Error("Paystack transfer-account payment requests are unavailable until live Paystack credentials are configured.");
+  }
+
+  if (shouldAttemptPaystack && settlementQuote.settlement.ready === false) {
+    throw new Error(settlementQuote.settlement.reason);
   }
 
   const company = await prisma.company.findUnique({
@@ -261,7 +283,24 @@ export async function createPaymentRequestForAdmin(
           transactionId: scoped.transaction?.id,
           reservationReference: scoped.reservation?.reference ?? scoped.transaction?.reservation?.reference,
           installmentId: scoped.installment?.id,
+          settlementQuote: {
+            provider: settlementQuote.provider,
+            breakdown: settlementQuote.breakdown,
+            ruleId: settlementQuote.commissionRule.id ?? null,
+          },
         },
+        splitConfig:
+          settlementQuote.settlement.ready && settlementQuote.settlement.providerPayload.paystack
+            ? {
+                subaccount: String(settlementQuote.settlement.providerPayload.paystack["subaccount"]),
+                transactionCharge: Number(
+                  settlementQuote.settlement.providerPayload.paystack["transaction_charge"] ?? 0,
+                ) / 100,
+                bearer: String(
+                  settlementQuote.settlement.providerPayload.paystack["bearer"] ?? "subaccount",
+                ),
+              }
+            : undefined,
       })
     : null;
 
@@ -366,6 +405,7 @@ export async function createPaymentRequestForAdmin(
       reservationId: scoped.reservation?.id ?? null,
       provider,
       providerReference: paymentRequest.providerReference,
+      settlementReady: settlementQuote.settlement.ready,
     } as Prisma.InputJsonValue,
   });
 
@@ -536,6 +576,7 @@ export async function reconcilePaymentRequestFromPayment(input: {
       userId: true,
       companyId: true,
       title: true,
+      status: true,
     },
   });
 
@@ -543,7 +584,10 @@ export async function reconcilePaymentRequestFromPayment(input: {
     return null;
   }
 
-  const nextStatus = input.status === "SUCCESS" ? "PAID" : input.status === "EXPIRED" ? "EXPIRED" : "AWAITING_PAYMENT";
+  const nextStatus = derivePaymentRequestStatusFromPayment({
+    currentStatus: paymentRequest.status,
+    paymentStatus: input.status,
+  });
   const updated = await prisma.paymentRequest.update({
     where: {
       id: paymentRequest.id,

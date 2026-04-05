@@ -5,7 +5,10 @@ import { SectionHeading } from "@/components/shared/section-heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import type { MarketerPerformanceEntry } from "@/modules/team/performance";
+
+type PublicLeaderboardPeriod = "WEEKLY" | "MONTHLY";
 
 function formatStatLabel(value: number, singular: string, plural: string) {
   return `${value} ${value === 1 ? singular : plural}`;
@@ -16,11 +19,15 @@ export function TopMarketersSection({
   title = "Top marketers clients already trust",
   description = "Ranked from real tenant-scoped activity across reservations, inspections, qualified inquiries, completed deals, and successful payments.",
   compact = false,
+  period = "MONTHLY",
+  periodHrefBuilder,
 }: {
   leaderboard: MarketerPerformanceEntry[];
   title?: string;
   description?: string;
   compact?: boolean;
+  period?: PublicLeaderboardPeriod;
+  periodHrefBuilder?: (period: PublicLeaderboardPeriod) => string;
 }) {
   if (leaderboard.length === 0) {
     return null;
@@ -28,11 +35,29 @@ export function TopMarketersSection({
 
   return (
     <section className="space-y-5">
-      <SectionHeading
-        eyebrow="Top Marketers"
-        title={title}
-        description={description}
-      />
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <SectionHeading
+          eyebrow="Top Marketers"
+          title={title}
+          description={description}
+        />
+        {periodHrefBuilder ? (
+          <div className="inline-flex rounded-full border border-[var(--line)] bg-white p-1">
+            {(["WEEKLY", "MONTHLY"] as const).map((value) => (
+              <Link
+                key={value}
+                href={periodHrefBuilder(value)}
+                className={cn(
+                  "rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-500)] transition",
+                  value === period && "bg-[var(--brand-700)] text-white",
+                )}
+              >
+                {value === "WEEKLY" ? "Weekly" : "Monthly"}
+              </Link>
+            ))}
+          </div>
+        ) : null}
+      </div>
       <div className={`grid gap-5 ${compact ? "xl:grid-cols-3" : "lg:grid-cols-3"}`}>
         {leaderboard.map((member) => (
           <Card
@@ -80,13 +105,13 @@ export function TopMarketersSection({
             </div>
             <div className="mt-5">
               <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.16em] text-[var(--ink-500)]">
-                <span>Monthly score</span>
-                <span>{member.monthlyScore}</span>
+                <span>{period === "WEEKLY" ? "Weekly score" : "Monthly score"}</span>
+                <span>{member.score}</span>
               </div>
               <div className="h-2 rounded-full bg-white/90">
                 <div
                   className="h-2 rounded-full bg-[var(--brand-700)]"
-                  style={{ width: `${Math.min(100, Math.max(16, member.monthlyScore * 4))}%` }}
+                  style={{ width: `${Math.min(100, Math.max(16, member.score * 4))}%` }}
                 />
               </div>
             </div>

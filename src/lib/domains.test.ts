@@ -5,6 +5,7 @@ import {
   buildAuthCompletionUrl,
   buildAuthRedirect,
   getCentralHosts,
+  resolveTenantPublicUrl,
   resolveSafeRedirectUrl,
   resolveTenantSubdomainFromHost,
   sanitizeReturnPath,
@@ -85,4 +86,20 @@ test("redirect sanitization rejects external urls", () => {
     "https://portal.estateos.com/portal/payments",
   );
   assert.equal(sanitizeReturnPath("https://evil.example.com", "/portal"), "/portal");
+});
+
+test("tenant public urls default to the tenant homepage instead of listings", () => {
+  assert.equal(
+    resolveTenantPublicUrl(config, {
+      customDomain: "myrealty.com",
+    }),
+    "https://myrealty.com/",
+  );
+  assert.equal(
+    resolveTenantPublicUrl(config, {
+      pathname: "/properties",
+      customDomain: "myrealty.com",
+    }),
+    "https://myrealty.com/properties",
+  );
 });

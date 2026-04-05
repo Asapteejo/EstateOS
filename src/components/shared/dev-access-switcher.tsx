@@ -3,16 +3,10 @@ import { cookies } from "next/headers";
 
 import { DEV_SESSION_COOKIE } from "@/lib/auth/session";
 import { featureFlags } from "@/lib/env";
-
-const rolePresets = [
-  { label: "Public", role: "clear", href: "/" },
-  { label: "Buyer", role: "buyer", href: "/portal" },
-  { label: "Admin", role: "admin", href: "/admin" },
-  { label: "Superadmin", role: "superadmin", href: "/superadmin" },
-] as const;
+import { DEV_ACCESS_PRESETS } from "@/components/shared/dev-access";
 
 export async function DevAccessSwitcher() {
-  if (featureFlags.isProduction) {
+  if (!featureFlags.allowDevBypass) {
     return null;
   }
 
@@ -28,7 +22,7 @@ export async function DevAccessSwitcher() {
         Current demo role: <span className="font-semibold text-[var(--ink-950)]">{activeRole}</span>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        {rolePresets.map((preset) => (
+        {DEV_ACCESS_PRESETS.map((preset) => (
           <Link
             key={preset.label}
             href={`/api/dev/session?role=${preset.role}&redirectTo=${encodeURIComponent(preset.href)}`}
@@ -37,12 +31,6 @@ export async function DevAccessSwitcher() {
             {preset.label}
           </Link>
         ))}
-        <Link
-          href="/properties"
-          className="rounded-full border border-[var(--line)] px-3 py-1.5 text-xs font-medium text-[var(--ink-700)] transition hover:border-[var(--brand-500)] hover:text-[var(--ink-950)]"
-        >
-          Tenant site
-        </Link>
       </div>
     </div>
   );

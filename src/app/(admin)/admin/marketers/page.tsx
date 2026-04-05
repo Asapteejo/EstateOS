@@ -6,16 +6,23 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { requireAdminSession } from "@/lib/auth/guards";
-import { formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { getAdminMarketerPerformanceDashboard } from "@/modules/team/performance";
 
 const SORT_OPTIONS = [
   ["score", "Score"],
+  ["revenue", "Revenue"],
   ["deals", "Deals closed"],
   ["payments", "Payments"],
   ["reservations", "Reservations"],
   ["inspections", "Inspections"],
   ["rating", "Star rating"],
+] as const;
+
+const PERIOD_OPTIONS = [
+  ["WEEKLY", "Weekly"],
+  ["MONTHLY", "Monthly"],
+  ["LIFETIME", "Lifetime"],
 ] as const;
 
 function trendLabel(
@@ -54,10 +61,16 @@ export default async function AdminMarketersPage({
     SORT_OPTIONS.some(([value]) => value === params.sort)
       ? (params.sort as (typeof SORT_OPTIONS)[number][0])
       : "score";
+  const period =
+    typeof params.period === "string" &&
+    PERIOD_OPTIONS.some(([value]) => value === params.period)
+      ? (params.period as (typeof PERIOD_OPTIONS)[number][0])
+      : "MONTHLY";
 
   const dashboard = await getAdminMarketerPerformanceDashboard(tenant, {
     search,
     sortBy,
+    period,
     now: new Date(),
   });
 
@@ -65,10 +78,21 @@ export default async function AdminMarketersPage({
     <DashboardShell
       area="admin"
       title="Marketer Performance"
-      subtitle="Live tenant-scoped performance across qualified inquiries, inspections, reservations, payments, and completed deals."
+      subtitle="Private tenant-scoped marketer analytics across ranking, successful payments, completed deals, inspections, reservations, and attributed revenue."
     >
-      <form method="GET" className="grid gap-3 rounded-[28px] border border-[var(--line)] bg-white p-5 lg:grid-cols-[minmax(0,1fr)_220px_auto]">
+      <form method="GET" className="grid gap-3 rounded-[28px] border border-[var(--line)] bg-white p-5 lg:grid-cols-[minmax(0,1fr)_180px_220px_auto]">
         <Input name="q" placeholder="Search marketer name or role" defaultValue={search} />
+        <select
+          name="period"
+          defaultValue={period}
+          className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+        >
+          {PERIOD_OPTIONS.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
         <select
           name="sort"
           defaultValue={sortBy}
@@ -107,6 +131,10 @@ export default async function AdminMarketersPage({
                 <h2 className="text-2xl font-semibold text-[var(--ink-950)]">{dashboard.topPerformer.fullName}</h2>
                 <p className="text-sm text-[var(--brand-700)]">{dashboard.topPerformer.title}</p>
                 <p className="text-sm leading-6 text-[var(--ink-600)]">{dashboard.topPerformer.summary}</p>
+                <div className="flex flex-wrap gap-3 text-sm text-[var(--ink-500)]">
+                  <span>{dashboard.period.toLowerCase()} score: <span className="font-semibold text-[var(--ink-950)]">{dashboard.topPerformer.score}</span></span>
+                  <span>{dashboard.period.toLowerCase()} revenue: <span className="font-semibold text-[var(--ink-950)]">{formatCurrency(dashboard.topPerformer.revenue[dashboard.period.toLowerCase() as "weekly" | "monthly" | "lifetime"])}</span></span>
+                </div>
               </div>
             </div>
           ) : (
@@ -136,7 +164,7 @@ export default async function AdminMarketersPage({
           <table className="min-w-full text-left text-sm">
             <thead className="bg-[var(--sand-100)] text-[var(--ink-500)]">
               <tr>
-                {["Rank", "Marketer", "Score", "Stars", "Deals", "Payments", "Inspections", "Reservations", "Trend"].map((column) => (
+                {["Rank", "Marketer", "Score", "Stars", "Weekly revenue", "Monthly revenue", "Lifetime revenue", "Deals", "Payments", "Inspections", "Reservations", "Trend"].map((column) => (
                   <th key={column} className="px-6 py-3 font-medium">{column}</th>
                 ))}
               </tr>
@@ -166,8 +194,11 @@ export default async function AdminMarketersPage({
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 font-semibold text-[var(--ink-950)]">{row.monthlyScore}</td>
+                  <td className="px-6 py-4 font-semibold text-[var(--ink-950)]">{row.score}</td>
                   <td className="px-6 py-4 text-[var(--brand-700)]">{row.starRating.toFixed(1)}</td>
+                  <td className="px-6 py-4 text-[var(--ink-700)]">{formatCurrency(row.revenue.weekly)}</td>
+                  <td className="px-6 py-4 text-[var(--ink-700)]">{formatCurrency(row.revenue.monthly)}</td>
+                  <td className="px-6 py-4 text-[var(--ink-700)]">{formatCurrency(row.revenue.lifetime)}</td>
                   <td className="px-6 py-4 text-[var(--ink-700)]">{row.metrics.completedDeals}</td>
                   <td className="px-6 py-4 text-[var(--ink-700)]">{row.metrics.successfulPayments}</td>
                   <td className="px-6 py-4 text-[var(--ink-700)]">{row.metrics.inspectionsHandled}</td>

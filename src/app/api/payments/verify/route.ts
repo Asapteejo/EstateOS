@@ -34,8 +34,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const verification = await verifyPayment(body.data.reference);
-    const payment =
+    const localPayment =
       featureFlags.hasDatabase && tenant.companyId
         ? await prisma.payment.findUnique({
             where: {
@@ -46,6 +45,7 @@ export async function POST(request: Request) {
             },
             select: {
               id: true,
+              userId: true,
               status: true,
               paidAt: true,
               receipt: {
@@ -58,12 +58,24 @@ export async function POST(request: Request) {
           })
         : null;
 
+    if (featureFlags.hasDatabase && tenant.companyId) {
+      if (!localPayment) {
+        return fail("Payment not found for this buyer.", 404);
+      }
+
+      if (localPayment.userId && localPayment.userId !== tenant.userId) {
+        return fail("Payment not found for this buyer.", 404);
+      }
+    }
+
+    const verification = await verifyPayment(body.data.reference);
+
     return ok({
       verification,
-      payment,
+      payment: localPayment,
       authoritativeSource: "webhook",
       message:
-        verification.status === "SUCCESS" && payment?.status !== "SUCCESS"
+        verification.status === "SUCCESS" && localPayment?.status !== "SUCCESS"
           ? "Provider reports success, but local records will remain authoritative only after webhook reconciliation."
           : "Verification completed.",
     });

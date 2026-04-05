@@ -42,6 +42,10 @@ function normalizePaystackStatus(status?: string): PaymentStatus {
   return status === "success" ? "SUCCESS" : "FAILED";
 }
 
+export function shouldPersistSuccessfulPaymentArtifacts(status: PaymentStatus) {
+  return status === "SUCCESS";
+}
+
 async function resolveCompanyFromReference(reference: string) {
   const parsed = parseTenantPaymentReference(reference);
   if (!parsed) {
@@ -393,6 +397,7 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
   let receiptDocumentId: string | null = null;
 
   if (featureFlags.hasDatabase && payment) {
+    const shouldPersistArtifacts = shouldPersistSuccessfulPaymentArtifacts(status);
     const generatedReceipt = createReceiptFromPayment(
       reference,
       payment.amount.toNumber(),
@@ -408,8 +413,24 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
     const transactionUpdate = await prisma.$transaction(async (tx) => {
       let updatedTransactionId = payment.transactionId;
       let updatedTransactionStage: string | null = null;
+      let persistedReceipt: {
+        id: string;
+        receiptNumber: string;
+        paymentId: string;
+        transactionId: string | null;
+        issuedAt: Date;
+        totalAmount: Prisma.Decimal;
+        currency: string;
+        documentUrl: string | null;
+        renderData: Prisma.JsonValue | null;
+        companyId: string;
+        createdAt: Date;
+      } | null = null;
+      let resolvedReceiptDocumentId: string | null = null;
+      let commissionRecordId: string | null = null;
+      let splitSettlementId: string | null = null;
 
-      if (status === "SUCCESS" && payment.transactionId) {
+      if (shouldPersistArtifacts && payment.transactionId) {
         const transaction = await tx.transaction.findFirst({
           where: {
             companyId: company.id,
@@ -501,148 +522,170 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
         }
       }
 
-      const persistedReceipt = await tx.receipt.upsert({
-        where: {
-          paymentId: payment.id,
-        },
-        update: {
-          companyId: company.id,
-          transactionId: updatedTransactionId,
-          receiptNumber: generatedReceipt.receiptNumber,
-          totalAmount: payment.amount,
-          renderData: {
-            providerReference: reference,
-            transactionStage: updatedTransactionStage,
-          } as Prisma.InputJsonValue,
-        },
-        create: {
-          companyId: company.id,
-          paymentId: payment.id,
-          transactionId: updatedTransactionId,
-          receiptNumber: generatedReceipt.receiptNumber,
-          totalAmount: payment.amount,
-          renderData: {
-            providerReference: reference,
-            transactionStage: updatedTransactionStage,
-          } as Prisma.InputJsonValue,
-        },
-      });
-
-      const receiptDocument = await tx.document.upsert({
-        where: {
-          companyId_storageKey: {
-            companyId: company.id,
-            storageKey: `${company.slug}/receipts/${generatedReceipt.receiptNumber}.pdf`,
+      if (shouldPersistArtifacts) {
+        persistedReceipt = await tx.receipt.upsert({
+          where: {
+            paymentId: payment.id,
           },
-        },
-        update: {
-          fileName: `${generatedReceipt.receiptNumber}.pdf`,
-          transactionId: updatedTransactionId,
-          userId: payment.userId,
-          documentType: "RECEIPT",
-          visibility: "PRIVATE",
-          metadata: {
-            receiptId: persistedReceipt.id,
-            providerReference: reference,
-            generatedFromWebhook: true,
-            isFullPaymentReceipt: updatedTransactionStage === "FINAL_PAYMENT_COMPLETED",
-          } as Prisma.InputJsonValue,
-        },
-        create: {
-          companyId: company.id,
-          userId: payment.userId,
-          transactionId: updatedTransactionId,
-          fileName: `${generatedReceipt.receiptNumber}.pdf`,
-          storageKey: `${company.slug}/receipts/${generatedReceipt.receiptNumber}.pdf`,
-          documentType: "RECEIPT",
-          visibility: "PRIVATE",
-          metadata: {
-            receiptId: persistedReceipt.id,
-            providerReference: reference,
-            generatedFromWebhook: true,
-            isFullPaymentReceipt: updatedTransactionStage === "FINAL_PAYMENT_COMPLETED",
-          } as Prisma.InputJsonValue,
-        },
-        select: {
-          id: true,
-        },
-      });
+          update: {
+            companyId: company.id,
+            transactionId: updatedTransactionId,
+            receiptNumber: generatedReceipt.receiptNumber,
+            totalAmount: payment.amount,
+            renderData: {
+              providerReference: reference,
+              transactionStage: updatedTransactionStage,
+            } as Prisma.InputJsonValue,
+          },
+          create: {
+            companyId: company.id,
+            paymentId: payment.id,
+            transactionId: updatedTransactionId,
+            receiptNumber: generatedReceipt.receiptNumber,
+            totalAmount: payment.amount,
+            renderData: {
+              providerReference: reference,
+              transactionStage: updatedTransactionStage,
+            } as Prisma.InputJsonValue,
+          },
+        });
 
-      const commissionRecord = await tx.commissionRecord.upsert({
-        where: {
-          paymentId: payment.id,
-        },
-        update: {
-          companyId: company.id,
-          transactionId: updatedTransactionId,
-          subscriptionId: companyPlanStatus.subscription?.id ?? null,
-          planId: companyPlanStatus.plan?.id ?? null,
-          commissionRuleId: billingQuote.commissionRule.id ?? null,
-          grossAmount: billingQuote.breakdown.grossAmount,
-          companyAmount: billingQuote.breakdown.companyAmount,
-          platformCommission: billingQuote.breakdown.platformCommission,
-          providerFee: billingQuote.breakdown.providerFee,
-          netAmount: billingQuote.breakdown.netAmount,
-          currency: billingQuote.breakdown.currency,
-          settlementStatus: billingQuote.settlement.ready ? "READY" : "FAILED",
-          metadata: {
-            planState: companyPlanStatus.state,
-            isGranted: companyPlanStatus.isGranted,
-            provider: billingQuote.provider,
-          } as Prisma.InputJsonValue,
-        },
-        create: {
-          companyId: company.id,
-          paymentId: payment.id,
-          transactionId: updatedTransactionId,
-          subscriptionId: companyPlanStatus.subscription?.id ?? null,
-          planId: companyPlanStatus.plan?.id ?? null,
-          commissionRuleId: billingQuote.commissionRule.id ?? null,
-          grossAmount: billingQuote.breakdown.grossAmount,
-          companyAmount: billingQuote.breakdown.companyAmount,
-          platformCommission: billingQuote.breakdown.platformCommission,
-          providerFee: billingQuote.breakdown.providerFee,
-          netAmount: billingQuote.breakdown.netAmount,
-          currency: billingQuote.breakdown.currency,
-          settlementStatus: billingQuote.settlement.ready ? "READY" : "FAILED",
-          metadata: {
-            planState: companyPlanStatus.state,
-            isGranted: companyPlanStatus.isGranted,
-            provider: billingQuote.provider,
-          } as Prisma.InputJsonValue,
-        },
-      });
+        const receiptDocument = await tx.document.upsert({
+          where: {
+            companyId_storageKey: {
+              companyId: company.id,
+              storageKey: `${company.slug}/receipts/${generatedReceipt.receiptNumber}.pdf`,
+            },
+          },
+          update: {
+            fileName: `${generatedReceipt.receiptNumber}.pdf`,
+            transactionId: updatedTransactionId,
+            userId: payment.userId,
+            documentType: "RECEIPT",
+            visibility: "PRIVATE",
+            metadata: {
+              receiptId: persistedReceipt.id,
+              providerReference: reference,
+              generatedFromWebhook: true,
+              isFullPaymentReceipt: updatedTransactionStage === "FINAL_PAYMENT_COMPLETED",
+            } as Prisma.InputJsonValue,
+          },
+          create: {
+            companyId: company.id,
+            userId: payment.userId,
+            transactionId: updatedTransactionId,
+            fileName: `${generatedReceipt.receiptNumber}.pdf`,
+            storageKey: `${company.slug}/receipts/${generatedReceipt.receiptNumber}.pdf`,
+            documentType: "RECEIPT",
+            visibility: "PRIVATE",
+            metadata: {
+              receiptId: persistedReceipt.id,
+              providerReference: reference,
+              generatedFromWebhook: true,
+              isFullPaymentReceipt: updatedTransactionStage === "FINAL_PAYMENT_COMPLETED",
+            } as Prisma.InputJsonValue,
+          },
+          select: {
+            id: true,
+          },
+        });
 
-      const splitSettlement = await tx.splitSettlement.upsert({
-        where: {
-          paymentId: payment.id,
-        },
-        update: {
-          companyId: company.id,
-          provider: billingQuote.provider,
-          providerAccountId: billingQuote.payoutAccount?.id ?? null,
-          grossAmount: billingQuote.breakdown.grossAmount,
-          companyAmount: billingQuote.breakdown.companyAmount,
-          platformAmount: billingQuote.breakdown.platformCommission,
-          providerFee: billingQuote.breakdown.providerFee,
-          currency: billingQuote.breakdown.currency,
-          status: billingQuote.settlement.ready ? "READY" : "FAILED",
-          metadata: billingQuote.settlement.providerPayload as Prisma.InputJsonValue | undefined,
-        },
-        create: {
-          companyId: company.id,
-          paymentId: payment.id,
-          provider: billingQuote.provider,
-          providerAccountId: billingQuote.payoutAccount?.id ?? null,
-          grossAmount: billingQuote.breakdown.grossAmount,
-          companyAmount: billingQuote.breakdown.companyAmount,
-          platformAmount: billingQuote.breakdown.platformCommission,
-          providerFee: billingQuote.breakdown.providerFee,
-          currency: billingQuote.breakdown.currency,
-          status: billingQuote.settlement.ready ? "READY" : "FAILED",
-          metadata: billingQuote.settlement.providerPayload as Prisma.InputJsonValue | undefined,
-        },
-      });
+        resolvedReceiptDocumentId = receiptDocument.id;
+
+        const commissionRecord = await tx.commissionRecord.upsert({
+          where: {
+            paymentId: payment.id,
+          },
+          update: {
+            companyId: company.id,
+            transactionId: updatedTransactionId,
+            subscriptionId: companyPlanStatus.subscription?.id ?? null,
+            planId: companyPlanStatus.plan?.id ?? null,
+            commissionRuleId: billingQuote.commissionRule.id ?? null,
+            grossAmount: billingQuote.breakdown.grossAmount,
+            companyAmount: billingQuote.breakdown.companyAmount,
+            platformCommission: billingQuote.breakdown.platformCommission,
+            providerFee: billingQuote.breakdown.providerFee,
+            netAmount: billingQuote.breakdown.netAmount,
+            currency: billingQuote.breakdown.currency,
+            settlementStatus: billingQuote.settlement.ready ? "READY" : "FAILED",
+            metadata: {
+              planState: companyPlanStatus.state,
+              isGranted: companyPlanStatus.isGranted,
+              provider: billingQuote.provider,
+              settlementReady: billingQuote.settlement.ready,
+              settlementReason: billingQuote.settlement.reason,
+            } as Prisma.InputJsonValue,
+          },
+          create: {
+            companyId: company.id,
+            paymentId: payment.id,
+            transactionId: updatedTransactionId,
+            subscriptionId: companyPlanStatus.subscription?.id ?? null,
+            planId: companyPlanStatus.plan?.id ?? null,
+            commissionRuleId: billingQuote.commissionRule.id ?? null,
+            grossAmount: billingQuote.breakdown.grossAmount,
+            companyAmount: billingQuote.breakdown.companyAmount,
+            platformCommission: billingQuote.breakdown.platformCommission,
+            providerFee: billingQuote.breakdown.providerFee,
+            netAmount: billingQuote.breakdown.netAmount,
+            currency: billingQuote.breakdown.currency,
+            settlementStatus: billingQuote.settlement.ready ? "READY" : "FAILED",
+            metadata: {
+              planState: companyPlanStatus.state,
+              isGranted: companyPlanStatus.isGranted,
+              provider: billingQuote.provider,
+              settlementReady: billingQuote.settlement.ready,
+              settlementReason: billingQuote.settlement.reason,
+            } as Prisma.InputJsonValue,
+          },
+        });
+
+        commissionRecordId = commissionRecord.id;
+
+        const splitSettlement = await tx.splitSettlement.upsert({
+          where: {
+            paymentId: payment.id,
+          },
+          update: {
+            companyId: company.id,
+            provider: billingQuote.provider,
+            providerAccountId: billingQuote.payoutAccount?.id ?? null,
+            grossAmount: billingQuote.breakdown.grossAmount,
+            companyAmount: billingQuote.breakdown.companyAmount,
+            platformAmount: billingQuote.breakdown.platformCommission,
+            providerFee: billingQuote.breakdown.providerFee,
+            currency: billingQuote.breakdown.currency,
+            status: billingQuote.settlement.ready ? "READY" : "FAILED",
+            metadata: {
+              providerPayload: billingQuote.settlement.providerPayload,
+              settlementReady: billingQuote.settlement.ready,
+              settlementReason: billingQuote.settlement.reason,
+              payoutAccountId: billingQuote.payoutAccount?.id ?? null,
+            } as Prisma.InputJsonValue,
+          },
+          create: {
+            companyId: company.id,
+            paymentId: payment.id,
+            provider: billingQuote.provider,
+            providerAccountId: billingQuote.payoutAccount?.id ?? null,
+            grossAmount: billingQuote.breakdown.grossAmount,
+            companyAmount: billingQuote.breakdown.companyAmount,
+            platformAmount: billingQuote.breakdown.platformCommission,
+            providerFee: billingQuote.breakdown.providerFee,
+            currency: billingQuote.breakdown.currency,
+            status: billingQuote.settlement.ready ? "READY" : "FAILED",
+            metadata: {
+              providerPayload: billingQuote.settlement.providerPayload,
+              settlementReady: billingQuote.settlement.ready,
+              settlementReason: billingQuote.settlement.reason,
+              payoutAccountId: billingQuote.payoutAccount?.id ?? null,
+            } as Prisma.InputJsonValue,
+          },
+        });
+
+        splitSettlementId = splitSettlement.id;
+      }
 
       const webhookEvent = await tx.webhookEvent.create({
         data: {
@@ -659,31 +702,33 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
       return {
         receipt: persistedReceipt,
         webhookEventId: webhookEvent.id,
-        receiptDocumentId: receiptDocument.id,
+        receiptDocumentId: resolvedReceiptDocumentId,
         transactionStage: updatedTransactionStage,
-        commissionRecordId: commissionRecord.id,
-        splitSettlementId: splitSettlement.id,
+        commissionRecordId,
+        splitSettlementId,
       };
     });
 
     receipt = transactionUpdate.receipt;
     receiptDocumentId = transactionUpdate.receiptDocumentId;
 
-    await recordBillingEvent({
-      companyId: company.id,
-      subscriptionId: companyPlanStatus.subscription?.id,
-      type: "SUBSCRIPTION_PAYMENT_RECORDED",
-      provider: billingQuote.provider,
-      amount: billingQuote.breakdown.platformCommission,
-      currency: billingQuote.breakdown.currency,
-      status,
-      summary: `Captured platform commission for payment ${reference}`,
-      metadata: {
-        paymentId: payment.id,
-        commissionRuleId: billingQuote.commissionRule.id ?? null,
-        isGrantedPlan: companyPlanStatus.isGranted,
-      } as Prisma.InputJsonValue,
-    });
+    if (shouldPersistArtifacts) {
+      await recordBillingEvent({
+        companyId: company.id,
+        subscriptionId: companyPlanStatus.subscription?.id,
+        type: "SUBSCRIPTION_PAYMENT_RECORDED",
+        provider: billingQuote.provider,
+        amount: billingQuote.breakdown.platformCommission,
+        currency: billingQuote.breakdown.currency,
+        status,
+        summary: `Captured platform commission for payment ${reference}`,
+        metadata: {
+          paymentId: payment.id,
+          commissionRuleId: billingQuote.commissionRule.id ?? null,
+          isGrantedPlan: companyPlanStatus.isGranted,
+        } as Prisma.InputJsonValue,
+      });
+    }
 
     await writeAuditLog({
       companyId: company.id,
@@ -693,12 +738,13 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
       summary: `Webhook reconciled payment ${reference} as ${status}`,
       payload: {
         providerEventId,
-        receiptId: receipt.id,
+        receiptId: receipt?.id ?? null,
         receiptDocumentId,
         transactionStage: transactionUpdate.transactionStage,
         planState: companyPlanStatus.state,
         settlementReady: billingQuote.settlement.ready,
-        commissionAmount: billingQuote.breakdown.platformCommission,
+        commissionAmount: shouldPersistArtifacts ? billingQuote.breakdown.platformCommission : 0,
+        authoritativeStatus: status,
       } as Prisma.InputJsonValue,
     });
 

@@ -21,10 +21,15 @@ export default async function PropertiesPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const tenant = await getPublicPropertiesContext();
-  const filters = parsePropertySearchParams(await searchParams);
+  const params = await searchParams;
+  const filters = parsePropertySearchParams(params);
+  const leaderboardPeriod =
+    typeof params.topMarketers === "string" && params.topMarketers === "WEEKLY"
+      ? "WEEKLY"
+      : "MONTHLY";
   const [properties, leaderboard] = await Promise.all([
     getPublicProperties(tenant, filters),
-    getTenantMarketerLeaderboard(tenant, new Date(), 3),
+    getTenantMarketerLeaderboard(tenant, new Date(), 3, leaderboardPeriod),
   ]);
 
   const activeFilters = [
@@ -111,6 +116,17 @@ export default async function PropertiesPage({
       <TopMarketersSection
         leaderboard={leaderboard}
         compact
+        period={leaderboardPeriod}
+        periodHrefBuilder={(period) =>
+          `?${new URLSearchParams({
+            ...Object.fromEntries(
+              Object.entries(params).flatMap(([key, value]) =>
+                typeof value === "string" && value.length > 0 ? [[key, value]] : [],
+              ),
+            ),
+            topMarketers: period,
+          }).toString()}`
+        }
         title="Need a trusted closer?"
         description="These marketers are ranked from current tenant activity, with buyer-selected attribution taking precedence over assigned inquiry and inspection fallback."
       />

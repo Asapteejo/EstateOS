@@ -24,7 +24,11 @@ export default async function TeamProfilePage({
     notFound();
   }
 
-  const performance = await getTenantMarketerPerformanceSummary(tenant, member.id, new Date());
+  const [weeklyPerformance, monthlyPerformance] = await Promise.all([
+    getTenantMarketerPerformanceSummary(tenant, member.id, new Date(), "WEEKLY"),
+    getTenantMarketerPerformanceSummary(tenant, member.id, new Date(), "MONTHLY"),
+  ]);
+  const performance = monthlyPerformance ?? weeklyPerformance;
 
   const mailtoHref = buildMailtoHref(member.email);
   const whatsappHref = buildWhatsAppHref(member.whatsappNumber);
@@ -56,7 +60,8 @@ export default async function TeamProfilePage({
           <p className="text-lg font-medium text-[var(--brand-700)]">{member.title}</p>
           {performance ? (
             <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--ink-500)]">
-              <Badge>#{performance.rank} this month</Badge>
+              {weeklyPerformance ? <Badge>#{weeklyPerformance.rank} this week</Badge> : null}
+              {monthlyPerformance ? <Badge>#{monthlyPerformance.rank} this month</Badge> : null}
               <span className="font-semibold text-[var(--brand-700)]">{performance.starRating.toFixed(1)} / 5.0 stars</span>
               <span>{performance.summary}</span>
             </div>

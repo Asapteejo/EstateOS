@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { startOfMonth, subDays } from "date-fns";
+import { subDays } from "date-fns";
 
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
@@ -45,6 +45,14 @@ export type MarketerPerformanceMetrics = {
   completedDeals: number;
 };
 
+export type MarketerPerformancePeriod = "WEEKLY" | "MONTHLY" | "LIFETIME";
+
+export type MarketerRevenueMetrics = {
+  weekly: number;
+  monthly: number;
+  lifetime: number;
+};
+
 export type MarketerPerformanceEntry = {
   id: string;
   slug: string;
@@ -53,11 +61,12 @@ export type MarketerPerformanceEntry = {
   avatarUrl: string | null;
   isActive: boolean;
   isPublished: boolean;
-  monthlyScore: number;
+  score: number;
   starRating: number;
   rank: number;
   summary: string;
   metrics: MarketerPerformanceMetrics;
+  period: MarketerPerformancePeriod;
 };
 
 export type MarketerPerformanceTrend = {
@@ -69,6 +78,11 @@ export type MarketerPerformanceTrend = {
 
 export type AdminMarketerPerformanceRow = MarketerPerformanceEntry & {
   trend: MarketerPerformanceTrend | null;
+  revenue: MarketerRevenueMetrics;
+};
+
+type ComputedMarketerPerformanceRow = MarketerPerformanceEntry & {
+  revenue: MarketerRevenueMetrics;
 };
 
 export const MARKETER_SCORE_WEIGHTS = {
@@ -94,6 +108,80 @@ export function buildMarketerPerformanceScore(input: MarketerPerformanceMetrics)
 
 export function buildMarketerStarRating(score: number) {
   return Math.max(3, Math.min(5, Number((3 + Math.sqrt(Math.max(score, 0)) / 3).toFixed(1))));
+}
+
+export function getMarketerPeriodWindowStart(
+  period: MarketerPerformancePeriod,
+  now: Date,
+) {
+  if (period === "WEEKLY") {
+    return subDays(now, 7);
+  }
+
+  if (period === "MONTHLY") {
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  }
+
+  return null;
+}
+
+export function resolveRevenueAttributedMarketerId(input: {
+  paymentMarketerId?: string | null;
+  transactionMarketerId?: string | null;
+  reservationMarketerId?: string | null;
+}) {
+  return input.paymentMarketerId ?? input.transactionMarketerId ?? input.reservationMarketerId ?? null;
+}
+
+function toAmountNumber(value: { toNumber?: () => number } | number) {
+  return typeof value === "number" ? value : value.toNumber?.() ?? Number(value);
+}
+
+export function buildMarketerRevenueMetrics(
+  payments: Array<{
+    amount: number;
+    paidAt: Date;
+    marketerId: string | null;
+  }>,
+  now = new Date(),
+) {
+  const weeklyStart = getMarketerPeriodWindowStart("WEEKLY", now);
+  const monthlyStart = getMarketerPeriodWindowStart("MONTHLY", now);
+  const totals = new Map<string, MarketerRevenueMetrics>();
+
+  const ensure = (marketerId: string) => {
+    const current = totals.get(marketerId);
+    if (current) {
+      return current;
+    }
+
+    const next = {
+      weekly: 0,
+      monthly: 0,
+      lifetime: 0,
+    };
+    totals.set(marketerId, next);
+    return next;
+  };
+
+  for (const payment of payments) {
+    if (!payment.marketerId) {
+      continue;
+    }
+
+    const target = ensure(payment.marketerId);
+    target.lifetime += payment.amount;
+
+    if (weeklyStart && payment.paidAt >= weeklyStart) {
+      target.weekly += payment.amount;
+    }
+
+    if (monthlyStart && payment.paidAt >= monthlyStart) {
+      target.monthly += payment.amount;
+    }
+  }
+
+  return totals;
 }
 
 function buildFallbackAttributionKey(userId: string, propertyId: string) {
@@ -166,6 +254,24 @@ export function buildMarketerPerformanceSummary(metrics: MarketerPerformanceMetr
   return summaryParts.slice(0, 3).join(" • ") || "Performance score will appear as real client activity builds.";
 }
 
+function toPublicMarketerPerformanceEntry(entry: ComputedMarketerPerformanceRow): MarketerPerformanceEntry {
+  return {
+    id: entry.id,
+    slug: entry.slug,
+    fullName: entry.fullName,
+    title: entry.title,
+    avatarUrl: entry.avatarUrl,
+    isActive: entry.isActive,
+    isPublished: entry.isPublished,
+    score: entry.score,
+    starRating: entry.starRating,
+    rank: entry.rank,
+    summary: entry.summary,
+    metrics: entry.metrics,
+    period: entry.period,
+  };
+}
+
 export function buildMarketerSnapshotDate(now = new Date()) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
@@ -180,7 +286,7 @@ export function buildMarketerSnapshotRecords(
   return entries.map((entry) => ({
     companyId,
     teamMemberId: entry.id,
-    score: entry.monthlyScore,
+    score: entry.score,
     rank: entry.rank,
     starRating: new Prisma.Decimal(entry.starRating.toFixed(1)),
     snapshotDate,
@@ -194,7 +300,7 @@ export function buildMarketerSnapshotRecords(
 }
 
 export function buildMarketerPerformanceTrend(
-  current: Pick<MarketerPerformanceEntry, "monthlyScore" | "rank">,
+  current: Pick<MarketerPerformanceEntry, "score" | "rank">,
   previous?: {
     score: number;
     rank: number;
@@ -205,7 +311,7 @@ export function buildMarketerPerformanceTrend(
     return null;
   }
 
-  const scoreDelta = current.monthlyScore - previous.score;
+  const scoreDelta = current.score - previous.score;
   const rankDelta = previous.rank - current.rank;
   const direction =
     scoreDelta > 0 || rankDelta > 0 ? "up" : scoreDelta < 0 || rankDelta < 0 ? "down" : "flat";
@@ -220,12 +326,16 @@ export function buildMarketerPerformanceTrend(
 
 export function sortMarketerPerformanceEntries(
   entries: AdminMarketerPerformanceRow[],
-  sortBy: "score" | "deals" | "payments" | "inspections" | "reservations" | "rating" = "score",
+  sortBy: "score" | "deals" | "payments" | "inspections" | "reservations" | "rating" | "revenue" = "score",
+  period: MarketerPerformancePeriod = "MONTHLY",
 ) {
   const sorted = [...entries];
 
   sorted.sort((left, right) => {
     const compare =
+      sortBy === "revenue"
+        ? right.revenue[period.toLowerCase() as keyof MarketerRevenueMetrics] - left.revenue[period.toLowerCase() as keyof MarketerRevenueMetrics]
+        :
       sortBy === "deals"
         ? right.metrics.completedDeals - left.metrics.completedDeals
         : sortBy === "payments"
@@ -234,9 +344,9 @@ export function sortMarketerPerformanceEntries(
             ? right.metrics.inspectionsHandled - left.metrics.inspectionsHandled
             : sortBy === "reservations"
               ? right.metrics.reservations - left.metrics.reservations
-              : sortBy === "rating"
+          : sortBy === "rating"
                 ? right.starRating - left.starRating
-                : right.monthlyScore - left.monthlyScore;
+                : right.score - left.score;
 
     return compare || left.fullName.localeCompare(right.fullName);
   });
@@ -271,13 +381,15 @@ async function getTenantMarketerPerformanceEntries(
   options?: {
     includeUnpublished?: boolean;
     includeInactive?: boolean;
+    period?: MarketerPerformancePeriod;
   },
-) {
+): Promise<ComputedMarketerPerformanceRow[]> {
   if (!featureFlags.hasDatabase || !context.companyId) {
-    return [] as MarketerPerformanceEntry[];
+    return [] as ComputedMarketerPerformanceRow[];
   }
 
-  const monthStart = startOfMonth(now);
+  const period = options?.period ?? "MONTHLY";
+  const periodStart = getMarketerPeriodWindowStart(period, now);
   const members = (await findManyForTenant(
     prisma.teamMember as ScopedFindManyDelegate,
     context,
@@ -311,9 +423,7 @@ async function getTenantMarketerPerformanceEntries(
         where: {
           companyId: context.companyId,
           status: "ACTIVE",
-          createdAt: {
-            gte: monthStart,
-          },
+          ...(periodStart ? { createdAt: { gte: periodStart } } : {}),
           selectedMarketerId: {
             in: memberIds,
           },
@@ -325,9 +435,7 @@ async function getTenantMarketerPerformanceEntries(
       prisma.reservation.findMany({
         where: {
           companyId: context.companyId,
-          createdAt: {
-            gte: monthStart,
-          },
+          ...(periodStart ? { createdAt: { gte: periodStart } } : {}),
         },
         select: {
           marketerId: true,
@@ -339,9 +447,7 @@ async function getTenantMarketerPerformanceEntries(
         where: {
           companyId: context.companyId,
           paymentStatus: "COMPLETED",
-          lastPaymentAt: {
-            gte: monthStart,
-          },
+          ...(periodStart ? { lastPaymentAt: { gte: periodStart } } : {}),
         },
         select: {
           marketerId: true,
@@ -353,11 +459,11 @@ async function getTenantMarketerPerformanceEntries(
         where: {
           companyId: context.companyId,
           status: "SUCCESS",
-          paidAt: {
-            gte: monthStart,
-          },
+          ...(periodStart ? { paidAt: { gte: periodStart } } : {}),
         },
         select: {
+          amount: true,
+          paidAt: true,
           marketerId: true,
           transaction: {
             select: {
@@ -385,9 +491,7 @@ async function getTenantMarketerPerformanceEntries(
           userId: {
             not: null,
           },
-          createdAt: {
-            gte: monthStart,
-          },
+          ...(periodStart ? { createdAt: { gte: periodStart } } : {}),
           status: {
             in: ["QUALIFIED", "CONVERTED"],
           },
@@ -412,9 +516,7 @@ async function getTenantMarketerPerformanceEntries(
           userId: {
             not: null,
           },
-          createdAt: {
-            gte: monthStart,
-          },
+          ...(periodStart ? { createdAt: { gte: periodStart } } : {}),
           status: {
             in: ["CONFIRMED", "RESCHEDULED", "COMPLETED", "NO_SHOW"],
           },
@@ -464,6 +566,26 @@ async function getTenantMarketerPerformanceEntries(
   ]);
 
   const metricsByMember = new Map<string, MarketerPerformanceMetrics>();
+  const revenueByMember = buildMarketerRevenueMetrics(
+    successfulPayments.flatMap((payment) => {
+      if (!payment.paidAt) {
+        return [];
+      }
+
+      return [
+        {
+          amount: toAmountNumber(payment.amount),
+          paidAt: payment.paidAt,
+          marketerId: resolveRevenueAttributedMarketerId({
+            paymentMarketerId: payment.marketerId,
+            transactionMarketerId: payment.transaction?.marketerId ?? null,
+            reservationMarketerId: payment.transaction?.reservation?.marketerId ?? null,
+          }),
+        },
+      ];
+    }),
+    now,
+  );
 
   for (const member of members) {
     metricsByMember.set(member.id, {
@@ -547,7 +669,7 @@ async function getTenantMarketerPerformanceEntries(
   return members
     .map((member) => {
       const metrics = metricsByMember.get(member.id)!;
-      const monthlyScore = buildMarketerPerformanceScore(metrics);
+      const score = buildMarketerPerformanceScore(metrics);
 
       return {
         id: member.id,
@@ -557,16 +679,22 @@ async function getTenantMarketerPerformanceEntries(
         avatarUrl: member.avatarUrl,
         isActive: member.isActive,
         isPublished: member.isPublished,
-        monthlyScore,
-        starRating: buildMarketerStarRating(monthlyScore),
+        score,
+        starRating: buildMarketerStarRating(score),
         rank: 0,
         summary: buildMarketerPerformanceSummary(metrics),
         metrics,
+        revenue: revenueByMember.get(member.id) ?? {
+          weekly: 0,
+          monthly: 0,
+          lifetime: 0,
+        },
+        period,
       };
     })
     .sort(
       (a, b) =>
-        b.monthlyScore - a.monthlyScore ||
+        b.score - a.score ||
         b.metrics.completedDeals - a.metrics.completedDeals ||
         a.fullName.localeCompare(b.fullName),
     )
@@ -580,26 +708,35 @@ export async function getTenantMarketerLeaderboard(
   context: TenantContext,
   now = new Date(),
   limit = 3,
+  period: Extract<MarketerPerformancePeriod, "WEEKLY" | "MONTHLY"> = "MONTHLY",
 ): Promise<MarketerPerformanceEntry[]> {
   const entries = await getTenantMarketerPerformanceEntries(context, now, {
     includeInactive: false,
     includeUnpublished: false,
+    period,
   });
 
-  return entries.filter((entry) => entry.monthlyScore > 0).slice(0, limit);
+  return entries.filter((entry) => entry.score > 0).slice(0, limit).map(toPublicMarketerPerformanceEntry);
 }
 
 export async function getTenantMarketerPerformanceSummary(
   context: TenantContext,
   marketerId: string,
   now = new Date(),
+  period: Extract<MarketerPerformancePeriod, "WEEKLY" | "MONTHLY"> = "MONTHLY",
 ) {
   const entries = await getTenantMarketerPerformanceEntries(context, now, {
     includeInactive: false,
     includeUnpublished: false,
+    period,
   });
 
-  return entries.find((entry) => entry.id === marketerId) ?? null;
+  const found = entries.find((entry) => entry.id === marketerId) ?? null;
+  if (!found) {
+    return null;
+  }
+
+  return toPublicMarketerPerformanceEntry(found);
 }
 
 export async function getAdminMarketerPerformanceDashboard(
@@ -607,13 +744,16 @@ export async function getAdminMarketerPerformanceDashboard(
   input?: {
     now?: Date;
     search?: string;
-    sortBy?: "score" | "deals" | "payments" | "inspections" | "reservations" | "rating";
+    sortBy?: "score" | "deals" | "payments" | "inspections" | "reservations" | "rating" | "revenue";
+    period?: MarketerPerformancePeriod;
   },
 ) {
   const now = input?.now ?? new Date();
+  const period = input?.period ?? "MONTHLY";
   const entries = await getTenantMarketerPerformanceEntries(context, now, {
     includeInactive: true,
     includeUnpublished: true,
+    period,
   });
 
   const normalizedSearch = input?.search?.trim().toLowerCase() ?? "";
@@ -658,13 +798,15 @@ export async function getAdminMarketerPerformanceDashboard(
   const rows = sortMarketerPerformanceEntries(
     filtered.map((entry) => ({
       ...entry,
-      trend: buildMarketerPerformanceTrend(entry, previousByMember.get(entry.id) ?? null),
+      trend: period === "MONTHLY" ? buildMarketerPerformanceTrend(entry, previousByMember.get(entry.id) ?? null) : null,
     })),
     input?.sortBy ?? "score",
+    period,
   );
 
   return {
-    topPerformer: rows.find((row) => row.monthlyScore > 0) ?? null,
+    period,
+    topPerformer: rows.find((row) => row.score > 0) ?? null,
     rows,
     latestSnapshotDate:
       snapshots.reduce<Date | null>(
@@ -716,6 +858,7 @@ export async function syncMarketerRankingSnapshots(input?: {
     const entries = await getTenantMarketerPerformanceEntries(context, now, {
       includeInactive: true,
       includeUnpublished: true,
+      period: "MONTHLY",
     });
 
     for (const record of buildMarketerSnapshotRecords(company.id, entries, now)) {

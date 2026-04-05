@@ -195,7 +195,7 @@ export function resolveTenantPublicUrl(
     customDomain?: string | null;
   },
 ) {
-  const pathname = sanitizeReturnPath(input.pathname ?? "/properties", "/properties");
+  const pathname = sanitizeReturnPath(input.pathname ?? "/", "/");
   const customDomain = sanitizeTenantHost(input.customDomain);
 
   if (customDomain) {

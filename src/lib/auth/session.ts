@@ -98,7 +98,7 @@ export async function resolveDemoSessionRole(
 ): Promise<DemoSessionRole | null> {
   const defaultRole = getDefaultDemoSessionRole(area);
 
-  if (featureFlags.isProduction) {
+  if (!featureFlags.allowDevBypass) {
     return null;
   }
 

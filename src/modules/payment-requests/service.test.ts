@@ -3,7 +3,10 @@ import test from "node:test";
 
 import { extractTransferInstructions } from "@/lib/payments/paystack";
 import { paymentRequestCreateSchema } from "@/lib/validations/payments";
-import { buildReservationPlaceholderReference } from "@/modules/payment-requests/service";
+import {
+  buildReservationPlaceholderReference,
+  derivePaymentRequestStatusFromPayment,
+} from "@/modules/payment-requests/service";
 
 test("reservation placeholder references are deterministic and lowercase", () => {
   assert.equal(buildReservationPlaceholderReference("RSV-20260402-1001"), "placeholder-rsv-20260402-1001");
@@ -39,4 +42,28 @@ test("paystack transfer instructions mapping reads temporary account details whe
     accountName: "EstateOS Escrow",
     expiresAt: "2026-04-04T12:00:00.000Z",
   });
+});
+
+test("payment request reconciliation preserves terminal non-paid states unless webhook success arrives", () => {
+  assert.equal(
+    derivePaymentRequestStatusFromPayment({
+      currentStatus: "CANCELLED",
+      paymentStatus: "PENDING",
+    }),
+    "CANCELLED",
+  );
+  assert.equal(
+    derivePaymentRequestStatusFromPayment({
+      currentStatus: "EXPIRED",
+      paymentStatus: "PROCESSING",
+    }),
+    "EXPIRED",
+  );
+  assert.equal(
+    derivePaymentRequestStatusFromPayment({
+      currentStatus: "CANCELLED",
+      paymentStatus: "SUCCESS",
+    }),
+    "PAID",
+  );
 });
