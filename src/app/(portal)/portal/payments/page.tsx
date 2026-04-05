@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { requirePortalSession } from "@/lib/auth/guards";
 import { formatCurrency } from "@/lib/utils";
 import { getBuyerPaymentExperience } from "@/modules/portal/queries";
+import { OptimizedImage } from "@/components/media/optimized-image";
 
 export default async function PortalPaymentsPage() {
   const tenant = await requirePortalSession();
@@ -39,11 +40,54 @@ export default async function PortalPaymentsPage() {
         </Card>
         <Card className="p-6">
           <div className="text-sm text-[var(--ink-500)]">Selected marketer</div>
-          <div className="mt-3 text-2xl font-semibold text-[var(--ink-950)]">
-            {paymentExperience.selectedMarketer ?? "Unassigned"}
-          </div>
+          {paymentExperience.selectedMarketer ? (
+            <div className="mt-3 flex items-center gap-3">
+              <div className="relative h-12 w-12 overflow-hidden rounded-2xl bg-[var(--sand-100)]">
+                {paymentExperience.selectedMarketer.avatarUrl ? (
+                  <OptimizedImage
+                    src={paymentExperience.selectedMarketer.avatarUrl}
+                    alt={paymentExperience.selectedMarketer.fullName}
+                    fill
+                    preset="profile"
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-lg font-semibold text-[var(--ink-400)]">
+                    {paymentExperience.selectedMarketer.fullName.charAt(0)}
+                  </div>
+                )}
+              </div>
+              <div>
+                <div className="text-lg font-semibold text-[var(--ink-950)]">
+                  {paymentExperience.selectedMarketer.fullName}
+                </div>
+                <div className="text-sm text-[var(--brand-700)]">{paymentExperience.selectedMarketer.title}</div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3 text-2xl font-semibold text-[var(--ink-950)]">Unassigned</div>
+          )}
         </Card>
       </div>
+
+      {paymentExperience.selectedMarketer ? (
+        <Card className="p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-[0.18em] text-[var(--ink-500)]">Payment contact</div>
+              <h2 className="mt-2 text-2xl font-semibold text-[var(--ink-950)]">
+                You are working with {paymentExperience.selectedMarketer.fullName}
+              </h2>
+              <p className="mt-2 text-sm text-[var(--ink-600)]">
+                EstateOS keeps marketer attribution attached to the payment journey so your payment request and transaction stay routed to the right person.
+              </p>
+            </div>
+            <Link href={`/team/${paymentExperience.selectedMarketer.slug}`}>
+              <Button variant="outline">View marketer profile</Button>
+            </Link>
+          </div>
+        </Card>
+      ) : null}
 
       <Card className="p-8">
         <div className="flex items-center justify-between gap-4">
@@ -131,6 +175,11 @@ export default async function PortalPaymentsPage() {
                   <span>{request.collectionMethod}</span>
                   {request.dueAt ? <span>Due {request.dueAt}</span> : null}
                 </div>
+                {paymentExperience.selectedMarketer ? (
+                  <p className="mt-3 text-[var(--ink-600)]">
+                    You are working with <span className="font-semibold text-[var(--ink-950)]">{paymentExperience.selectedMarketer.fullName}</span>.
+                  </p>
+                ) : null}
                 {request.transferSummary ? <p className="mt-3">{request.transferSummary}</p> : null}
                 {request.notes ? <p className="mt-2 text-[var(--ink-500)]">{request.notes}</p> : null}
                 <div className="mt-4 flex flex-wrap gap-3">

@@ -1,10 +1,20 @@
 import type { AppRole } from "@prisma/client";
 import { headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getAppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
+import {
+  TENANT_HINT_COOKIE,
+  buildAuthRedirect,
+  buildServerDomainConfig,
+  normalizeHost,
+  resolveTenantSubdomainFromHost,
+  sanitizeTenantSlug,
+  shouldAllowDefaultTenantFallback,
+} from "@/lib/domains";
 
 export type TenantContext = {
   userId: string | null;
@@ -71,27 +81,30 @@ async function lookupCompany(
   return null;
 }
 
+export async function resolveCompanyForTenantHint(input: {
+  companySlug?: string | null;
+  host?: string | null;
+}) {
+  return lookupCompany({
+    companySlug: sanitizeTenantSlug(input.companySlug),
+    host: normalizeHost(input.host),
+  });
+}
+
 function getHostResolution(host: string | null) {
-  if (!host) {
+  const runtimeConfig = buildServerDomainConfig(env);
+  const companySlug = resolveTenantSubdomainFromHost(host, runtimeConfig);
+
+  if (!host || !companySlug) {
     return {
       companySlug: null,
-      resolutionSource: "none" as const,
-    };
-  }
-
-  const normalizedHost = host.split(":")[0];
-  const parts = normalizedHost.split(".");
-
-  if (parts.length > 2) {
-    return {
-      companySlug: parts[0] || null,
-      resolutionSource: "subdomain" as const,
+      resolutionSource: host ? ("domain" as const) : ("none" as const),
     };
   }
 
   return {
-    companySlug: null,
-    resolutionSource: "domain" as const,
+    companySlug,
+    resolutionSource: "subdomain" as const,
   };
 }
 
@@ -100,27 +113,69 @@ export async function resolveTenantContext(
 ): Promise<TenantContext> {
   const requestHeaders = await headers();
   const host = requestHeaders.get("host");
+  const cookieStore = await cookies();
+  const tenantHintSlug = sanitizeTenantSlug(cookieStore.get(TENANT_HINT_COOKIE)?.value ?? null);
   const hostResolution = getHostResolution(host);
   const session = await getAppSession(area);
-  const fallbackSlug = env.DEFAULT_COMPANY_SLUG ?? (!featureFlags.isProduction ? "acme-realty" : undefined);
+  const runtimeConfig = buildServerDomainConfig(env);
+  const fallbackSlug = shouldAllowDefaultTenantFallback(host, runtimeConfig)
+    ? env.DEFAULT_COMPANY_SLUG ?? (!featureFlags.isProduction ? "acme-realty" : undefined)
+    : undefined;
 
-  const resolvedCompany = await lookupCompany({
-    companyId: session?.companyId,
-    companySlug: hostResolution.companySlug ?? session?.companySlug ?? fallbackSlug ?? null,
-    host,
-  });
+  const hostHintCompany = hostResolution.companySlug
+    ? await lookupCompany({
+        companySlug: hostResolution.companySlug,
+        host,
+      })
+    : normalizeHost(host) && !shouldAllowDefaultTenantFallback(host, runtimeConfig)
+      ? await lookupCompany({
+          host,
+        })
+      : null;
+
+  const hintedCompany =
+    hostHintCompany ??
+    (tenantHintSlug
+      ? await lookupCompany({
+          companySlug: tenantHintSlug,
+        })
+      : null);
+
+  const sessionCompany = session?.companyId
+    ? await lookupCompany({
+        companyId: session.companyId,
+      })
+    : session?.companySlug
+      ? await lookupCompany({
+          companySlug: session.companySlug,
+        })
+      : null;
+
+  const fallbackCompany = fallbackSlug
+    ? await lookupCompany({
+        companySlug: fallbackSlug,
+      })
+    : null;
+
+  const resolvedCompany =
+    area === "marketing"
+      ? hintedCompany ?? sessionCompany ?? fallbackCompany
+      : sessionCompany ?? hintedCompany ?? fallbackCompany;
 
   if (!session) {
     return {
       userId: null,
       companyId: resolvedCompany?.id ?? null,
-      companySlug: resolvedCompany?.slug ?? hostResolution.companySlug ?? fallbackSlug ?? null,
+      companySlug:
+        resolvedCompany?.slug ?? hostResolution.companySlug ?? tenantHintSlug ?? fallbackSlug ?? null,
       branchId: null,
       roles: [],
       isSuperAdmin: false,
       host,
       resolutionSource: hostResolution.companySlug
         ? hostResolution.resolutionSource
+        : tenantHintSlug
+          ? "session"
         : "none",
     };
   }
@@ -129,9 +184,11 @@ export async function resolveTenantContext(
     userId: session.userId,
     companyId: session.roles.includes("SUPER_ADMIN")
       ? session.companyId ?? resolvedCompany?.id ?? null
-      : resolvedCompany?.id ?? session.companyId,
+      : sessionCompany?.id ?? resolvedCompany?.id ?? session.companyId,
     companySlug:
-      hostResolution.companySlug ??
+      (area === "marketing"
+        ? hostResolution.companySlug ?? hintedCompany?.slug
+        : sessionCompany?.slug ?? hintedCompany?.slug) ??
       resolvedCompany?.slug ??
       session.companySlug ??
       fallbackSlug ??
@@ -142,6 +199,8 @@ export async function resolveTenantContext(
     host,
     resolutionSource: hostResolution.companySlug
       ? hostResolution.resolutionSource
+      : tenantHintSlug
+        ? "session"
       : "session",
   };
 }
@@ -158,8 +217,14 @@ export async function requireTenantContext(
     if (options?.redirectOnMissingAuth === false) {
       throw new Error("Authentication required.");
     }
-
-    redirect("/sign-in");
+    redirect(
+      buildAuthRedirect(buildServerDomainConfig(env), {
+        returnTo: area === "admin" ? "/admin" : area === "superadmin" ? "/superadmin" : "/portal",
+        tenantSlug: context.companySlug,
+        tenantHost: context.host,
+        entry: area === "admin" ? "admin" : area === "superadmin" ? "superadmin" : "buyer",
+      }),
+    );
   }
 
   if (!context.isSuperAdmin && !context.companyId) {

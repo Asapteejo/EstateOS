@@ -8,6 +8,7 @@ import type { TenantContext } from "@/lib/tenancy/context";
 import { findFirstForTenant, rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import type { TeamMemberMutationInput } from "@/lib/validations/team";
 import { buildUniqueTeamMemberSlug } from "@/modules/team/queries";
+import { syncTeamMemberStaffProfileLink } from "@/modules/team/relations";
 
 type ScopedFindFirstDelegate = { findFirst: (args?: unknown) => Promise<unknown> };
 
@@ -107,6 +108,13 @@ export async function createTeamMemberForAdmin(
     },
   });
 
+  await syncTeamMemberStaffProfileLink({
+    companyId: context.companyId,
+    teamMemberId: created.id,
+    email: rawInput.email,
+    staffCode: rawInput.staffCode,
+  });
+
   await writeAuditLog({
     companyId: context.companyId,
     actorUserId: context.userId ?? undefined,
@@ -168,6 +176,13 @@ export async function updateTeamMemberForAdmin(
       slug: true,
       fullName: true,
     },
+  });
+
+  await syncTeamMemberStaffProfileLink({
+    companyId: context.companyId,
+    teamMemberId: updated.id,
+    email: rawInput.email,
+    staffCode: rawInput.staffCode,
   });
 
   await writeAuditLog({

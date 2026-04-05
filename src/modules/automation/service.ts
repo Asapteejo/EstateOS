@@ -8,6 +8,7 @@ import { createInAppNotification, getTenantOperatorRecipients, notifyManyUsers }
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { syncPaymentRequestStatuses } from "@/modules/payment-requests/service";
 import { syncPropertyVerificationStates } from "@/modules/properties/verification";
+import { syncMarketerRankingSnapshots } from "@/modules/team/performance";
 import { syncTransactionPaymentState } from "@/modules/transactions/mutations";
 import { runWishlistReminderSweep } from "@/modules/wishlist/service";
 
@@ -19,6 +20,10 @@ function decimalToNumber(value: Decimalish) {
   }
 
   return typeof value === "number" ? value : value.toNumber?.() ?? Number(value);
+}
+
+function buildSnapshotDateString(now: Date) {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
 }
 
 export function isInspectionReminderDue(input: {
@@ -315,6 +320,7 @@ export async function runScheduledOperationalJobs(input?: {
       },
       verification: { updated: 0, hidden: 0, warned: 0 },
       paymentRequests: { expired: 0 },
+      marketerSnapshots: { companies: 0, snapshots: 0, snapshotDate: buildSnapshotDateString(now) },
     };
   }
 
@@ -345,6 +351,7 @@ export async function runScheduledOperationalJobs(input?: {
       },
       verification: { updated: 0, hidden: 0, warned: 0 },
       paymentRequests: { expired: 0 },
+      marketerSnapshots: { companies: 0, snapshots: 0, snapshotDate: buildSnapshotDateString(now) },
     };
   }
 
@@ -362,10 +369,11 @@ export async function runScheduledOperationalJobs(input?: {
   });
 
   try {
-    const [automation, verification, paymentRequests] = await Promise.all([
+    const [automation, verification, paymentRequests, marketerSnapshots] = await Promise.all([
       runOperationalAutomationSweep({ companyId: input?.companyId }),
       syncPropertyVerificationStates({ companyId: input?.companyId, now }),
       syncPaymentRequestStatuses(prisma, { companyId: input?.companyId, now }),
+      syncMarketerRankingSnapshots({ companyId: input?.companyId, now }),
     ]);
 
     await prisma.backgroundJobLog.update({
@@ -377,6 +385,7 @@ export async function runScheduledOperationalJobs(input?: {
           automation,
           verification,
           paymentRequests,
+          marketerSnapshots,
         } as Prisma.InputJsonValue,
       },
     });
@@ -387,6 +396,7 @@ export async function runScheduledOperationalJobs(input?: {
       automation,
       verification,
       paymentRequests,
+      marketerSnapshots,
     };
   } catch (error) {
     await prisma.backgroundJobLog.update({

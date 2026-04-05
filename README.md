@@ -114,6 +114,8 @@ EstateOS now deepens buyer intent tracking through a tenant-scoped wishlist work
 
 - Top Marketers now appears on both the tenant public `/team` page and the tenant public `/properties` discovery page
 - ranking is tenant-scoped and fetched from current persisted DB activity, not demo data or vanity metrics
+- `StaffProfile.teamMemberId` is now the canonical relation for inquiry and inspection attribution
+- existing staff-to-marketer links are backfilled during migration using the previous email/staff-code heuristic, then live ranking reads the explicit relation
 - attribution precedence is:
   1. buyer-selected marketer persisted on reservation, transaction, and payment records
   2. fallback staff assignment on qualified inquiries and handled inspections when no marketer was explicitly selected
@@ -127,6 +129,13 @@ EstateOS now deepens buyer intent tracking through a tenant-scoped wishlist work
 - only active, published tenant team members are eligible for public ranking
 - public marketer profile pages now also show the current performance snapshot and star rating
 - star ratings are derived from the composite score with bounded output from 3.0 to 5.0 so low-signal profiles are not falsely over-promoted
+- tenant admins now have a dedicated `/admin/marketers` view for the full ranked list, score breakdowns, and recent trend indicators
+- daily `MarketerRankingSnapshot` rows are written by the operational automation sweep so historical rank and score movement can be compared safely over time
+- buyer payment surfaces now resolve marketer attribution in this order:
+  1. `payment.marketerId`
+  2. `transaction.marketerId`
+  3. `reservation.marketerId`
+- snapshot scheduling depends on the same automation runner used for other operational jobs; deployment still needs live cron or Inngest scheduling to execute it automatically
 
 ## Property Verification And Anti-Ghosting
 
@@ -363,8 +372,10 @@ EstateOS now includes a tenant-scoped media library and final UX polish for imag
 - `SUPER_ADMIN` platform routes live under `/superadmin` and are intentionally separate from tenant admin routes under `/admin`.
 - Tenant resolution currently supports:
   session-based app usage
-  public fallback via `DEFAULT_COMPANY_SLUG`
-  future subdomain/custom-domain routing
+  central platform and portal hosts
+  tenant custom domains
+  tenant subdomains
+  controlled public fallback via `DEFAULT_COMPANY_SLUG` only on known central/dev hosts
 - Tenant-owned reads should use:
   `requireTenantContext`
   `requirePublicTenantContext`
@@ -377,6 +388,25 @@ EstateOS now includes a tenant-scoped media library and final UX polish for imag
 - Payment references and storage keys are tenant-namespaced before leaving the app.
 - Public staff directory reads return only active + published `TeamMember` rows for the resolved tenant.
 - Staff ID-card generation is admin-only and uses the requesting tenant context before loading branding or profile data.
+
+### Custom Domains And Central Auth
+
+- Current production-ready phase:
+  - tenant public browsing can live on tenant custom domains
+  - authenticated flows are centralized on `PORTAL_BASE_URL`
+  - tenant public CTAs build central sign-in redirects with tenant context and intended destination
+- Tenant context is preserved across central-domain auth through:
+  - safe `tenant` and `host` redirect params
+  - post-auth handoff at `/auth/complete`
+  - a server-only tenant hint cookie used only when host resolution is absent
+- Authenticated tenant app routes never let a tenant hint override the signed-in user's tenant.
+- Unknown production custom domains do not silently fall back to `DEFAULT_COMPANY_SLUG`.
+- Future Clerk satellite-domain rollout is prepared by centralizing:
+  - `resolveCentralAuthUrl`
+  - `resolveTenantPublicUrl`
+  - `buildAuthRedirect`
+  - `buildReturnUrl`
+- EstateOS does not claim satellite-domain session sharing is already live without real Clerk production setup.
 
 ## Billing And Monetization Model
 
@@ -539,7 +569,11 @@ Minimum local env for DB-backed development:
 ```env
 NODE_ENV="development"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
+NEXT_PUBLIC_PLATFORM_BASE_URL="http://localhost:3000"
+NEXT_PUBLIC_PORTAL_BASE_URL="http://localhost:3000"
 APP_BASE_URL="http://localhost:3000"
+PLATFORM_BASE_URL="http://localhost:3000"
+PORTAL_BASE_URL="http://localhost:3000"
 DEFAULT_COMPANY_SLUG="acme-realty"
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/realestate_platform?schema=public"
 ```
@@ -547,6 +581,12 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/realestate_platform?
 Prisma CLI commands load `.env.local` first and then `.env` through [prisma.config.ts](c:/Users/HP/Desktop/Realestate%20saas/prisma.config.ts), so the same local database config can be reused across Next.js and Prisma workflows.
 
 If Clerk is not configured in non-production, local demo mode remains available for `/portal` and `/admin`.
+
+Local development keeps the central-auth architecture easy to test:
+
+- `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_PLATFORM_BASE_URL`, and `NEXT_PUBLIC_PORTAL_BASE_URL` can all stay on localhost.
+- tenant public pages can still use `DEFAULT_COMPANY_SLUG` in development without requiring multi-domain DNS.
+- central auth redirect helpers collapse back to the same localhost origin when portal and platform share the same dev host.
 
 ### 3. Start PostgreSQL
 
@@ -822,21 +862,27 @@ The repo is prepared for Next.js production deployment and includes [vercel.json
 1. Provision PostgreSQL.
 2. Set all required production env vars.
 3. Configure Clerk frontend and backend keys plus webhook URL.
-4. Configure Paystack callback and webhook URLs.
-5. Configure R2 bucket and credentials.
-6. Run:
+4. Configure platform and portal domains:
+   `NEXT_PUBLIC_PLATFORM_BASE_URL`
+   `NEXT_PUBLIC_PORTAL_BASE_URL`
+   `PLATFORM_BASE_URL`
+   `PORTAL_BASE_URL`
+5. Configure Paystack callback and webhook URLs.
+6. Configure R2 bucket and credentials.
+7. Run:
    `npm run db:validate`
    `npm run db:generate`
    `npm run db:migrate:deploy`
-7. Deploy the app.
-8. Verify:
+8. Deploy the app.
+9. Verify:
    `/api/health`
    `/api/readyz`
    Clerk auth flow
+   central portal redirect flow from a tenant public domain
    Paystack webhook flow
    brochure download flow
    private document flow
-9. Confirm `/api/readyz` reports `ok: true` before exposing the environment to internal users.
+10. Confirm `/api/readyz` reports `ok: true` before exposing the environment to internal users.
 
 ### Mandatory Services For First Production Deployment
 
@@ -1050,6 +1096,22 @@ EstateOS now includes a tenant-scoped operating-system layer aimed at daily use 
 - `charge.success` / webhook reconciliation remains the source of truth for:
   - real payment success
   - receipt generation
+
+## Central Portal/Auth Domain Model
+
+- `PLATFORM_BASE_URL` is the public EstateOS platform root.
+- `PORTAL_BASE_URL` is the current-phase authenticated domain for:
+  - `/sign-in`
+  - `/portal`
+  - `/admin`
+  - `/superadmin`
+- Tenant public domains remain browsable without auth.
+- Auth-required entry points on tenant public domains redirect to central sign-in with:
+  - tenant slug when known
+  - originating host when needed for custom-domain resolution
+  - safe internal `returnTo` path
+- After auth, `/auth/complete` resolves the tenant hint, stores it safely, and redirects to the intended central-domain flow.
+- Current phase is central-auth only. Future Clerk satellite-domain rollout should reuse the domain helpers instead of scattering host assumptions across UI code.
   - commission capture
   - split settlement records
   - payment request `PAID` transitions

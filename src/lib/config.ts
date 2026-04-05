@@ -17,7 +17,11 @@ const serverEnvSchema = z
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     DATABASE_URL: optionalString,
     NEXT_PUBLIC_APP_URL: z.string().trim().url().default("http://localhost:3000"),
+    NEXT_PUBLIC_PLATFORM_BASE_URL: optionalUrl,
+    NEXT_PUBLIC_PORTAL_BASE_URL: optionalUrl,
     APP_BASE_URL: optionalUrl,
+    PLATFORM_BASE_URL: optionalUrl,
+    PORTAL_BASE_URL: optionalUrl,
     DEFAULT_COMPANY_SLUG: optionalSlug,
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: optionalString,
     CLERK_SECRET_KEY: optionalString,
@@ -96,11 +100,17 @@ const serverEnvSchema = z
 const publicEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   NEXT_PUBLIC_APP_URL: z.string().trim().url().default("http://localhost:3000"),
+  NEXT_PUBLIC_PLATFORM_BASE_URL: optionalUrl,
+  NEXT_PUBLIC_PORTAL_BASE_URL: optionalUrl,
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: optionalString,
   NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: optionalString,
 });
 
-export type ServerEnv = z.infer<typeof serverEnvSchema> & { APP_BASE_URL: string };
+export type ServerEnv = z.infer<typeof serverEnvSchema> & {
+  APP_BASE_URL: string;
+  PLATFORM_BASE_URL: string;
+  PORTAL_BASE_URL: string;
+};
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
 export type FeatureFlags = ReturnType<typeof buildFeatureFlags>;
 
@@ -160,6 +170,16 @@ export function parseServerEnv(raw: NodeJS.ProcessEnv): ServerEnv {
   return {
     ...parsed,
     APP_BASE_URL: parsed.APP_BASE_URL ?? parsed.NEXT_PUBLIC_APP_URL,
+    PLATFORM_BASE_URL:
+      parsed.PLATFORM_BASE_URL ??
+      parsed.NEXT_PUBLIC_PLATFORM_BASE_URL ??
+      parsed.APP_BASE_URL ??
+      parsed.NEXT_PUBLIC_APP_URL,
+    PORTAL_BASE_URL:
+      parsed.PORTAL_BASE_URL ??
+      parsed.NEXT_PUBLIC_PORTAL_BASE_URL ??
+      parsed.APP_BASE_URL ??
+      parsed.NEXT_PUBLIC_APP_URL,
   };
 }
 

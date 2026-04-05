@@ -247,7 +247,7 @@ export async function createPaymentRequestForAdmin(
         amount: rawInput.amount,
         currency: rawInput.currency,
         reference: namespacedReference,
-        callbackUrl: `${env.APP_BASE_URL}/portal/payments`,
+        callbackUrl: `${env.PORTAL_BASE_URL}/portal/payments`,
         channels:
           rawInput.collectionMethod === "BANK_TRANSFER_TEMP_ACCOUNT"
             ? ["bank_transfer"]

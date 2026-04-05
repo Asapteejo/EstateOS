@@ -1,8 +1,24 @@
 import Link from "next/link";
 
 import { Container } from "@/components/shared/container";
+import { buildAuthRedirect, buildServerDomainConfig } from "@/lib/domains";
+import { env } from "@/lib/env";
 
 export function PlatformFooter() {
+  const runtimeConfig = buildServerDomainConfig(env);
+  const buyerPortalHref = buildAuthRedirect(runtimeConfig, {
+    returnTo: "/portal",
+    entry: "buyer",
+  });
+  const adminPortalHref = buildAuthRedirect(runtimeConfig, {
+    returnTo: "/admin",
+    entry: "admin",
+  });
+  const superadminHref = buildAuthRedirect(runtimeConfig, {
+    returnTo: "/superadmin",
+    entry: "superadmin",
+  });
+
   return (
     <footer className="border-t border-[var(--line)] bg-[var(--sand-50)]">
       <Container className="grid gap-10 py-14 md:grid-cols-[1.4fr_1fr_1fr]">
@@ -39,7 +55,7 @@ export function PlatformFooter() {
             <Link href="/platform/pricing" className="block">
               Pricing
             </Link>
-            <Link href="/superadmin" className="block">
+            <Link href={superadminHref} className="block">
               Superadmin
             </Link>
           </div>
@@ -53,10 +69,10 @@ export function PlatformFooter() {
             <Link href="/properties" className="block">
               Tenant listings
             </Link>
-            <Link href="/portal" className="block">
+            <Link href={buyerPortalHref} className="block">
               Buyer portal
             </Link>
-            <Link href="/admin" className="block">
+            <Link href={adminPortalHref} className="block">
               Tenant admin
             </Link>
           </div>

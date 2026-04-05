@@ -334,8 +334,9 @@ model Company {
   commissionRules CommissionRule[]
   commissionRecords CommissionRecord[]
   splitSettlements SplitSettlement[]
-  billingEvents   BillingEvent[]
-  createdAt       DateTime           @default(now())
+    billingEvents   BillingEvent[]
+    marketerRankingSnapshots MarketerRankingSnapshot[]
+    createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 }
 
@@ -643,20 +644,24 @@ model Profile {
 }
 
 model StaffProfile {
-  id            String    @id @default(cuid())
-  userId        String    @unique
-  title         String?
-  department    String?
-  bio           String?
-  avatarUrl     String?
-  staffCode     String?
-  isAssignable  Boolean   @default(true)
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  assignedLeads Inquiry[] @relation("AssignedStaff")
-  assignedInspections InspectionBooking[] @relation("AssignedInspectionStaff")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-}
+    id            String    @id @default(cuid())
+    userId        String    @unique
+    teamMemberId  String?   @unique
+    title         String?
+    department    String?
+    bio           String?
+    avatarUrl     String?
+    staffCode     String?
+    isAssignable  Boolean   @default(true)
+    user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    teamMember    TeamMember? @relation(fields: [teamMemberId], references: [id])
+    assignedLeads Inquiry[] @relation("AssignedStaff")
+    assignedInspections InspectionBooking[] @relation("AssignedInspectionStaff")
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
+
+    @@index([teamMemberId])
+  }
 
 model Property {
   id                 String         @id @default(cuid())
@@ -1230,17 +1235,42 @@ model TeamMember {
   isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
   isPublished Boolean  @default(true)
-  company     Company  @relation(fields: [companyId], references: [id])
-  reservations Reservation[] @relation("SelectedMarketerReservations")
-  transactions Transaction[] @relation("SelectedMarketerTransactions")
-  payments    Payment[] @relation("SelectedMarketerPayments")
-  savedProperties SavedProperty[] @relation("WishlistSelectedMarketer")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+    company     Company  @relation(fields: [companyId], references: [id])
+    staffProfile StaffProfile?
+    reservations Reservation[] @relation("SelectedMarketerReservations")
+    transactions Transaction[] @relation("SelectedMarketerTransactions")
+    payments    Payment[] @relation("SelectedMarketerPayments")
+    savedProperties SavedProperty[] @relation("WishlistSelectedMarketer")
+    rankingSnapshots MarketerRankingSnapshot[]
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
 
   @@unique([companyId, slug])
-  @@unique([companyId, staffCode])
-  @@index([companyId, isPublished, isActive, sortOrder])
+    @@unique([companyId, staffCode])
+    @@index([companyId, isPublished, isActive, sortOrder])
+  }
+
+model MarketerRankingSnapshot {
+  id                String   @id @default(cuid())
+  companyId         String
+  teamMemberId      String
+  score             Int
+  rank              Int
+  starRating        Decimal  @db.Decimal(3, 1)
+  snapshotDate      DateTime
+  wishlistAdds      Int      @default(0)
+  qualifiedInquiries Int     @default(0)
+  inspectionsHandled Int     @default(0)
+  reservations      Int      @default(0)
+  successfulPayments Int     @default(0)
+  completedDeals    Int      @default(0)
+  company           Company  @relation(fields: [companyId], references: [id])
+  teamMember        TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+
+  @@unique([companyId, teamMemberId, snapshotDate])
+  @@index([companyId, snapshotDate, rank])
+  @@index([teamMemberId, snapshotDate])
 }
 
 model FAQItem {

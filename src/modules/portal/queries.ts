@@ -6,7 +6,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { properties as demoProperties } from "@/modules/properties/demo-data";
 import { buyerNotifications, buyerOverview, buyerTimeline } from "@/modules/portal/demo-data";
 import { isBuyerOwnedDocumentRecord, isBuyerOwnedTransactionRecord } from "@/modules/portal/access";
-import { buildBuyerPaymentProgress } from "@/modules/portal/payments";
+import { buildBuyerPaymentProgress, resolveBuyerPaymentMarketer } from "@/modules/portal/payments";
 import { buildTransactionInstallmentSchedule, summarizeTransactionPayment } from "@/modules/payments/progress";
 import { buildPropertyVerificationPresentation } from "@/modules/properties/verification";
 import type { PropertySummary } from "@/types/domain";
@@ -128,7 +128,12 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
       }),
       paymentStatus: "PARTIAL" as const,
       nextDueDate: "May 20, 2026",
-      selectedMarketer: "Tobi Adewale",
+      selectedMarketer: {
+        fullName: "Tobi Adewale",
+        title: "Senior marketer",
+        slug: "tobi-adewale",
+        avatarUrl: null,
+      },
       selectedPaymentPlan: "24-month plan",
       receipts: [
         {
@@ -183,11 +188,22 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
         marketer: {
           select: {
             fullName: true,
+            title: true,
+            slug: true,
+            avatarUrl: true,
           },
         },
         reservation: {
           select: {
             createdAt: true,
+            marketer: {
+              select: {
+                fullName: true,
+                title: true,
+                slug: true,
+                avatarUrl: true,
+              },
+            },
           },
         },
         paymentPlan: {
@@ -217,6 +233,14 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
             status: true,
             method: true,
             installmentId: true,
+            marketer: {
+              select: {
+                fullName: true,
+                title: true,
+                slug: true,
+                avatarUrl: true,
+              },
+            },
             receipt: {
               select: {
                 id: true,
@@ -253,8 +277,11 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
     id: string;
     totalValue: { toNumber?: () => number } | number;
     outstandingBalance: { toNumber?: () => number } | number;
-    marketer: { fullName: string } | null;
-    reservation: { createdAt: Date } | null;
+    marketer: { fullName: string; title: string; slug: string; avatarUrl: string | null } | null;
+    reservation: {
+      createdAt: Date;
+      marketer: { fullName: string; title: string; slug: string; avatarUrl: string | null } | null;
+    } | null;
     paymentPlan: {
       title: string;
       installments: Array<{
@@ -271,6 +298,7 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
       status: string;
       method: string;
       installmentId: string | null;
+      marketer: { fullName: string; title: string; slug: string; avatarUrl: string | null } | null;
       receipt: {
         id: string;
         receiptNumber: string;
@@ -364,11 +392,42 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
       downloadHref: `/api/receipts/${payment.receipt!.id}/download`,
     }));
 
+  const resolvedMarketer = resolveBuyerPaymentMarketer({
+    payments: transaction.payments
+      .filter((payment) => payment.status !== "AWAITING_INITIATION")
+      .map((payment) => ({
+        marketer: payment.marketer
+          ? {
+              fullName: payment.marketer.fullName,
+              title: payment.marketer.title,
+              slug: payment.marketer.slug,
+              avatarUrl: payment.marketer.avatarUrl,
+            }
+          : null,
+      })),
+    transactionMarketer: transaction.marketer
+      ? {
+          fullName: transaction.marketer.fullName,
+          title: transaction.marketer.title,
+          slug: transaction.marketer.slug,
+          avatarUrl: transaction.marketer.avatarUrl,
+        }
+      : null,
+    reservationMarketer: transaction.reservation?.marketer
+      ? {
+          fullName: transaction.reservation.marketer.fullName,
+          title: transaction.reservation.marketer.title,
+          slug: transaction.reservation.marketer.slug,
+          avatarUrl: transaction.reservation.marketer.avatarUrl,
+        }
+      : null,
+  });
+
   return {
     progress,
     paymentStatus: paymentSummary.status,
     nextDueDate: paymentSummary.nextDue ? formatDate(paymentSummary.nextDue.dueDate) : null,
-    selectedMarketer: transaction.marketer?.fullName ?? null,
+    selectedMarketer: resolvedMarketer,
     selectedPaymentPlan: transaction.paymentPlan?.title ?? null,
     receipts: receiptRows,
     payments: transaction.payments

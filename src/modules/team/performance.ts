@@ -1,4 +1,5 @@
-import { startOfMonth } from "date-fns";
+import { Prisma } from "@prisma/client";
+import { startOfMonth, subDays } from "date-fns";
 
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
@@ -6,23 +7,9 @@ import type { TenantContext } from "@/lib/tenancy/context";
 import { findManyForTenant } from "@/lib/tenancy/db";
 
 type ScopedFindManyDelegate = { findMany: (args?: unknown) => Promise<unknown> };
-
-type TeamMemberLeaderboardRow = {
-  id: string;
-  slug: string;
-  fullName: string;
-  title: string;
-  avatarUrl: string | null;
-  email: string | null;
-  staffCode: string | null;
-};
-
-type StaffProfileMatchRow = {
-  id: string;
-  staffCode: string | null;
-  user: {
-    email: string;
-  };
+type MarketerRankingSnapshotDelegate = {
+  findMany: (args?: unknown) => Promise<unknown>;
+  upsert: (args?: unknown) => Promise<unknown>;
 };
 
 type AttributedActivityRecord = {
@@ -37,6 +24,16 @@ type FallbackAttributionCandidate = {
   propertyId: string;
   happenedAt: Date;
   source: "inspection" | "inquiry";
+};
+
+type TeamMemberPerformanceRow = {
+  id: string;
+  slug: string;
+  fullName: string;
+  title: string;
+  avatarUrl: string | null;
+  isActive: boolean;
+  isPublished: boolean;
 };
 
 export type MarketerPerformanceMetrics = {
@@ -54,11 +51,24 @@ export type MarketerPerformanceEntry = {
   fullName: string;
   title: string;
   avatarUrl: string | null;
+  isActive: boolean;
+  isPublished: boolean;
   monthlyScore: number;
   starRating: number;
   rank: number;
   summary: string;
   metrics: MarketerPerformanceMetrics;
+};
+
+export type MarketerPerformanceTrend = {
+  direction: "up" | "down" | "flat";
+  scoreDelta: number;
+  rankDelta: number;
+  previousSnapshotDate: string;
+};
+
+export type AdminMarketerPerformanceRow = MarketerPerformanceEntry & {
+  trend: MarketerPerformanceTrend | null;
 };
 
 export const MARKETER_SCORE_WEIGHTS = {
@@ -84,60 +94,6 @@ export function buildMarketerPerformanceScore(input: MarketerPerformanceMetrics)
 
 export function buildMarketerStarRating(score: number) {
   return Math.max(3, Math.min(5, Number((3 + Math.sqrt(Math.max(score, 0)) / 3).toFixed(1))));
-}
-
-function normalizeLooseString(value: string | null | undefined) {
-  return value?.trim().toLowerCase() ?? "";
-}
-
-export function buildStaffProfileMarketerMap(
-  members: Array<Pick<TeamMemberLeaderboardRow, "id" | "email" | "staffCode">>,
-  staffProfiles: StaffProfileMatchRow[],
-) {
-  const byEmail = new Map<string, string>();
-  const byStaffCode = new Map<string, string>();
-  const duplicateEmails = new Set<string>();
-  const duplicateStaffCodes = new Set<string>();
-
-  for (const member of members) {
-    const emailKey = normalizeLooseString(member.email);
-    if (emailKey) {
-      if (byEmail.has(emailKey)) {
-        duplicateEmails.add(emailKey);
-      } else {
-        byEmail.set(emailKey, member.id);
-      }
-    }
-
-    const staffCodeKey = normalizeLooseString(member.staffCode);
-    if (staffCodeKey) {
-      if (byStaffCode.has(staffCodeKey)) {
-        duplicateStaffCodes.add(staffCodeKey);
-      } else {
-        byStaffCode.set(staffCodeKey, member.id);
-      }
-    }
-  }
-
-  const matches = new Map<string, string>();
-
-  for (const profile of staffProfiles) {
-    const emailKey = normalizeLooseString(profile.user.email);
-    const staffCodeKey = normalizeLooseString(profile.staffCode);
-    const byProfileEmail = duplicateEmails.has(emailKey) ? null : byEmail.get(emailKey);
-    const byProfileStaffCode = duplicateStaffCodes.has(staffCodeKey) ? null : byStaffCode.get(staffCodeKey);
-
-    if (byProfileEmail) {
-      matches.set(profile.id, byProfileEmail);
-      continue;
-    }
-
-    if (byProfileStaffCode) {
-      matches.set(profile.id, byProfileStaffCode);
-    }
-  }
-
-  return matches;
 }
 
 function buildFallbackAttributionKey(userId: string, propertyId: string) {
@@ -210,9 +166,112 @@ export function buildMarketerPerformanceSummary(metrics: MarketerPerformanceMetr
   return summaryParts.slice(0, 3).join(" • ") || "Performance score will appear as real client activity builds.";
 }
 
+export function buildMarketerSnapshotDate(now = new Date()) {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+export function buildMarketerSnapshotRecords(
+  companyId: string,
+  entries: MarketerPerformanceEntry[],
+  now = new Date(),
+) {
+  const snapshotDate = buildMarketerSnapshotDate(now);
+
+  return entries.map((entry) => ({
+    companyId,
+    teamMemberId: entry.id,
+    score: entry.monthlyScore,
+    rank: entry.rank,
+    starRating: new Prisma.Decimal(entry.starRating.toFixed(1)),
+    snapshotDate,
+    wishlistAdds: entry.metrics.wishlistAdds,
+    qualifiedInquiries: entry.metrics.qualifiedInquiries,
+    inspectionsHandled: entry.metrics.inspectionsHandled,
+    reservations: entry.metrics.reservations,
+    successfulPayments: entry.metrics.successfulPayments,
+    completedDeals: entry.metrics.completedDeals,
+  }));
+}
+
+export function buildMarketerPerformanceTrend(
+  current: Pick<MarketerPerformanceEntry, "monthlyScore" | "rank">,
+  previous?: {
+    score: number;
+    rank: number;
+    snapshotDate: Date;
+  } | null,
+): MarketerPerformanceTrend | null {
+  if (!previous) {
+    return null;
+  }
+
+  const scoreDelta = current.monthlyScore - previous.score;
+  const rankDelta = previous.rank - current.rank;
+  const direction =
+    scoreDelta > 0 || rankDelta > 0 ? "up" : scoreDelta < 0 || rankDelta < 0 ? "down" : "flat";
+
+  return {
+    direction,
+    scoreDelta,
+    rankDelta,
+    previousSnapshotDate: previous.snapshotDate.toISOString(),
+  };
+}
+
+export function sortMarketerPerformanceEntries(
+  entries: AdminMarketerPerformanceRow[],
+  sortBy: "score" | "deals" | "payments" | "inspections" | "reservations" | "rating" = "score",
+) {
+  const sorted = [...entries];
+
+  sorted.sort((left, right) => {
+    const compare =
+      sortBy === "deals"
+        ? right.metrics.completedDeals - left.metrics.completedDeals
+        : sortBy === "payments"
+          ? right.metrics.successfulPayments - left.metrics.successfulPayments
+          : sortBy === "inspections"
+            ? right.metrics.inspectionsHandled - left.metrics.inspectionsHandled
+            : sortBy === "reservations"
+              ? right.metrics.reservations - left.metrics.reservations
+              : sortBy === "rating"
+                ? right.starRating - left.starRating
+                : right.monthlyScore - left.monthlyScore;
+
+    return compare || left.fullName.localeCompare(right.fullName);
+  });
+
+  return sorted.map((entry, index) => ({
+    ...entry,
+    rank: index + 1,
+  }));
+}
+
+function createTenantContextForCompany(input: { companyId: string; companySlug: string | null }): TenantContext {
+  return {
+    userId: null,
+    companyId: input.companyId,
+    companySlug: input.companySlug,
+    branchId: null,
+    roles: [],
+    isSuperAdmin: false,
+    host: null,
+    resolutionSource: "none",
+  };
+}
+
+function getMarketerRankingSnapshotDelegate() {
+  return (prisma as typeof prisma & { marketerRankingSnapshot?: MarketerRankingSnapshotDelegate })
+    .marketerRankingSnapshot;
+}
+
 async function getTenantMarketerPerformanceEntries(
   context: TenantContext,
   now: Date,
+  options?: {
+    includeUnpublished?: boolean;
+    includeInactive?: boolean;
+  },
 ) {
   if (!featureFlags.hasDatabase || !context.companyId) {
     return [] as MarketerPerformanceEntry[];
@@ -224,8 +283,8 @@ async function getTenantMarketerPerformanceEntries(
     context,
     {
       where: {
-        isActive: true,
-        isPublished: true,
+        ...(options?.includeInactive ? {} : { isActive: true }),
+        ...(options?.includeUnpublished ? {} : { isPublished: true }),
       },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       select: {
@@ -234,36 +293,20 @@ async function getTenantMarketerPerformanceEntries(
         fullName: true,
         title: true,
         avatarUrl: true,
-        email: true,
-        staffCode: true,
+        isActive: true,
+        isPublished: true,
       },
     } as Parameters<typeof prisma.teamMember.findMany>[0],
-  )) as TeamMemberLeaderboardRow[];
+  )) as TeamMemberPerformanceRow[];
 
   if (members.length === 0) {
     return [];
   }
 
-  const memberIds = new Set(members.map((member) => member.id));
+  const memberIds = members.map((member) => member.id);
 
-  const [staffProfiles, wishlistAdds, reservations, completedDeals, successfulPayments, inquiries, inspections] =
+  const [wishlistAdds, reservations, completedDeals, successfulPayments, inquiries, inspections] =
     await Promise.all([
-      prisma.staffProfile.findMany({
-        where: {
-          user: {
-            companyId: context.companyId,
-          },
-        },
-        select: {
-          id: true,
-          staffCode: true,
-          user: {
-            select: {
-              email: true,
-            },
-          },
-        },
-      }),
       prisma.savedProperty.findMany({
         where: {
           companyId: context.companyId,
@@ -272,7 +315,7 @@ async function getTenantMarketerPerformanceEntries(
             gte: monthStart,
           },
           selectedMarketerId: {
-            in: [...memberIds],
+            in: memberIds,
           },
         },
         select: {
@@ -350,10 +393,14 @@ async function getTenantMarketerPerformanceEntries(
           },
         },
         select: {
-          assignedStaffId: true,
           userId: true,
           propertyId: true,
           createdAt: true,
+          assignedStaff: {
+            select: {
+              teamMemberId: true,
+            },
+          },
         },
       }),
       prisma.inspectionBooking.findMany({
@@ -373,46 +420,47 @@ async function getTenantMarketerPerformanceEntries(
           },
         },
         select: {
-          assignedStaffId: true,
           userId: true,
           propertyId: true,
           createdAt: true,
+          assignedStaff: {
+            select: {
+              teamMemberId: true,
+            },
+          },
         },
       }),
     ]);
 
-  const staffProfileMap = buildStaffProfileMarketerMap(members, staffProfiles);
   // Buyer-selected marketer attribution remains the primary source.
-  // Assigned inquiry/inspection staff only fills gaps where the buyer never selected a marketer.
+  // Inquiry and inspection assignment only fills gaps where no explicit marketer was chosen.
   const fallbackIndex = buildFallbackAttributionIndex([
-    ...inquiries.flatMap((inquiry) => {
-      const marketerId = inquiry.assignedStaffId ? staffProfileMap.get(inquiry.assignedStaffId) : null;
-      return marketerId && inquiry.userId && inquiry.propertyId
+    ...inquiries.flatMap((inquiry) =>
+      inquiry.assignedStaff?.teamMemberId && inquiry.userId && inquiry.propertyId
         ? [
             {
-              marketerId,
+              marketerId: inquiry.assignedStaff.teamMemberId,
               userId: inquiry.userId,
               propertyId: inquiry.propertyId,
               happenedAt: inquiry.createdAt,
               source: "inquiry" as const,
             },
           ]
-        : [];
-    }),
-    ...inspections.flatMap((inspection) => {
-      const marketerId = inspection.assignedStaffId ? staffProfileMap.get(inspection.assignedStaffId) : null;
-      return marketerId && inspection.userId && inspection.propertyId
+        : [],
+    ),
+    ...inspections.flatMap((inspection) =>
+      inspection.assignedStaff?.teamMemberId && inspection.userId && inspection.propertyId
         ? [
             {
-              marketerId,
+              marketerId: inspection.assignedStaff.teamMemberId,
               userId: inspection.userId,
               propertyId: inspection.propertyId,
               happenedAt: inspection.createdAt,
               source: "inspection" as const,
             },
           ]
-        : [];
-    }),
+        : [],
+    ),
   ]);
 
   const metricsByMember = new Map<string, MarketerPerformanceMetrics>();
@@ -446,13 +494,11 @@ async function getTenantMarketerPerformanceEntries(
   }
 
   for (const inquiry of inquiries) {
-    const memberId = inquiry.assignedStaffId ? staffProfileMap.get(inquiry.assignedStaffId) ?? null : null;
-    increment(memberId, "qualifiedInquiries");
+    increment(inquiry.assignedStaff?.teamMemberId ?? null, "qualifiedInquiries");
   }
 
   for (const inspection of inspections) {
-    const memberId = inspection.assignedStaffId ? staffProfileMap.get(inspection.assignedStaffId) ?? null : null;
-    increment(memberId, "inspectionsHandled");
+    increment(inspection.assignedStaff?.teamMemberId ?? null, "inspectionsHandled");
   }
 
   for (const reservation of reservations) {
@@ -509,6 +555,8 @@ async function getTenantMarketerPerformanceEntries(
         fullName: member.fullName,
         title: member.title,
         avatarUrl: member.avatarUrl,
+        isActive: member.isActive,
+        isPublished: member.isPublished,
         monthlyScore,
         starRating: buildMarketerStarRating(monthlyScore),
         rank: 0,
@@ -516,7 +564,12 @@ async function getTenantMarketerPerformanceEntries(
         metrics,
       };
     })
-    .sort((a, b) => b.monthlyScore - a.monthlyScore || b.metrics.completedDeals - a.metrics.completedDeals || a.fullName.localeCompare(b.fullName))
+    .sort(
+      (a, b) =>
+        b.monthlyScore - a.monthlyScore ||
+        b.metrics.completedDeals - a.metrics.completedDeals ||
+        a.fullName.localeCompare(b.fullName),
+    )
     .map((entry, index) => ({
       ...entry,
       rank: index + 1,
@@ -528,7 +581,10 @@ export async function getTenantMarketerLeaderboard(
   now = new Date(),
   limit = 3,
 ): Promise<MarketerPerformanceEntry[]> {
-  const entries = await getTenantMarketerPerformanceEntries(context, now);
+  const entries = await getTenantMarketerPerformanceEntries(context, now, {
+    includeInactive: false,
+    includeUnpublished: false,
+  });
 
   return entries.filter((entry) => entry.monthlyScore > 0).slice(0, limit);
 }
@@ -538,7 +594,159 @@ export async function getTenantMarketerPerformanceSummary(
   marketerId: string,
   now = new Date(),
 ) {
-  const entries = await getTenantMarketerPerformanceEntries(context, now);
+  const entries = await getTenantMarketerPerformanceEntries(context, now, {
+    includeInactive: false,
+    includeUnpublished: false,
+  });
 
   return entries.find((entry) => entry.id === marketerId) ?? null;
+}
+
+export async function getAdminMarketerPerformanceDashboard(
+  context: TenantContext,
+  input?: {
+    now?: Date;
+    search?: string;
+    sortBy?: "score" | "deals" | "payments" | "inspections" | "reservations" | "rating";
+  },
+) {
+  const now = input?.now ?? new Date();
+  const entries = await getTenantMarketerPerformanceEntries(context, now, {
+    includeInactive: true,
+    includeUnpublished: true,
+  });
+
+  const normalizedSearch = input?.search?.trim().toLowerCase() ?? "";
+  const filtered = normalizedSearch
+    ? entries.filter(
+        (entry) =>
+          entry.fullName.toLowerCase().includes(normalizedSearch) ||
+          entry.title.toLowerCase().includes(normalizedSearch),
+      )
+    : entries;
+
+  const snapshotDelegate = getMarketerRankingSnapshotDelegate();
+  const snapshots = context.companyId && snapshotDelegate
+    ? await snapshotDelegate.findMany({
+        where: {
+          companyId: context.companyId,
+          teamMemberId: {
+            in: filtered.map((entry) => entry.id),
+          },
+          snapshotDate: {
+            gte: subDays(buildMarketerSnapshotDate(now), 14),
+            lt: buildMarketerSnapshotDate(now),
+          },
+        },
+        orderBy: [{ snapshotDate: "desc" }, { rank: "asc" }],
+        select: {
+          teamMemberId: true,
+          score: true,
+          rank: true,
+          snapshotDate: true,
+        },
+      })
+    : [];
+
+  const previousByMember = new Map<string, { score: number; rank: number; snapshotDate: Date }>();
+  for (const snapshot of snapshots) {
+    if (!previousByMember.has(snapshot.teamMemberId)) {
+      previousByMember.set(snapshot.teamMemberId, snapshot);
+    }
+  }
+
+  const rows = sortMarketerPerformanceEntries(
+    filtered.map((entry) => ({
+      ...entry,
+      trend: buildMarketerPerformanceTrend(entry, previousByMember.get(entry.id) ?? null),
+    })),
+    input?.sortBy ?? "score",
+  );
+
+  return {
+    topPerformer: rows.find((row) => row.monthlyScore > 0) ?? null,
+    rows,
+    latestSnapshotDate:
+      snapshots.reduce<Date | null>(
+        (latest, snapshot) =>
+          !latest || snapshot.snapshotDate > latest ? snapshot.snapshotDate : latest,
+        null,
+      )?.toISOString() ?? null,
+  };
+}
+
+export async function syncMarketerRankingSnapshots(input?: {
+  companyId?: string | null;
+  now?: Date;
+}) {
+  const now = input?.now ?? new Date();
+
+  if (!featureFlags.hasDatabase) {
+    return {
+      companies: 0,
+      snapshots: 0,
+      snapshotDate: buildMarketerSnapshotDate(now).toISOString(),
+    };
+  }
+
+  const companies = await prisma.company.findMany({
+    where: input?.companyId ? { id: input.companyId } : undefined,
+    select: {
+      id: true,
+      slug: true,
+    },
+  });
+
+  let snapshots = 0;
+  const snapshotDelegate = getMarketerRankingSnapshotDelegate();
+
+  if (!snapshotDelegate) {
+    return {
+      companies: companies.length,
+      snapshots: 0,
+      snapshotDate: buildMarketerSnapshotDate(now).toISOString(),
+    };
+  }
+
+  for (const company of companies) {
+    const context = createTenantContextForCompany({
+      companyId: company.id,
+      companySlug: company.slug,
+    });
+    const entries = await getTenantMarketerPerformanceEntries(context, now, {
+      includeInactive: true,
+      includeUnpublished: true,
+    });
+
+    for (const record of buildMarketerSnapshotRecords(company.id, entries, now)) {
+      await snapshotDelegate.upsert({
+        where: {
+          companyId_teamMemberId_snapshotDate: {
+            companyId: record.companyId,
+            teamMemberId: record.teamMemberId,
+            snapshotDate: record.snapshotDate,
+          },
+        },
+        update: {
+          score: record.score,
+          rank: record.rank,
+          starRating: record.starRating,
+          wishlistAdds: record.wishlistAdds,
+          qualifiedInquiries: record.qualifiedInquiries,
+          inspectionsHandled: record.inspectionsHandled,
+          reservations: record.reservations,
+          successfulPayments: record.successfulPayments,
+          completedDeals: record.completedDeals,
+        },
+        create: record,
+      });
+      snapshots += 1;
+    }
+  }
+
+  return {
+    companies: companies.length,
+    snapshots,
+    snapshotDate: buildMarketerSnapshotDate(now).toISOString(),
+  };
 }

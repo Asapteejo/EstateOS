@@ -117,6 +117,9 @@ export default async function PropertyDetailPage({
               <div className="mt-6 space-y-3">
                 <PropertyActions
                   propertyId={property.id}
+                  propertyPath={`/properties/${slug}`}
+                  tenantSlug={tenant.companySlug}
+                  tenantHost={tenant.host}
                   marketers={marketers.map((marketer) => ({
                     id: marketer.id,
                     fullName: marketer.fullName,

@@ -24,6 +24,7 @@ const adminLinks = [
   ["Overview", "/admin"],
   ["Listings", "/admin/listings"],
   ["Team", "/admin/team"],
+  ["Marketers", "/admin/marketers"],
   ["Leads", "/admin/leads"],
   ["Pipeline", "/admin/pipeline"],
   ["Bookings", "/admin/bookings"],

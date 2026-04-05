@@ -40,7 +40,7 @@ export default async function AdminPaymentsPage() {
           <table className="min-w-full text-left text-sm">
             <thead className="bg-[var(--sand-100)] text-[var(--ink-500)]">
               <tr>
-                {["Reference", "Buyer", "Payment state", "Stage", "Outstanding", "Next due", "Receipt"].map((column) => (
+                {["Reference", "Buyer", "Marketer", "Payment state", "Stage", "Outstanding", "Next due", "Receipt"].map((column) => (
                   <th key={column} className="px-6 py-3 font-medium">{column}</th>
                 ))}
               </tr>
@@ -50,6 +50,7 @@ export default async function AdminPaymentsPage() {
                 <tr key={row.id} className="border-t border-[var(--line)]">
                   <td className="px-6 py-4 text-[var(--ink-700)]">{row.reference}</td>
                   <td className="px-6 py-4 text-[var(--ink-700)]">{row.buyer}</td>
+                  <td className="px-6 py-4 text-[var(--ink-700)]">{row.marketer}</td>
                   <td className="px-6 py-4 text-[var(--ink-700)]">{row.paymentStatus}</td>
                   <td className="px-6 py-4 text-[var(--ink-700)]">{row.stage}</td>
                   <td className="px-6 py-4 text-[var(--ink-700)]">{row.outstandingBalance}</td>

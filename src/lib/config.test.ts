@@ -55,10 +55,12 @@ test("public env exposes only client-safe values", () => {
   const env = parsePublicEnv({
     NODE_ENV: "development",
     NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+    NEXT_PUBLIC_PORTAL_BASE_URL: "http://localhost:3001",
     NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: "public-mapbox",
   });
 
   assert.equal(env.NEXT_PUBLIC_APP_URL, "http://localhost:3000");
+  assert.equal(env.NEXT_PUBLIC_PORTAL_BASE_URL, "http://localhost:3001");
   assert.equal(env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN, "public-mapbox");
 });
 
@@ -77,4 +79,17 @@ test("feature flags require full service groups", () => {
   assert.equal(flags.hasDatabase, true);
   assert.equal(flags.hasClerk, true);
   assert.equal(flags.hasPaystack, false);
+});
+
+test("server env derives platform and portal base urls from public values", () => {
+  const env = parseServerEnv({
+    NODE_ENV: "development",
+    NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+    NEXT_PUBLIC_PLATFORM_BASE_URL: "https://estateos.example.com",
+    NEXT_PUBLIC_PORTAL_BASE_URL: "https://portal.estateos.example.com",
+  });
+
+  assert.equal(env.APP_BASE_URL, "http://localhost:3000");
+  assert.equal(env.PLATFORM_BASE_URL, "https://estateos.example.com");
+  assert.equal(env.PORTAL_BASE_URL, "https://portal.estateos.example.com");
 });

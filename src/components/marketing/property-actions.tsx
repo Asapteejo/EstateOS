@@ -5,13 +5,21 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { buildAuthRedirect, buildPublicDomainConfig } from "@/lib/domains";
+import { publicEnv } from "@/lib/public-env";
 
 export function PropertyActions({
   propertyId,
+  propertyPath,
+  tenantSlug,
+  tenantHost,
   marketers = [],
   paymentPlans = [],
 }: {
   propertyId: string;
+  propertyPath: string;
+  tenantSlug?: string | null;
+  tenantHost?: string | null;
   marketers?: Array<{ id: string; fullName: string; title: string }>;
   paymentPlans?: Array<{ id: string; title: string; kind: string }>;
 }) {
@@ -19,6 +27,16 @@ export function PropertyActions({
   const [pendingAction, setPendingAction] = useState<"save" | "reserve" | null>(null);
   const [selectedMarketerId, setSelectedMarketerId] = useState("");
   const [selectedPaymentPlanId, setSelectedPaymentPlanId] = useState("");
+  const domainConfig = buildPublicDomainConfig(publicEnv);
+
+  function redirectToCentralAuth(entry: "buyer" | "purchase") {
+    window.location.href = buildAuthRedirect(domainConfig, {
+      returnTo: propertyPath,
+      tenantSlug,
+      tenantHost,
+      entry,
+    });
+  }
 
   async function saveProperty() {
     setPendingAction("save");
@@ -38,7 +56,7 @@ export function PropertyActions({
     setPendingAction(null);
 
     if (!response.ok) {
-      toast.error("Sign in to save this property.");
+      redirectToCentralAuth("buyer");
       return;
     }
 
@@ -72,7 +90,7 @@ export function PropertyActions({
     setPendingAction(null);
 
     if (!response.ok) {
-      toast.error("Sign in with a buyer account to reserve this property.");
+      redirectToCentralAuth("purchase");
       return;
     }
 

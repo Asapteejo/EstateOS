@@ -16,9 +16,11 @@ const links = [
 export function MarketingHeader({
   companyName = "Acme Realty",
   logoUrl = null,
+  buyerPortalHref = "/portal",
 }: {
   companyName?: string;
   logoUrl?: string | null;
+  buyerPortalHref?: string;
 }) {
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--tenant-nav-border,var(--line))] bg-[var(--tenant-nav-surface)] shadow-[var(--tenant-nav-shadow,none)] backdrop-blur-xl">
@@ -36,7 +38,7 @@ export function MarketingHeader({
           ))}
         </nav>
         <div className="flex items-center gap-3">
-          <Link href="/portal" className="hidden text-sm font-medium text-[var(--ink-700)] sm:inline">
+          <Link href={buyerPortalHref} className="hidden text-sm font-medium text-[var(--ink-700)] sm:inline">
             Buyer Portal
           </Link>
           <Link href="/properties">

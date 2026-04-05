@@ -9,6 +9,13 @@ export type PaymentProgressInput = {
   }>;
 };
 
+export type PaymentMarketerDisplay = {
+  fullName: string;
+  title: string;
+  slug: string;
+  avatarUrl: string | null;
+};
+
 export function buildBuyerPaymentProgress(input: PaymentProgressInput) {
   const outstandingBalance = Math.max(0, input.totalPayableAmount - input.amountPaidSoFar);
   const progressPercent =
@@ -32,4 +39,19 @@ export function buildBuyerPaymentProgress(input: PaymentProgressInput) {
     installmentSchedule: input.installmentSchedule ?? [],
     isFullyPaid: outstandingBalance === 0 && input.totalPayableAmount > 0,
   };
+}
+
+export function resolveBuyerPaymentMarketer(input: {
+  payments: Array<{ marketer: PaymentMarketerDisplay | null }>;
+  transactionMarketer?: PaymentMarketerDisplay | null;
+  reservationMarketer?: PaymentMarketerDisplay | null;
+}) {
+  for (let index = input.payments.length - 1; index >= 0; index -= 1) {
+    const marketer = input.payments[index]?.marketer;
+    if (marketer) {
+      return marketer;
+    }
+  }
+
+  return input.transactionMarketer ?? input.reservationMarketer ?? null;
 }

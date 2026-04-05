@@ -6,9 +6,13 @@ import { Logo } from "@/components/shared/logo";
 export function MarketingFooter({
   companyName = "Acme Realty",
   logoUrl = null,
+  buyerPortalHref = "/portal",
+  adminPortalHref = "/admin",
 }: {
   companyName?: string;
   logoUrl?: string | null;
+  buyerPortalHref?: string;
+  adminPortalHref?: string;
 }) {
   return (
     <footer className="border-t border-[var(--line)] bg-[color:var(--tenant-surface,white)]">
@@ -26,8 +30,8 @@ export function MarketingFooter({
           </h4>
           <div className="space-y-2 text-sm text-[var(--ink-700)]">
             <Link href="/properties" className="block">Listings</Link>
-            <Link href="/portal" className="block">Buyer Portal</Link>
-            <Link href="/admin" className="block">Admin Dashboard</Link>
+            <Link href={buyerPortalHref} className="block">Buyer Portal</Link>
+            <Link href={adminPortalHref} className="block">Admin Dashboard</Link>
           </div>
         </div>
         <div className="space-y-3">

@@ -408,6 +408,11 @@ export async function getAdminPaymentMonitoring(context: TenantContext) {
         currentStage: true,
         nextPaymentDueAt: true,
         outstandingBalance: true,
+        marketer: {
+          select: {
+            fullName: true,
+          },
+        },
         reservation: {
           select: {
             reference: true,
@@ -502,6 +507,7 @@ export async function getAdminPaymentMonitoring(context: TenantContext) {
       currentStage: string;
       nextPaymentDueAt: Date | null;
       outstandingBalance: Decimalish;
+      marketer: { fullName: string } | null;
       reservation: { reference: string } | null;
       user: { firstName: string | null; lastName: string | null };
       payments: Array<{ receipt: { id: string } | null }>;
@@ -509,6 +515,7 @@ export async function getAdminPaymentMonitoring(context: TenantContext) {
       id: row.id,
       reference: row.reservation?.reference ?? row.id,
       buyer: `${row.user.firstName ?? ""} ${row.user.lastName ?? ""}`.trim() || "Buyer",
+      marketer: row.marketer?.fullName ?? "Unassigned",
       paymentStatus: row.paymentStatus,
       stage: row.currentStage,
       outstandingBalance: formatCurrency(decimalToNumber(row.outstandingBalance)),
