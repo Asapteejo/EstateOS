@@ -5,6 +5,7 @@ import { buildAuthRedirect, buildServerDomainConfig, isKnownCentralHost, sanitiz
 import { env, featureFlags } from "@/lib/env";
 
 const isPortalRoute = createRouteMatcher(["/portal(.*)"]);
+const isAppRoute = createRouteMatcher(["/app(.*)"]);
 const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 const isSuperadminRoute = createRouteMatcher(["/superadmin(.*)"]);
 const isSignInRoute = createRouteMatcher(["/sign-in(.*)"]);
@@ -12,7 +13,11 @@ const isSignInRoute = createRouteMatcher(["/sign-in(.*)"]);
 export default clerkMiddleware(async (auth, req) => {
   const runtimeConfig = buildServerDomainConfig(env);
   const isAuthSurface =
-    isPortalRoute(req) || isAdminRoute(req) || isSuperadminRoute(req) || isSignInRoute(req);
+    isPortalRoute(req) ||
+    isAppRoute(req) ||
+    isAdminRoute(req) ||
+    isSuperadminRoute(req) ||
+    isSignInRoute(req);
 
   if (
     featureFlags.isProduction &&
@@ -25,15 +30,19 @@ export default clerkMiddleware(async (auth, req) => {
           isSignInRoute(req)
             ? req.nextUrl.searchParams.get("returnTo")
             : `${req.nextUrl.pathname}${req.nextUrl.search}`,
-          isAdminRoute(req)
-            ? "/admin"
-            : isSuperadminRoute(req)
-              ? "/superadmin"
-              : "/portal",
+          isAppRoute(req)
+            ? "/app/onboarding"
+            : isAdminRoute(req)
+              ? "/admin"
+              : isSuperadminRoute(req)
+                ? "/superadmin"
+                : "/portal",
         ),
         tenantSlug: req.nextUrl.searchParams.get("tenant"),
         tenantHost: req.nextUrl.searchParams.get("host") ?? req.headers.get("host"),
-        entry: isAdminRoute(req)
+        entry: isAppRoute(req)
+          ? "admin"
+          : isAdminRoute(req)
           ? "admin"
           : isSuperadminRoute(req)
             ? "superadmin"

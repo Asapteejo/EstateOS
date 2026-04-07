@@ -3,7 +3,7 @@ import { Inngest } from "inngest";
 import { env, featureFlags } from "@/lib/env";
 
 export const inngest = new Inngest({
-  id: `estateos-${env.DEFAULT_COMPANY_SLUG ?? "app"}`,
+  id: "estateos-platform",
   eventKey: env.INNGEST_EVENT_KEY,
 });
 

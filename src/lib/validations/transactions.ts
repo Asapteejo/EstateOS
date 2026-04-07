@@ -19,5 +19,17 @@ export const adminTransactionStageSchema = z.object({
   notes: z.string().trim().max(500).optional(),
 });
 
+export const adminTransactionFollowUpSchema = z.object({
+  followUpStatus: z.enum([
+    "CONTACTED",
+    "PROMISED_TO_PAY",
+    "NOT_REACHABLE",
+    "CLOSED",
+  ]),
+  followUpNote: z.string().trim().max(500).optional(),
+  nextFollowUpAt: z.string().datetime().optional(),
+});
+
 export type AdminReservationStatusInput = z.infer<typeof adminReservationStatusSchema>;
 export type AdminTransactionStageInput = z.infer<typeof adminTransactionStageSchema>;
+export type AdminTransactionFollowUpInput = z.infer<typeof adminTransactionFollowUpSchema>;

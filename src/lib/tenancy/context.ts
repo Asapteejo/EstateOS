@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { getAppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
+import { logInfo } from "@/lib/ops/logger";
 import {
   TENANT_HINT_COOKIE,
   buildAuthRedirect,
@@ -159,7 +160,7 @@ export async function resolveTenantContext(
 
   const resolvedCompany =
     area === "marketing"
-      ? hintedCompany ?? sessionCompany ?? fallbackCompany
+      ? hostHintCompany
       : sessionCompany ?? hintedCompany ?? fallbackCompany;
 
   if (!session) {
@@ -167,16 +168,25 @@ export async function resolveTenantContext(
       userId: null,
       companyId: resolvedCompany?.id ?? null,
       companySlug:
-        resolvedCompany?.slug ?? hostResolution.companySlug ?? tenantHintSlug ?? fallbackSlug ?? null,
+        resolvedCompany?.slug ??
+        (area === "marketing" ? hostResolution.companySlug : hostResolution.companySlug ?? tenantHintSlug ?? fallbackSlug) ??
+        null,
       branchId: null,
       roles: [],
       isSuperAdmin: false,
       host,
-      resolutionSource: hostResolution.companySlug
-        ? hostResolution.resolutionSource
-        : tenantHintSlug
-          ? "session"
-        : "none",
+      resolutionSource:
+        area === "marketing"
+          ? hostHintCompany
+            ? hostResolution.companySlug
+              ? hostResolution.resolutionSource
+              : "domain"
+            : "none"
+          : hostResolution.companySlug
+            ? hostResolution.resolutionSource
+            : tenantHintSlug
+              ? "session"
+              : "none",
     };
   }
 
@@ -187,7 +197,7 @@ export async function resolveTenantContext(
       : sessionCompany?.id ?? resolvedCompany?.id ?? session.companyId,
     companySlug:
       (area === "marketing"
-        ? hostResolution.companySlug ?? hintedCompany?.slug
+        ? hostHintCompany?.slug ?? hostResolution.companySlug
         : sessionCompany?.slug ?? hintedCompany?.slug) ??
       resolvedCompany?.slug ??
       session.companySlug ??
@@ -197,11 +207,18 @@ export async function resolveTenantContext(
     roles: session.roles,
     isSuperAdmin: session.roles.includes("SUPER_ADMIN"),
     host,
-    resolutionSource: hostResolution.companySlug
-      ? hostResolution.resolutionSource
-      : tenantHintSlug
-        ? "session"
-      : "session",
+    resolutionSource:
+      area === "marketing"
+        ? hostHintCompany
+          ? hostResolution.companySlug
+            ? hostResolution.resolutionSource
+            : "domain"
+          : "none"
+        : hostResolution.companySlug
+          ? hostResolution.resolutionSource
+          : tenantHintSlug
+            ? "session"
+            : "session",
   };
 }
 
@@ -240,6 +257,13 @@ export async function requirePublicTenantContext() {
   if (!context.companyId) {
     throw new Error("Unable to resolve tenant for public request.");
   }
+
+  logInfo("Tenant resolved for public request.", {
+    host: context.host,
+    companyId: context.companyId,
+    companySlug: context.companySlug,
+    resolutionSource: context.resolutionSource,
+  });
 
   return context;
 }

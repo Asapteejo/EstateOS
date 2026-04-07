@@ -88,6 +88,20 @@ test("redirect sanitization rejects external urls", () => {
   assert.equal(sanitizeReturnPath("https://evil.example.com", "/portal"), "/portal");
 });
 
+test("development redirect sanitization allows localhost tenant urls", () => {
+  const devConfig: DomainRuntimeConfig = {
+    appBaseUrl: "http://localhost:3000",
+    platformBaseUrl: "http://localhost:3000",
+    portalBaseUrl: "http://localhost:3000",
+    isProduction: false,
+  };
+
+  assert.equal(
+    resolveSafeRedirectUrl(devConfig, "http://acme-realty.localhost:3000/", "/"),
+    "http://acme-realty.localhost:3000/",
+  );
+});
+
 test("tenant public urls default to the tenant homepage instead of listings", () => {
   assert.equal(
     resolveTenantPublicUrl(config, {

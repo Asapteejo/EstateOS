@@ -9,6 +9,7 @@ import { initializePayment } from "@/lib/payments/paystack";
 import { namespacePaymentReference } from "@/lib/payments/references";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
+import { PRODUCT_EVENT_NAMES, trackProductEvent } from "@/modules/analytics/activity";
 import { buildSettlementQuote, requireCompanyPlanAccess } from "@/modules/billing/service";
 import type { PaymentRequestCreateInput } from "@/types/payment-requests";
 
@@ -406,6 +407,20 @@ export async function createPaymentRequestForAdmin(
       provider,
       providerReference: paymentRequest.providerReference,
       settlementReady: settlementQuote.settlement.ready,
+    } as Prisma.InputJsonValue,
+  });
+
+  await trackProductEvent({
+    companyId: context.companyId,
+    userId: scoped.user.id,
+    eventName: PRODUCT_EVENT_NAMES.paymentRequestSent,
+    summary: `Payment request sent for ${rawInput.title}`,
+    payload: {
+      paymentRequestId: paymentRequest.id,
+      transactionId: scoped.transaction?.id ?? null,
+      reservationId: scoped.reservation?.id ?? null,
+      amount: rawInput.amount,
+      currency: rawInput.currency,
     } as Prisma.InputJsonValue,
   });
 

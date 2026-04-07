@@ -94,6 +94,20 @@ test("server env derives platform and portal base urls from public values", () =
   assert.equal(env.PORTAL_BASE_URL, "https://portal.estateos.example.com");
 });
 
+test("server env accepts separate pooled and direct database urls", () => {
+  const env = parseServerEnv({
+    NODE_ENV: "development",
+    NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+    DATABASE_URL:
+      "postgresql://postgres:secret@db.project.supabase.co:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require",
+    DIRECT_URL:
+      "postgresql://postgres:secret@db.project.supabase.co:5432/postgres?sslmode=require",
+  });
+
+  assert.equal(env.DATABASE_URL?.includes("pgbouncer=true"), true);
+  assert.equal(env.DIRECT_URL?.includes("sslmode=require"), true);
+});
+
 test("dev bypass stays opt-in in development and disabled in production", () => {
   const development = buildFeatureFlags(
     parseServerEnv({

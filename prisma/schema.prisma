@@ -4,7 +4,8 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum AppRole {
@@ -266,6 +267,8 @@ enum FollowUpStatus {
   NONE
   PENDING_CALL
   CONTACTED
+  PROMISED_TO_PAY
+  NOT_REACHABLE
   FOLLOW_UP_SCHEDULED
   CLOSED
 }
@@ -921,6 +924,10 @@ model Transaction {
   nextPaymentDueAt   DateTime?
   lastPaymentAt      DateTime?
   lastPaymentReminderAt DateTime?
+  followUpStatus     FollowUpStatus        @default(NONE)
+  followUpNote       String?
+  lastFollowedUpAt   DateTime?
+  nextFollowUpAt     DateTime?
   company            Company               @relation(fields: [companyId], references: [id])
   reservation        Reservation           @relation(fields: [reservationId], references: [id])
   property           Property              @relation(fields: [propertyId], references: [id])
@@ -941,6 +948,8 @@ model Transaction {
   @@index([companyId, userId, currentStage])
   @@index([companyId, marketerId])
   @@index([companyId, paymentStatus, nextPaymentDueAt])
+  @@index([companyId, followUpStatus, lastFollowedUpAt])
+  @@index([companyId, followUpStatus, nextFollowUpAt])
 }
 
 model TransactionMilestone {

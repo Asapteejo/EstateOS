@@ -9,6 +9,7 @@ import { createInAppNotification, getTenantOperatorRecipients, notifyManyUsers }
 import type { TenantContext } from "@/lib/tenancy/context";
 import { findFirstForTenant, findManyForTenant } from "@/lib/tenancy/db";
 import { inspectionSchema, inspectionUpdateSchema } from "@/lib/validations/inquiries";
+import { PRODUCT_EVENT_NAMES, trackProductEvent } from "@/modules/analytics/activity";
 
 type ScopedFindFirstDelegate = { findFirst: (args?: unknown) => Promise<unknown> };
 type ScopedFindManyDelegate = { findMany: (args?: unknown) => Promise<unknown> };
@@ -243,6 +244,18 @@ export async function createInspectionBooking(
     payload: {
       propertyId: booking.propertyId,
       inquiryId: booking.inquiryId,
+    } as Prisma.InputJsonValue,
+  });
+
+  await trackProductEvent({
+    companyId: tenant.companyId,
+    userId: booking.userId ?? undefined,
+    inquiryId: booking.inquiryId ?? undefined,
+    eventName: PRODUCT_EVENT_NAMES.inspectionBooked,
+    summary: `Inspection booked for ${property.title}`,
+    payload: {
+      inspectionId: booking.id,
+      propertyId: booking.propertyId,
     } as Prisma.InputJsonValue,
   });
 

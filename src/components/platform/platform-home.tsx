@@ -23,20 +23,20 @@ export async function PlatformHome() {
           <Card className="overflow-hidden bg-[linear-gradient(135deg,#07131a,#0b3e4f_48%,#d7b98f_140%)] px-8 py-14 text-white sm:px-14 sm:py-20">
             <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr]">
               <div className="space-y-8">
-                <Badge className="bg-white/12 text-white">Platform owner + tenant operations</Badge>
+                <Badge className="bg-white/12 text-white">Sales and payments OS for developers</Badge>
                 <div className="space-y-5">
                   <h1 className="max-w-3xl font-serif text-5xl leading-none sm:text-7xl">
-                    The real estate SaaS behind listings, CRM, payments, and buyer trust.
+                    Track deals, collect payments, and follow up buyers in one system.
                   </h1>
                   <p className="max-w-2xl text-lg leading-8 text-white/80">
-                    EstateOS gives real estate companies one operating system for public
-                    listings, inquiries, reservations, document workflows, buyer portal
-                    updates, and commission-aware payment operations.
+                    EstateOS helps real estate developers move buyers from inquiry to inspection,
+                    reservation, payment, receipt, and collections without running sales on
+                    spreadsheets, WhatsApp, and manual bank-transfer tracking.
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-4">
-                  <Link href="/platform/contact">
-                    <Button size="lg">Request a demo</Button>
+                  <Link href="/app/onboarding">
+                    <Button size="lg">Get Started</Button>
                   </Link>
                   <Link href="/platform/pricing">
                     <Button variant="secondary" size="lg">
@@ -48,10 +48,10 @@ export async function PlatformHome() {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 {[
-                  ["Multi-tenant", "Separate platform-owner, tenant admin, buyer, and public experiences cleanly."],
-                  ["Hybrid revenue", "Monthly or annual plans plus transaction commission on successful payments."],
-                  ["Platform control", "Superadmin visibility across subscriptions, payouts, audits, and payment events."],
-                  ["Global-ready", "Provider-aware payment architecture for local and international expansion."],
+                  ["Deal board", "One pipeline for leads, inspections, reservations, pending money, and overdue collections."],
+                  ["Payment operations", "Send payment requests, reconcile webhooks, issue receipts, and monitor outstanding balances."],
+                  ["Team visibility", "See which marketer owns each deal and where follow-up is slipping."],
+                  ["Tenant-safe", "Separate tenant sites, admin workspaces, buyer portal, and platform controls cleanly."],
                 ].map(([title, body]) => (
                   <Card key={title} className="bg-white/8 p-6 text-white backdrop-blur">
                     <div className="text-lg font-semibold">{title}</div>
@@ -68,8 +68,8 @@ export async function PlatformHome() {
         <Container className="space-y-10">
           <SectionHeading
             eyebrow="Core platform"
-            title="Built for real estate operators who need more than a brochure website."
-            description="EstateOS combines company-level operations, buyer transaction visibility, and platform-level monetization controls in one architecture."
+            title="Built for developer sales teams that need collections discipline, not another brochure site."
+            description="EstateOS keeps the entire sales and payment workflow in one operating system so teams can close deals faster and lose less money to follow-up gaps."
           />
           <div className="grid gap-6 lg:grid-cols-2">
             {platformFeatures.map((feature) => (
@@ -99,11 +99,11 @@ export async function PlatformHome() {
       <section>
         <Container className="grid gap-6 lg:grid-cols-[1fr_1fr]">
           <Card className="p-8 sm:p-10">
-            <SectionHeading
-              eyebrow="Why EstateOS"
-              title="A cleaner split between platform owner, tenant company, and buyer experience."
-              description="The product is designed so the SaaS operator can see platform-wide monetization and company health without weakening tenant isolation for normal users."
-            />
+          <SectionHeading
+            eyebrow="Why EstateOS"
+            title="A cleaner way to run property sales than spreadsheets, WhatsApp threads, and manual transfer checks."
+            description="The product is designed so a developer company can see every deal, every expected payment, and every collections risk without weakening tenant isolation."
+          />
           </Card>
           <Card className="grid gap-4 p-8 sm:p-10">
             {platformWhyEstateOS.map((point) => (
@@ -154,12 +154,12 @@ export async function PlatformHome() {
               <div className="max-w-2xl">
                 <div className="text-sm uppercase tracking-[0.22em] text-white/68">Start a pilot</div>
                 <h2 className="mt-3 font-serif text-4xl text-white">
-                  Launch EstateOS for your real estate company with a platform that already understands listings, transactions, and payout control.
+                  Launch EstateOS for your developer sales team with a platform that already understands deals, payments, and collections.
                 </h2>
               </div>
               <div className="flex flex-wrap gap-4">
-                <Link href="/platform/contact">
-                  <Button size="lg">Talk to EstateOS</Button>
+                <Link href="/app/onboarding">
+                  <Button size="lg">Start your workspace</Button>
                 </Link>
                 <Link href="/platform/features">
                   <Button variant="secondary" size="lg">

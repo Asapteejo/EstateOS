@@ -2,6 +2,7 @@ import type { AppRole } from "@prisma/client";
 import { auth } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 
+import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 
 export type AppSession = {
@@ -18,6 +19,9 @@ export type AppSession = {
 
 export type DemoSessionRole = "buyer" | "admin" | "superadmin";
 export const DEV_SESSION_COOKIE = "estateos_dev_role";
+export const DEV_SESSION_COMPANY_ID_COOKIE = "estateos_dev_company_id";
+export const DEV_SESSION_COMPANY_SLUG_COOKIE = "estateos_dev_company_slug";
+export const DEV_SESSION_BRANCH_ID_COOKIE = "estateos_dev_branch_id";
 
 const demoCompany = {
   companyId: "demo-company-acme",
@@ -63,16 +67,38 @@ function isDemoSessionRole(value: string | undefined | null): value is DemoSessi
   return value === "buyer" || value === "admin" || value === "superadmin";
 }
 
-export function buildDemoSession(role: DemoSessionRole): AppSession {
+export function buildDemoSession(
+  role: DemoSessionRole,
+  company: {
+    companyId: string | null;
+    companySlug: string | null;
+    branchId: string | null;
+  } = demoCompany,
+): AppSession {
   if (role === "superadmin") {
-    return demoSuperAdmin;
+    return {
+      ...demoSuperAdmin,
+      companyId: company.companyId,
+      companySlug: company.companySlug,
+      branchId: company.branchId,
+    };
   }
 
   if (role === "admin") {
-    return demoAdmin;
+    return {
+      ...demoAdmin,
+      companyId: company.companyId,
+      companySlug: company.companySlug,
+      branchId: company.branchId,
+    };
   }
 
-  return demoBuyer;
+  return {
+    ...demoBuyer,
+    companyId: company.companyId,
+    companySlug: company.companySlug,
+    branchId: company.branchId,
+  };
 }
 
 export function getDefaultDemoSessionRole(
@@ -124,18 +150,74 @@ export async function resolveDemoSessionRole(
   return defaultRole;
 }
 
+async function resolveDemoCompanyContext() {
+  const cookieStore = await cookies();
+
+  return {
+    companyId: cookieStore.get(DEV_SESSION_COMPANY_ID_COOKIE)?.value ?? demoCompany.companyId,
+    companySlug: cookieStore.get(DEV_SESSION_COMPANY_SLUG_COOKIE)?.value ?? demoCompany.companySlug,
+    branchId: cookieStore.get(DEV_SESSION_BRANCH_ID_COOKIE)?.value ?? demoCompany.branchId,
+  };
+}
+
 export async function getAppSession(
   area: "marketing" | "portal" | "admin" | "superadmin" = "marketing",
 ): Promise<AppSession | null> {
   if (!featureFlags.hasClerk) {
     const role = await resolveDemoSessionRole(area);
-    return role ? buildDemoSession(role) : null;
+    const company = await resolveDemoCompanyContext();
+    return role ? buildDemoSession(role, company) : null;
   }
 
   const session = await auth();
   if (!session.userId) {
     const role = await resolveDemoSessionRole(area);
-    return role ? buildDemoSession(role) : null;
+    const company = await resolveDemoCompanyContext();
+    return role ? buildDemoSession(role, company) : null;
+  }
+
+  if (featureFlags.hasDatabase) {
+    const user = await prisma.user.findUnique({
+      where: {
+        clerkUserId: session.userId,
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        companyId: true,
+        branchId: true,
+        company: {
+          select: {
+            slug: true,
+          },
+        },
+        roles: {
+          select: {
+            role: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (user) {
+      return {
+        userId: session.userId,
+        email: user.email,
+        firstName: user.firstName ?? "",
+        lastName: user.lastName ?? "",
+        roles: user.roles.map((assignment) => assignment.role.name),
+        companyId: user.companyId ?? null,
+        companySlug: user.company?.slug ?? null,
+        branchId: user.branchId ?? null,
+        mode: "clerk",
+      };
+    }
   }
 
   const metadata =

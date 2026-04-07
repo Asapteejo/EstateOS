@@ -17,6 +17,62 @@ The current routing model now separates four distinct surfaces:
 - tenant public marketing and property routes such as `/properties`
   public company-facing discovery experience scoped to one tenant
 
+## Product Focus: Developer Sales And Collections OS
+
+EstateOS is now positioned around one primary workflow:
+
+- Lead
+- Inspection
+- Reservation
+- Payment
+- Receipt
+- Collections
+
+The product center of gravity is now the tenant admin `Deal Board` at `/admin`.
+
+- `/admin` is the canonical operator surface for tracking buyers, reserved deals, payment-pending deals, paid deals, and overdue collections
+- the board is intentionally revenue-first:
+  buyer
+  property or unit
+  total deal value
+  amount paid
+  outstanding balance
+  owner / marketer
+  due timing
+  next action
+- onboarding inside the Deal Board is intentionally lightweight:
+  confirm company
+  add first property
+  add team member
+  create first deal
+- tenant admins can also load a realistic sample workspace from the Deal Board to make demos and pilots feel like a live developer sales team, without relying on hidden fallback behavior
+
+### Internal Funnel Instrumentation
+
+EstateOS now writes lightweight tenant-aware product events into `ActivityEvent` for the core workflow:
+
+- `company.onboarded`
+- `property.created`
+- `property.first_created`
+- `team_member.added`
+- `team_member.first_added`
+- `deal.created`
+- `deal.first_created`
+- `inquiry.created`
+- `inspection.booked`
+- `reservation.created`
+- `payment_request.sent`
+- `payment.completed`
+- `payment.overdue_detected`
+- `deal.closed`
+- `sample_workspace.loaded`
+
+These events support:
+
+- the Deal Board activity feed
+- focused admin analytics
+- clearer pilot/demo visibility into activation and collections behavior
+
 ## Tenant Staff Directory And Buyer Guidance
 
 EstateOS now supports tenant-managed marketer profiles using the company-owned `TeamMember` domain.
@@ -511,6 +567,7 @@ Production-critical services are reported through startup logs and `/api/readyz`
 ### Required In Production
 
 - `DATABASE_URL`
+- `DIRECT_URL` for Prisma migrations and deploy workflows
 - `NEXT_PUBLIC_APP_URL`
 - `APP_BASE_URL`
 - `DEFAULT_COMPANY_SLUG`
@@ -547,9 +604,10 @@ Partial configuration is treated as invalid for grouped services. For example, s
 
 1. Install dependencies.
 2. Copy `.env.example` to `.env.local`.
-3. Start PostgreSQL.
+3. Create or choose a Supabase project.
 4. Set at least:
    `DATABASE_URL`
+   `DIRECT_URL`
    `NEXT_PUBLIC_APP_URL`
    `APP_BASE_URL`
    `DEFAULT_COMPANY_SLUG`
@@ -584,12 +642,13 @@ APP_BASE_URL="http://localhost:3000"
 PLATFORM_BASE_URL="http://localhost:3000"
 PORTAL_BASE_URL="http://localhost:3000"
 DEFAULT_COMPANY_SLUG="acme-realty"
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/realestate_platform?schema=public"
+DATABASE_URL="postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-SUPABASE-PROJECT-REF].supabase.co:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require"
+DIRECT_URL="postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-SUPABASE-PROJECT-REF].supabase.co:5432/postgres?sslmode=require"
 ```
 
-Prisma CLI commands load `.env.local` first and then `.env` through [prisma.config.ts](c:/Users/HP/Desktop/Realestate%20saas/prisma.config.ts), so the same local database config can be reused across Next.js and Prisma workflows.
+Prisma CLI commands load `.env.local` first and then `.env` through [prisma.config.ts](c:/Users/HP/Desktop/Realestate%20saas/prisma.config.ts), so the same Supabase database config can be reused across Next.js and Prisma workflows.
 
-If Clerk is not configured in non-production, local demo mode remains available for `/portal` and `/admin`.
+Local demo mode is only available when `ESTATEOS_ENABLE_DEV_BYPASS=true`. It is intentionally disabled by default, even in development.
 
 Local development keeps the central-auth architecture easy to test:
 
@@ -597,26 +656,35 @@ Local development keeps the central-auth architecture easy to test:
 - tenant public pages can still use `DEFAULT_COMPANY_SLUG` in development without requiring multi-domain DNS.
 - central auth redirect helpers collapse back to the same localhost origin when portal and platform share the same dev host.
 
-### 3. Start PostgreSQL
+## Database Setup (Supabase)
 
-Option A: local PostgreSQL
+### 1. Create A Supabase Project
 
-```sql
-CREATE DATABASE realestate_platform;
+- Create a new Supabase project in the Supabase dashboard.
+- Open `Project Settings -> Database`.
+- Copy both connection strings:
+  - pooled connection via the Supabase pooler on port `6543`
+  - direct Postgres connection on port `5432`
+
+### 2. Add Supabase URLs To `.env.local`
+
+Use:
+
+```env
+DATABASE_URL="postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-SUPABASE-PROJECT-REF].supabase.co:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require"
+DIRECT_URL="postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-SUPABASE-PROJECT-REF].supabase.co:5432/postgres?sslmode=require"
 ```
 
-Option B: Docker
+Meaning:
 
-```bash
-docker run --name realestate-postgres ^
-  -e POSTGRES_USER=postgres ^
-  -e POSTGRES_PASSWORD=postgres ^
-  -e POSTGRES_DB=realestate_platform ^
-  -p 5432:5432 ^
-  -d postgres:16
-```
+- `DATABASE_URL` is the pooled runtime connection that the Next.js app uses through Prisma.
+- `DIRECT_URL` is the direct connection Prisma uses for `migrate dev` and other schema operations.
 
-### 4. Prepare Prisma
+Both URLs should include `sslmode=require` for Supabase Postgres.
+
+### 3. Prisma With Supabase
+
+Use:
 
 ```bash
 npm run db:validate
@@ -625,7 +693,15 @@ npm run db:migrate
 npm run db:seed
 ```
 
-### 5. Run The App
+For staging or production deployments, use:
+
+```bash
+npm run db:validate
+npm run db:generate
+npm run db:migrate:deploy
+```
+
+### 4. Run The App
 
 ```bash
 npm run dev
@@ -673,14 +749,16 @@ Notes:
 
 - `prisma migrate dev` is for local development only.
 - `prisma migrate deploy` is the production-safe path.
+- `DATABASE_URL` should point to the Supabase pooler for runtime traffic.
+- `DIRECT_URL` should point to the direct Supabase Postgres host for migrations.
 - Seed data is deterministic and intended for development/demo environments.
 - The schema and baseline migration should stay aligned; run `npx prisma validate` and `npx prisma generate` after schema changes.
 
 ## Auth, Session, And Tenancy Runtime Rules
 
 - Clerk is required in production.
-- In non-production, EstateOS exposes explicit demo access for `/portal`, `/admin`, and `/superadmin` even if Clerk is configured but no user is signed in.
-- Development mode now shows a small role switcher so you can jump between public, buyer, tenant admin, and superadmin surfaces without weakening production auth rules.
+- In non-production, EstateOS exposes explicit demo access for `/portal`, `/admin`, and `/superadmin` only when `ESTATEOS_ENABLE_DEV_BYPASS=true`.
+- Development mode shows the small role switcher only when dev bypass is explicitly enabled, so local convenience does not leak into production behavior.
 - Public tenant rendering currently resolves through:
   `DEFAULT_COMPANY_SLUG`
   future host/subdomain lookup

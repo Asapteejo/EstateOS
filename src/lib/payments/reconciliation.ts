@@ -19,6 +19,7 @@ import {
   calculateOutstandingBalance,
   deriveTransactionStageFromPayment,
 } from "@/modules/transactions/workflow";
+import { PRODUCT_EVENT_NAMES, trackProductEvent } from "@/modules/analytics/activity";
 import { syncTransactionMilestones, syncTransactionPaymentState } from "@/modules/transactions/mutations";
 import { buildSettlementQuote, getCompanyPlanStatus, recordBillingEvent } from "@/modules/billing/service";
 import { reconcilePaymentRequestFromPayment } from "@/modules/payment-requests/service";
@@ -747,6 +748,33 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
         authoritativeStatus: status,
       } as Prisma.InputJsonValue,
     });
+
+    if (shouldPersistArtifacts) {
+      await trackProductEvent({
+        companyId: company.id,
+        userId: payment.userId ?? undefined,
+        eventName: PRODUCT_EVENT_NAMES.paymentCompleted,
+        summary: `Payment ${reference} completed`,
+        payload: {
+          paymentId: payment.id,
+          transactionId: payment.transactionId,
+          authoritativeStatus: status,
+        } as Prisma.InputJsonValue,
+      });
+
+      if (transactionUpdate.transactionStage === "FINAL_PAYMENT_COMPLETED") {
+        await trackProductEvent({
+          companyId: company.id,
+          userId: payment.userId ?? undefined,
+          eventName: PRODUCT_EVENT_NAMES.dealClosed,
+          summary: `Deal closed from payment ${reference}`,
+          payload: {
+            paymentId: payment.id,
+            transactionId: payment.transactionId,
+          } as Prisma.InputJsonValue,
+        });
+      }
+    }
 
     await reconcilePaymentRequestFromPayment({
       companyId: company.id,

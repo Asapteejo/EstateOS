@@ -35,9 +35,9 @@ export function PlatformFooter() {
             </div>
           </div>
           <p className="max-w-md text-sm leading-7 text-[var(--ink-600)]">
-            EstateOS is the operating layer for real estate companies that need listings,
-            CRM, buyer portal, transaction workflow, commissionable payments, and clean
-            multi-tenant control.
+            EstateOS helps developer sales teams track deals, collect buyer payments, and
+            keep collections visible without running operations on spreadsheets and
+            WhatsApp.
           </p>
         </div>
 
@@ -48,6 +48,9 @@ export function PlatformFooter() {
           <div className="space-y-2 text-sm text-[var(--ink-700)]">
             <Link href="/" className="block">
               Platform home
+            </Link>
+            <Link href="/app/onboarding" className="block">
+              Get started
             </Link>
             <Link href="/platform/features" className="block">
               Features
@@ -63,11 +66,11 @@ export function PlatformFooter() {
 
         <div className="space-y-3">
           <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--ink-500)]">
-            Tenant surfaces
+            App
           </h4>
           <div className="space-y-2 text-sm text-[var(--ink-700)]">
-            <Link href="/properties" className="block">
-              Tenant listings
+            <Link href="/app/onboarding" className="block">
+              Create company
             </Link>
             <Link href={buyerPortalHref} className="block">
               Buyer portal

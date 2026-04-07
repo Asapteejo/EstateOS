@@ -28,6 +28,19 @@ export function normalizeHost(input: string | null | undefined) {
   return input.trim().toLowerCase().replace(/^https?:\/\//, "").split("/")[0]?.split(":")[0] ?? null;
 }
 
+function isAllowedDevelopmentHost(host: string | null | undefined) {
+  const normalized = normalizeHost(host);
+  if (!normalized) {
+    return false;
+  }
+
+  return (
+    normalized === "localhost" ||
+    normalized === "127.0.0.1" ||
+    normalized.endsWith(".localhost")
+  );
+}
+
 export function sanitizeTenantSlug(input: string | null | undefined) {
   if (!input) {
     return null;
@@ -164,6 +177,10 @@ export function resolveSafeRedirectUrl(
   try {
     const candidate = input ? new URL(input) : null;
     if (candidate && isKnownCentralHost(candidate.host, config)) {
+      return candidate.toString();
+    }
+
+    if (candidate && !config.isProduction && isAllowedDevelopmentHost(candidate.host)) {
       return candidate.toString();
     }
   } catch {

@@ -9,6 +9,7 @@ import { createInAppNotification, getTenantOperatorRecipients, notifyManyUsers }
 import type { TenantContext } from "@/lib/tenancy/context";
 import { findFirstForTenant, findManyForTenant } from "@/lib/tenancy/db";
 import { inquirySchema, inquiryUpdateSchema } from "@/lib/validations/inquiries";
+import { PRODUCT_EVENT_NAMES, trackProductEvent } from "@/modules/analytics/activity";
 
 type ScopedFindFirstDelegate = { findFirst: (args?: unknown) => Promise<unknown> };
 type ScopedFindManyDelegate = { findMany: (args?: unknown) => Promise<unknown> };
@@ -264,6 +265,18 @@ export async function createInquiry(
     entityType: "Inquiry",
     entityId: inquiry.id,
     summary: `Inquiry received from ${inquiry.fullName}`,
+    payload: {
+      propertyId: inquiry.propertyId,
+      source,
+    } as Prisma.InputJsonValue,
+  });
+
+  await trackProductEvent({
+    companyId: tenant.companyId,
+    eventName: PRODUCT_EVENT_NAMES.inquiryCreated,
+    summary: `Inquiry received from ${inquiry.fullName}`,
+    userId: inquiry.userId ?? undefined,
+    inquiryId: inquiry.id,
     payload: {
       propertyId: inquiry.propertyId,
       source,

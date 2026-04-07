@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 
-import { DEV_SESSION_COOKIE, type DemoSessionRole } from "@/lib/auth/session";
+import {
+  DEV_SESSION_BRANCH_ID_COOKIE,
+  DEV_SESSION_COMPANY_ID_COOKIE,
+  DEV_SESSION_COMPANY_SLUG_COOKIE,
+  DEV_SESSION_COOKIE,
+  type DemoSessionRole,
+} from "@/lib/auth/session";
 import { buildServerDomainConfig, resolveSafeRedirectUrl } from "@/lib/domains";
 import { env, featureFlags } from "@/lib/env";
 
@@ -16,11 +22,17 @@ export async function GET(request: Request) {
 
   if (!featureFlags.allowDevBypass) {
     response.cookies.delete(DEV_SESSION_COOKIE);
+    response.cookies.delete(DEV_SESSION_COMPANY_ID_COOKIE);
+    response.cookies.delete(DEV_SESSION_COMPANY_SLUG_COOKIE);
+    response.cookies.delete(DEV_SESSION_BRANCH_ID_COOKIE);
     return response;
   }
 
   if (role === "clear") {
     response.cookies.delete(DEV_SESSION_COOKIE);
+    response.cookies.delete(DEV_SESSION_COMPANY_ID_COOKIE);
+    response.cookies.delete(DEV_SESSION_COMPANY_SLUG_COOKIE);
+    response.cookies.delete(DEV_SESSION_BRANCH_ID_COOKIE);
     return response;
   }
 

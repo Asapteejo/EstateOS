@@ -8,6 +8,7 @@ import { findFirstForTenant } from "@/lib/tenancy/db";
 import { publishDomainEvent } from "@/lib/notifications/events";
 import type {
   AdminReservationStatusInput,
+  AdminTransactionFollowUpInput,
   AdminTransactionStageInput,
 } from "@/lib/validations/transactions";
 import {
@@ -504,6 +505,62 @@ export async function updateTransactionStageForAdmin(
     companyId: context.companyId,
     transactionId,
     stage: input.stage,
+  });
+
+  return updated;
+}
+
+export async function updateTransactionFollowUpForAdmin(
+  context: TenantContext,
+  transactionId: string,
+  input: AdminTransactionFollowUpInput,
+) {
+  if (!featureFlags.hasDatabase || !context.companyId) {
+    return {
+      id: transactionId,
+      followUpStatus: input.followUpStatus,
+      followUpNote: input.followUpNote ?? null,
+      lastFollowedUpAt: new Date(),
+      nextFollowUpAt: input.nextFollowUpAt ? new Date(input.nextFollowUpAt) : null,
+    };
+  }
+
+  const transaction = await ensureTransactionForAdmin(context, transactionId);
+  if (!transaction) {
+    throw new Error("Transaction not found.");
+  }
+
+  const updated = await prisma.transaction.update({
+    where: {
+      id: transactionId,
+    },
+    data: {
+      followUpStatus: input.followUpStatus,
+      followUpNote: input.followUpNote ?? null,
+      lastFollowedUpAt: new Date(),
+      nextFollowUpAt: input.nextFollowUpAt ? new Date(input.nextFollowUpAt) : null,
+    },
+    select: {
+      id: true,
+      followUpStatus: true,
+      followUpNote: true,
+      lastFollowedUpAt: true,
+      nextFollowUpAt: true,
+    },
+  });
+
+  await writeAuditLog({
+    companyId: context.companyId,
+    actorUserId: context.userId ?? undefined,
+    action: "UPDATE",
+    entityType: "Transaction",
+    entityId: transactionId,
+    summary: `Updated collections follow-up for transaction ${transactionId}`,
+    payload: {
+      followUpStatus: input.followUpStatus,
+      followUpNote: input.followUpNote ?? null,
+      nextFollowUpAt: input.nextFollowUpAt ?? null,
+    } as Prisma.InputJsonValue,
   });
 
   return updated;

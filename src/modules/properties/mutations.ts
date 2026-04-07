@@ -13,6 +13,12 @@ import {
   updateVerificationState,
 } from "@/modules/properties/verification";
 import { getCompanyOperationalDefaults } from "@/modules/settings/service";
+import {
+  ensureCompanyOnboardedEvent,
+  PRODUCT_EVENT_NAMES,
+  trackFirstCompanyEvent,
+  trackProductEvent,
+} from "@/modules/analytics/activity";
 
 type ScopedFindFirstDelegate = { findFirst: (args?: unknown) => Promise<unknown> };
 
@@ -495,6 +501,27 @@ export async function createPropertyForAdmin(
       status: property.status,
     } as Prisma.InputJsonValue,
   });
+
+  await trackProductEvent({
+    companyId: context.companyId,
+    userId: context.userId ?? undefined,
+    eventName: PRODUCT_EVENT_NAMES.propertyCreated,
+    summary: `Created property ${rawInput.title}`,
+    payload: {
+      propertyId: property.id,
+      slug: property.slug,
+    } as Prisma.InputJsonValue,
+  });
+  await trackFirstCompanyEvent({
+    companyId: context.companyId,
+    userId: context.userId ?? undefined,
+    eventName: PRODUCT_EVENT_NAMES.firstPropertyCreated,
+    summary: "Created the first property in the workspace.",
+    payload: {
+      propertyId: property.id,
+    } as Prisma.InputJsonValue,
+  });
+  await ensureCompanyOnboardedEvent(context);
 
   return property;
 }

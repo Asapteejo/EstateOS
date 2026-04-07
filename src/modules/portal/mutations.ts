@@ -8,6 +8,12 @@ import { findFirstForTenant, rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db
 import type { ReservationCreateInput } from "@/lib/validations/reservations";
 import type { SavedPropertyMutationInput } from "@/lib/validations/saved-properties";
 import { requireCompanyPlanAccess } from "@/modules/billing/service";
+import {
+  ensureCompanyOnboardedEvent,
+  PRODUCT_EVENT_NAMES,
+  trackFirstCompanyEvent,
+  trackProductEvent,
+} from "@/modules/analytics/activity";
 import { ensureReservationPaymentPlaceholder } from "@/modules/payment-requests/service";
 import { createTransactionForReservation } from "@/modules/transactions/mutations";
 import { ensureVisibleTeamMember } from "@/modules/team/queries";
@@ -300,6 +306,40 @@ export async function createReservationForBuyer(
       reservationFee,
     } as Prisma.InputJsonValue,
   });
+
+  await trackProductEvent({
+    companyId: context.companyId,
+    userId: context.userId ?? undefined,
+    eventName: PRODUCT_EVENT_NAMES.reservationCreated,
+    summary: `Reservation ${created.reference} created`,
+    payload: {
+      propertyId: property.id,
+      propertyUnitId,
+      marketerId,
+      paymentPlanId,
+    } as Prisma.InputJsonValue,
+  });
+  await trackProductEvent({
+    companyId: context.companyId,
+    userId: context.userId ?? undefined,
+    eventName: PRODUCT_EVENT_NAMES.dealCreated,
+    summary: `Deal opened from reservation ${created.reference}`,
+    payload: {
+      propertyId: property.id,
+      marketerId,
+      paymentPlanId,
+    } as Prisma.InputJsonValue,
+  });
+  await trackFirstCompanyEvent({
+    companyId: context.companyId,
+    userId: context.userId ?? undefined,
+    eventName: PRODUCT_EVENT_NAMES.firstDealCreated,
+    summary: "Opened the first deal in the workspace.",
+    payload: {
+      propertyId: property.id,
+    } as Prisma.InputJsonValue,
+  });
+  await ensureCompanyOnboardedEvent(context);
 
   return {
     reference: created.reference,

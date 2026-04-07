@@ -21,22 +21,22 @@ const portalLinks = [
 ] as const;
 
 const adminLinks = [
-  ["Overview", "/admin"],
+  ["Deal Board", "/admin"],
+  ["Payments", "/admin/payments"],
+  ["Clients", "/admin/clients"],
+  ["Leads", "/admin/leads"],
+  ["Transactions", "/admin/transactions"],
+  ["Pipeline", "/admin/pipeline"],
+  ["Analytics", "/admin/analytics"],
   ["Listings", "/admin/listings"],
   ["Team", "/admin/team"],
   ["Marketers", "/admin/marketers"],
-  ["Leads", "/admin/leads"],
-  ["Pipeline", "/admin/pipeline"],
   ["Bookings", "/admin/bookings"],
-  ["Clients", "/admin/clients"],
-  ["Transactions", "/admin/transactions"],
-  ["Payments", "/admin/payments"],
   ["Assets", "/admin/assets"],
   ["Billing", "/admin/billing"],
   ["Settings", "/admin/settings"],
   ["Documents", "/admin/documents"],
   ["Notifications", "/admin/notifications"],
-  ["Analytics", "/admin/analytics"],
   ["Audit Logs", "/admin/audit-logs"],
 ] as const;
 

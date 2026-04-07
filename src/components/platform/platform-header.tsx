@@ -44,8 +44,8 @@ export function PlatformHeader() {
           <Link href="/platform/pricing" className="hidden text-sm font-medium text-[var(--ink-700)] sm:inline">
             Hybrid pricing
           </Link>
-          <Link href="/platform/contact">
-            <Button>Request demo</Button>
+          <Link href="/app/onboarding">
+            <Button>Get Started</Button>
           </Link>
         </div>
       </Container>

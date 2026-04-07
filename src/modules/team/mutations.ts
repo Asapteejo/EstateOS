@@ -7,6 +7,12 @@ import { featureFlags } from "@/lib/env";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { findFirstForTenant, rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import type { TeamMemberMutationInput } from "@/lib/validations/team";
+import {
+  ensureCompanyOnboardedEvent,
+  PRODUCT_EVENT_NAMES,
+  trackFirstCompanyEvent,
+  trackProductEvent,
+} from "@/modules/analytics/activity";
 import { buildUniqueTeamMemberSlug } from "@/modules/team/queries";
 import { syncTeamMemberStaffProfileLink } from "@/modules/team/relations";
 
@@ -126,6 +132,26 @@ export async function createTeamMemberForAdmin(
       slug: created.slug,
     } as Prisma.InputJsonValue,
   });
+
+  await trackProductEvent({
+    companyId: context.companyId,
+    userId: context.userId ?? undefined,
+    eventName: PRODUCT_EVENT_NAMES.teamMemberAdded,
+    summary: `Added team member ${created.fullName}`,
+    payload: {
+      teamMemberId: created.id,
+    } as Prisma.InputJsonValue,
+  });
+  await trackFirstCompanyEvent({
+    companyId: context.companyId,
+    userId: context.userId ?? undefined,
+    eventName: PRODUCT_EVENT_NAMES.firstTeamMemberAdded,
+    summary: "Added the first team member to the workspace.",
+    payload: {
+      teamMemberId: created.id,
+    } as Prisma.InputJsonValue,
+  });
+  await ensureCompanyOnboardedEvent(context);
 
   return created;
 }

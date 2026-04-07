@@ -6,6 +6,7 @@ import { featureFlags } from "@/lib/env";
 import { sendTransactionalEmail } from "@/lib/notifications/email";
 import { createInAppNotification, getTenantOperatorRecipients, notifyManyUsers } from "@/lib/notifications/service";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { PRODUCT_EVENT_NAMES, trackProductEvent } from "@/modules/analytics/activity";
 import { syncPaymentRequestStatuses } from "@/modules/payment-requests/service";
 import { syncPropertyVerificationStates } from "@/modules/properties/verification";
 import { syncMarketerRankingSnapshots } from "@/modules/team/performance";
@@ -164,6 +165,17 @@ export async function runOperationalAutomationSweep(input?: { companyId?: string
         paymentStatus: "OVERDUE",
         lastPaymentReminderAt: now,
       },
+    });
+
+    await trackProductEvent({
+      companyId: transaction.companyId,
+      userId: transaction.userId,
+      eventName: PRODUCT_EVENT_NAMES.overduePaymentDetected,
+      summary: `${transaction.reservation?.reference ?? "Deal"} is overdue`,
+      payload: {
+        transactionId: transaction.id,
+        outstandingBalance,
+      } as Prisma.InputJsonValue,
     });
   }
 

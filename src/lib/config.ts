@@ -38,6 +38,7 @@ const serverEnvSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     DATABASE_URL: optionalString,
+    DIRECT_URL: optionalString,
     NEXT_PUBLIC_APP_URL: z.string().trim().url().default("http://localhost:3000"),
     NEXT_PUBLIC_PLATFORM_BASE_URL: optionalUrl,
     NEXT_PUBLIC_PORTAL_BASE_URL: optionalUrl,
@@ -139,7 +140,6 @@ export type FeatureFlags = ReturnType<typeof buildFeatureFlags>;
 
 const productionRequiredKeys = [
   "DATABASE_URL",
-  "DEFAULT_COMPANY_SLUG",
   "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
   "CLERK_SECRET_KEY",
   "CLERK_WEBHOOK_SECRET",
@@ -156,10 +156,6 @@ const productionServiceRules = [
   {
     service: "database",
     required: ["DATABASE_URL"] as const,
-  },
-  {
-    service: "tenancy",
-    required: ["DEFAULT_COMPANY_SLUG"] as const,
   },
   {
     service: "clerk",

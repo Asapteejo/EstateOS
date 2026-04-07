@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { buildAuthRedirect, buildServerDomainConfig } from "@/lib/domains";
 import { env } from "@/lib/env";
+import type { TenantContext } from "@/lib/tenancy/context";
 import { getTenantPresentation } from "@/modules/branding/service";
 import { getPublicTestimonials } from "@/modules/cms/queries";
 import {
@@ -18,10 +19,8 @@ import {
   parsePropertySearchParams,
 } from "@/modules/properties/queries";
 import { getTenantMarketerLeaderboard } from "@/modules/team/performance";
-import { requirePublicTenantContext } from "@/lib/tenancy/context";
 
-export default async function HomePage() {
-  const tenant = await requirePublicTenantContext();
+export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
   const presentation = await getTenantPresentation(tenant);
   const runtimeConfig = buildServerDomainConfig(env);
   const [featuredInventory, latestInventory, testimonials, leaderboard] = await Promise.all([
