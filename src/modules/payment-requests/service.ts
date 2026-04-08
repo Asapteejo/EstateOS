@@ -4,6 +4,7 @@ import { writeAuditLog } from "@/lib/audit/service";
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
 import { createInAppNotification, getTenantOperatorRecipients, notifyManyUsers } from "@/lib/notifications/service";
+import { publishRealtimeEvent } from "@/lib/realtime/events";
 import { sendTransactionalEmail } from "@/lib/notifications/email";
 import { initializePayment } from "@/lib/payments/paystack";
 import { namespacePaymentReference } from "@/lib/payments/references";
@@ -422,6 +423,19 @@ export async function createPaymentRequestForAdmin(
       amount: rawInput.amount,
       currency: rawInput.currency,
     } as Prisma.InputJsonValue,
+  });
+
+  publishRealtimeEvent({
+    scope: "company",
+    companyId: context.companyId,
+    name: "payment.request.sent",
+    summary: `Payment request sent for ${rawInput.title}`,
+    amount: rawInput.amount,
+    metadata: {
+      paymentRequestId: paymentRequest.id,
+      transactionId: scoped.transaction?.id ?? null,
+      reservationId: scoped.reservation?.id ?? null,
+    },
   });
 
   return paymentRequest;

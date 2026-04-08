@@ -9,9 +9,13 @@ import { Card } from "@/components/ui/card";
 export function TransactionFollowUpButton({
   transactionId,
   onUpdated,
+  readOnly = false,
+  ctaHref = "/app/onboarding",
 }: {
   transactionId: string;
   onUpdated?: () => void;
+  readOnly?: boolean;
+  ctaHref?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -20,6 +24,11 @@ export function TransactionFollowUpButton({
   const [nextFollowUpAt, setNextFollowUpAt] = useState("");
 
   async function submit() {
+    if (readOnly) {
+      setOpen(false);
+      return;
+    }
+
     setPending(true);
     try {
       const response = await fetch(`/api/admin/transactions/${transactionId}/follow-up`, {
@@ -60,10 +69,16 @@ export function TransactionFollowUpButton({
       {open ? (
         <Card className="rounded-[20px] border-rose-200 bg-rose-50 p-3 shadow-none">
           <div className="space-y-3">
+            {readOnly ? (
+              <div className="rounded-[16px] border border-rose-200 bg-white p-4 text-sm leading-6 text-[var(--ink-700)]">
+                Collections actions are read-only in the demo. Start your workspace to log real follow-up outcomes and track overdue money.
+              </div>
+            ) : null}
             <select
               className="h-10 w-full rounded-2xl border border-rose-200 bg-white px-3 text-sm text-[var(--ink-900)]"
               value={followUpStatus}
               onChange={(event) => setFollowUpStatus(event.target.value)}
+              disabled={readOnly}
             >
               <option value="CONTACTED">Contacted</option>
               <option value="PROMISED_TO_PAY">Promised to pay</option>
@@ -75,17 +90,25 @@ export function TransactionFollowUpButton({
               placeholder="Add a short collections note"
               value={followUpNote}
               onChange={(event) => setFollowUpNote(event.target.value)}
+              disabled={readOnly}
             />
             <input
               type="date"
               className="h-10 w-full rounded-2xl border border-rose-200 bg-white px-3 text-sm text-[var(--ink-900)]"
               value={nextFollowUpAt}
               onChange={(event) => setNextFollowUpAt(event.target.value)}
+              disabled={readOnly}
             />
             <div className="flex gap-2">
-              <Button size="sm" onClick={submit} disabled={pending}>
-                {pending ? "Saving..." : "Save"}
-              </Button>
+              {readOnly ? (
+                <a href={ctaHref}>
+                  <Button size="sm">Start your workspace</Button>
+                </a>
+              ) : (
+                <Button size="sm" onClick={submit} disabled={pending}>
+                  {pending ? "Saving..." : "Save"}
+                </Button>
+              )}
               <Button size="sm" variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>

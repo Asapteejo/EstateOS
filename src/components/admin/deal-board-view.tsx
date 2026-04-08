@@ -61,6 +61,14 @@ const stageTone: Record<
   },
 };
 
+function InspectPill({ label }: { label: string }) {
+  return (
+    <div className="inline-flex rounded-full border border-dashed border-[var(--line)] bg-white/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--ink-500)]">
+      Inspect: {label}
+    </div>
+  );
+}
+
 function MetricCard({
   label,
   value,
@@ -89,7 +97,7 @@ function MetricCard({
   );
 }
 
-function EmptyBoardState() {
+function EmptyBoardState({ readOnly, demoCtaHref }: { readOnly: boolean; demoCtaHref: string }) {
   return (
     <Card className="rounded-[32px] border-dashed border-[var(--line)] bg-[var(--sand-50)] p-8 sm:p-10">
       <div className="mx-auto max-w-3xl text-center">
@@ -105,12 +113,12 @@ function EmptyBoardState() {
           immediately.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-          <Link href="/admin/deals/new">
-            <Button>Create your first deal</Button>
+          <Link href={readOnly ? demoCtaHref : "/admin/deals/new"}>
+            <Button>{readOnly ? "Start your workspace" : "Create your first deal"}</Button>
           </Link>
-          <LoadSampleWorkspaceButton />
-          <Link href="/admin/listings">
-            <Button variant="outline">Add your first property</Button>
+          {readOnly ? null : <LoadSampleWorkspaceButton />}
+          <Link href={readOnly ? "/platform/pricing" : "/admin/listings"}>
+            <Button variant="outline">{readOnly ? "See pricing" : "Add your first property"}</Button>
           </Link>
         </div>
       </div>
@@ -122,10 +130,16 @@ function BoardCard({
   card,
   highlighted,
   onFollowUpSaved,
+  readOnly = false,
+  demoCtaHref = "/app/onboarding",
+  inspect = false,
 }: {
   card: DealBoardCard;
   highlighted: boolean;
   onFollowUpSaved: () => void;
+  readOnly?: boolean;
+  demoCtaHref?: string;
+  inspect?: boolean;
 }) {
   const tone = stageTone[card.stage];
   const isOverdue = card.stage === "OVERDUE";
@@ -138,6 +152,12 @@ function BoardCard({
         highlighted && "ring-2 ring-emerald-300 shadow-[0_0_0_6px_rgba(16,185,129,0.12)]",
       )}
     >
+      {inspect && card.stage === "OVERDUE" ? (
+        <div className="mb-3">
+          <InspectPill label="Overdue Queue / Follow-up State" />
+        </div>
+      ) : null}
+
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-base font-semibold text-[var(--ink-950)]">{card.buyerName}</div>
@@ -190,7 +210,7 @@ function BoardCard({
         </div>
         {card.dueLabel ? (
           <div className="mt-2 text-sm text-[var(--ink-600)]">
-          {isOverdue ? "Payment was due" : "Next payment due"} {card.dueLabel}
+            {isOverdue ? "Payment was due" : "Next payment due"} {card.dueLabel}
           </div>
         ) : null}
       </div>
@@ -231,31 +251,48 @@ function BoardCard({
       </div>
 
       <div className="mt-5 flex flex-wrap gap-2">
-        <Link href={card.primaryAction.href}>
+        <Link href={readOnly ? demoCtaHref : card.primaryAction.href}>
           <Button size="sm">{card.primaryAction.label}</Button>
         </Link>
-        <Link href={card.secondaryAction.href}>
+        <Link href={readOnly ? demoCtaHref : card.secondaryAction.href}>
           <Button size="sm" variant="outline">
             {card.secondaryAction.label}
           </Button>
         </Link>
       </div>
+      {readOnly ? (
+        <div className="mt-2 text-xs font-medium uppercase tracking-[0.14em] text-[var(--ink-500)]">
+          Read-only in demo
+        </div>
+      ) : null}
 
       {card.clientId && card.stage !== "PAID" && card.outstandingBalance > 0 ? (
         <div className="mt-3">
+          {inspect ? (
+            <div className="mb-2">
+              <InspectPill label="Payment Request Action" />
+            </div>
+          ) : null}
           <QuickPaymentRequestButton
             userId={card.clientId}
             transactionId={card.id}
             propertyLabel={card.propertyLabel}
             outstandingBalance={card.outstandingBalance}
             onSent={onFollowUpSaved}
+            readOnly={readOnly}
+            ctaHref={demoCtaHref}
           />
         </div>
       ) : null}
 
       {isOverdue ? (
         <div className="mt-3">
-          <TransactionFollowUpButton transactionId={card.id} onUpdated={onFollowUpSaved} />
+          <TransactionFollowUpButton
+            transactionId={card.id}
+            onUpdated={onFollowUpSaved}
+            readOnly={readOnly}
+            ctaHref={demoCtaHref}
+          />
         </div>
       ) : null}
     </div>
@@ -266,12 +303,19 @@ export function DealBoardView({
   board,
   launch,
   highlightDealId,
+  mode = "live",
+  inspect = false,
+  demoCtaHref = "/app/onboarding",
 }: {
   board: DealBoardData;
   launch?: LaunchContext;
   highlightDealId?: string | null;
+  mode?: "live" | "demo";
+  inspect?: boolean;
+  demoCtaHref?: string;
 }) {
   const router = useRouter();
+  const isDemo = mode === "demo";
   const [activeFilter, setActiveFilter] = useState<"ALL" | "OVERDUE">("ALL");
   const [highlightedId, setHighlightedId] = useState<string | null>(() => highlightDealId ?? null);
 
@@ -299,25 +343,35 @@ export function DealBoardView({
 
   return (
     <div className="space-y-6">
-      <DealBoardSetupPrompt
-        workspaceSlug={launch?.workspaceSlug ?? null}
-        workspaceName={launch?.workspaceName ?? null}
-        setupMode={launch?.setupMode ?? null}
-        showSuccess={launch?.showSuccess ?? false}
-        showGuidance={showGuidance}
-        hasProperties={hasProperties}
-        hasDeals={hasDeals}
-      />
+      {!isDemo ? (
+        <DealBoardSetupPrompt
+          workspaceSlug={launch?.workspaceSlug ?? null}
+          workspaceName={launch?.workspaceName ?? null}
+          setupMode={launch?.setupMode ?? null}
+          showSuccess={launch?.showSuccess ?? false}
+          showGuidance={showGuidance}
+          hasProperties={hasProperties}
+          hasDeals={hasDeals}
+        />
+      ) : null}
 
       <DealBoardActivationCard
-        companySlug={launch?.workspaceSlug ?? null}
+        companySlug={launch?.workspaceSlug ?? "demo-workspace"}
         activation={board.activation}
         overdueCount={board.summary.overdueCount}
         onOpenCollectionsMode={() => setActiveFilter("OVERDUE")}
+        readOnly={isDemo}
+        ctaHref={demoCtaHref}
+        inspect={inspect}
       />
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
         <Card className="rounded-[32px] p-6 sm:p-7">
+          {inspect ? (
+            <div className="mb-4">
+              <InspectPill label="Collections Summary" />
+            </div>
+          ) : null}
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-2">
               <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--ink-500)]">
@@ -327,8 +381,9 @@ export function DealBoardView({
                 See what is due, collected, and overdue at a glance
               </h2>
               <p className="max-w-2xl text-sm leading-7 text-[var(--ink-600)]">
-                The board is built to help you push money forward. Keep overdue deals impossible to
-                ignore and move active buyers toward payment quickly.
+                {isDemo
+                  ? "This sample workspace shows how a developer sales team tracks due money, paid deals, and overdue collections in one place."
+                  : "The board is built to help you push money forward. Keep overdue deals impossible to ignore and move active buyers toward payment quickly."}
               </p>
             </div>
             <div className="inline-flex rounded-full border border-[var(--line)] bg-[var(--sand-50)] p-1">
@@ -381,6 +436,11 @@ export function DealBoardView({
         </Card>
 
         <Card className="rounded-[32px] p-6 sm:p-7">
+          {inspect ? (
+            <div className="mb-4">
+              <InspectPill label="Deal Board" />
+            </div>
+          ) : null}
           <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--ink-500)]">
             Revenue pulse
           </div>
@@ -388,9 +448,11 @@ export function DealBoardView({
             Keep the next revenue step obvious
           </h3>
           <p className="mt-2 text-sm leading-7 text-[var(--ink-600)]">
-            {nextActivationStep
-              ? nextActivationStep.description
-              : "Your first three activation milestones are complete. Keep collections and follow-up moving."}
+            {isDemo
+              ? "The demo walks through the same operating loop real teams use: open deals, send payment requests, and work overdue collections."
+              : nextActivationStep
+                ? nextActivationStep.description
+                : "Your first three activation milestones are complete. Keep collections and follow-up moving."}
           </p>
 
           <div className="mt-5 grid gap-3">
@@ -413,22 +475,29 @@ export function DealBoardView({
           </div>
 
           <div className="mt-5 flex flex-wrap gap-3">
-            <Link href={nextActivationStep?.href ?? "/admin/deals/new"}>
-              <Button>{nextActivationStep?.ctaLabel ?? "Create your first deal"}</Button>
+            <Link href={isDemo ? demoCtaHref : nextActivationStep?.href ?? "/admin/deals/new"}>
+              <Button>{isDemo ? "Start your workspace" : nextActivationStep?.ctaLabel ?? "Create your first deal"}</Button>
             </Link>
-            <Link href="/admin/payments">
-              <Button variant="outline">Open payments</Button>
+            <Link href={isDemo ? "/platform/pricing" : "/admin/payments"}>
+              <Button variant="outline">{isDemo ? "See pricing" : "Open payments"}</Button>
             </Link>
           </div>
         </Card>
       </div>
 
-      {board.summary.totalDeals === 0 ? <EmptyBoardState /> : null}
+      {board.summary.totalDeals === 0 ? (
+        <EmptyBoardState readOnly={isDemo} demoCtaHref={demoCtaHref} />
+      ) : null}
 
       <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="grid gap-4 xl:grid-cols-2 3xl:grid-cols-3">
           {visibleColumns.map((column) => (
             <Card key={column.key} className={cn("rounded-[32px] p-5", stageTone[column.key].columnClass)}>
+              {inspect && column.key === "OVERDUE" ? (
+                <div className="mb-4">
+                  <InspectPill label="Overdue Queue" />
+                </div>
+              ) : null}
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-lg font-semibold text-[var(--ink-950)]">{column.label}</div>
@@ -454,6 +523,9 @@ export function DealBoardView({
                       card={card}
                       highlighted={highlightedId === card.id}
                       onFollowUpSaved={() => router.refresh()}
+                      readOnly={isDemo}
+                      demoCtaHref={demoCtaHref}
+                      inspect={inspect}
                     />
                   ))
                 ) : (

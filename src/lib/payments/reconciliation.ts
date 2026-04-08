@@ -20,6 +20,7 @@ import {
   deriveTransactionStageFromPayment,
 } from "@/modules/transactions/workflow";
 import { PRODUCT_EVENT_NAMES, trackProductEvent } from "@/modules/analytics/activity";
+import { publishRealtimeEvent } from "@/lib/realtime/events";
 import { syncTransactionMilestones, syncTransactionPaymentState } from "@/modules/transactions/mutations";
 import { buildSettlementQuote, getCompanyPlanStatus, recordBillingEvent } from "@/modules/billing/service";
 import { reconcilePaymentRequestFromPayment } from "@/modules/payment-requests/service";
@@ -760,6 +761,18 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
           transactionId: payment.transactionId,
           authoritativeStatus: status,
         } as Prisma.InputJsonValue,
+      });
+
+      publishRealtimeEvent({
+        scope: "company",
+        companyId: company.id,
+        name: "payment.completed",
+        summary: `Payment ${reference} completed`,
+        amount: payment.amount.toNumber?.() ?? Number(payment.amount),
+        metadata: {
+          paymentId: payment.id,
+          transactionId: payment.transactionId ?? null,
+        },
       });
 
       if (transactionUpdate.transactionStage === "FINAL_PAYMENT_COMPLETED") {

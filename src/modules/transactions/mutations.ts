@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { writeAuditLog } from "@/lib/audit/service";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
+import { publishRealtimeEvent } from "@/lib/realtime/events";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { findFirstForTenant } from "@/lib/tenancy/db";
 import { publishDomainEvent } from "@/lib/notifications/events";
@@ -507,6 +508,17 @@ export async function updateTransactionStageForAdmin(
     stage: input.stage,
   });
 
+  publishRealtimeEvent({
+    scope: "company",
+    companyId: context.companyId,
+    name: "deal.updated",
+    summary: `Deal moved to ${input.stage.toLowerCase().replaceAll("_", " ")}`,
+    metadata: {
+      transactionId,
+      stage: input.stage,
+    },
+  });
+
   return updated;
 }
 
@@ -561,6 +573,18 @@ export async function updateTransactionFollowUpForAdmin(
       followUpNote: input.followUpNote ?? null,
       nextFollowUpAt: input.nextFollowUpAt ?? null,
     } as Prisma.InputJsonValue,
+  });
+
+  publishRealtimeEvent({
+    scope: "company",
+    companyId: context.companyId,
+    name: "followup.updated",
+    summary: `Collections follow-up set to ${input.followUpStatus.toLowerCase().replaceAll("_", " ")}`,
+    metadata: {
+      transactionId,
+      followUpStatus: input.followUpStatus,
+      nextFollowUpAt: input.nextFollowUpAt ?? null,
+    },
   });
 
   return updated;

@@ -22,6 +22,9 @@ export type TenantContext = {
   companyId: string | null;
   companySlug: string | null;
   branchId: string | null;
+  companyStatus?: "ACTIVE" | "SUSPENDED" | "DISABLED" | null;
+  companySuspendedAt?: Date | null;
+  companySuspensionReason?: string | null;
   roles: AppRole[];
   isSuperAdmin: boolean;
   host: string | null;
@@ -44,6 +47,9 @@ async function lookupCompany(
       return {
         id: "demo-company-acme",
         slug: "acme-realty",
+        status: "ACTIVE" as const,
+        suspendedAt: null,
+        suspensionReason: null,
       };
     }
 
@@ -53,7 +59,7 @@ async function lookupCompany(
   if (input.companyId) {
     return prisma.company.findUnique({
       where: { id: input.companyId },
-      select: { id: true, slug: true },
+      select: { id: true, slug: true, status: true, suspendedAt: true, suspensionReason: true },
     });
   }
 
@@ -65,7 +71,7 @@ async function lookupCompany(
           { subdomain: input.companySlug },
         ],
       },
-      select: { id: true, slug: true },
+      select: { id: true, slug: true, status: true, suspendedAt: true, suspensionReason: true },
     });
   }
 
@@ -75,7 +81,7 @@ async function lookupCompany(
       where: {
         customDomain: normalizedHost,
       },
-      select: { id: true, slug: true },
+      select: { id: true, slug: true, status: true, suspendedAt: true, suspensionReason: true },
     });
   }
 
@@ -172,6 +178,9 @@ export async function resolveTenantContext(
         (area === "marketing" ? hostResolution.companySlug : hostResolution.companySlug ?? tenantHintSlug ?? fallbackSlug) ??
         null,
       branchId: null,
+      companyStatus: resolvedCompany?.status ?? null,
+      companySuspendedAt: resolvedCompany?.suspendedAt ?? null,
+      companySuspensionReason: resolvedCompany?.suspensionReason ?? null,
       roles: [],
       isSuperAdmin: false,
       host,
@@ -204,6 +213,10 @@ export async function resolveTenantContext(
       fallbackSlug ??
       null,
     branchId: session.branchId,
+    companyStatus: resolvedCompany?.status ?? sessionCompany?.status ?? null,
+    companySuspendedAt: resolvedCompany?.suspendedAt ?? sessionCompany?.suspendedAt ?? null,
+    companySuspensionReason:
+      resolvedCompany?.suspensionReason ?? sessionCompany?.suspensionReason ?? null,
     roles: session.roles,
     isSuperAdmin: session.roles.includes("SUPER_ADMIN"),
     host,
@@ -246,6 +259,32 @@ export async function requireTenantContext(
 
   if (!context.isSuperAdmin && !context.companyId) {
     throw new Error("Tenant context is required for non-super-admin users.");
+  }
+
+  if (
+    !context.isSuperAdmin &&
+    (area === "portal" || area === "admin") &&
+    context.companyStatus &&
+    context.companyStatus !== "ACTIVE"
+  ) {
+    const accessPath =
+      context.companyStatus === "SUSPENDED"
+        ? `/app/access?status=suspended${
+            context.companySuspensionReason
+              ? `&reason=${encodeURIComponent(context.companySuspensionReason)}`
+              : ""
+          }`
+        : "/app/access?status=disabled";
+
+    if (options?.redirectOnMissingAuth === false) {
+      throw new Error(
+        context.companyStatus === "SUSPENDED"
+          ? "Company workspace is suspended."
+          : "Company workspace is unavailable.",
+      );
+    }
+
+    redirect(accessPath);
   }
 
   return context;

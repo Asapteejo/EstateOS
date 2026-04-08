@@ -52,6 +52,9 @@ export function PlatformFooter() {
             <Link href="/app/onboarding" className="block">
               Get started
             </Link>
+            <Link href="/demo" className="block">
+              View demo
+            </Link>
             <Link href="/platform/features" className="block">
               Features
             </Link>

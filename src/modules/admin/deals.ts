@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { writeAuditLog } from "@/lib/audit/service";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
+import { publishRealtimeEvent } from "@/lib/realtime/events";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { findFirstForTenant, rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import type {
@@ -511,6 +512,18 @@ export async function createAdminDeal(
       propertyId: property.id,
       propertyUnitId: propertyUnit?.id ?? null,
     } as Prisma.InputJsonValue,
+  });
+
+  publishRealtimeEvent({
+    scope: "company",
+    companyId: context.companyId,
+    name: "deal.created",
+    summary: `New deal created for ${input.buyerName}`,
+    amount: totalValue,
+    metadata: {
+      transactionId: created.transaction.id,
+      reservationId: created.reservation.id,
+    },
   });
   await trackProductEvent({
     companyId: context.companyId,

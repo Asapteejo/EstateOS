@@ -1,95 +1,129 @@
 import Link from "next/link";
 
-import { Card } from "@/components/ui/card";
-import { DataTableCard } from "@/components/shared/data-table-card";
+import { SuperadminActivityFeed } from "@/components/superadmin/superadmin-activity-feed";
+import { SuperadminHealthBadge } from "@/components/superadmin/superadmin-health-badge";
+import { SuperadminMetricCard } from "@/components/superadmin/superadmin-metric-card";
+import { SuperadminRangeTabs } from "@/components/superadmin/superadmin-range-tabs";
 import { SuperadminShell } from "@/components/superadmin/superadmin-shell";
+import { Card } from "@/components/ui/card";
 import { requireSuperAdminSession } from "@/lib/auth/guards";
-import { getSuperadminDashboardData } from "@/modules/superadmin/queries";
+import { formatCurrency } from "@/lib/utils";
+import { getSuperadminOverviewData, parseSuperadminRange } from "@/modules/superadmin/queries";
 
-export default async function SuperadminDashboardPage() {
+export default async function SuperadminDashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireSuperAdminSession();
-  const dashboard = await getSuperadminDashboardData();
+
+  const resolvedSearchParams = ((await searchParams) ?? {}) as Record<string, string | undefined>;
+  const range = parseSuperadminRange(resolvedSearchParams.range);
+  const dashboard = await getSuperadminOverviewData(range);
 
   return (
     <SuperadminShell
-      title="EstateOS Platform Dashboard"
-      subtitle="Platform-wide subscription, payout, commission, and company health visibility across all tenants."
+      title="Platform overview"
+      subtitle="See the money moving through EstateOS, what the platform itself is earning, and which companies need attention right now."
+      actions={<SuperadminRangeTabs pathname="/superadmin" current={range} />}
     >
-      <div className="grid gap-6 md:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {dashboard.metrics.map((metric) => (
-          <Card key={metric.label} className="p-6">
-            <div className="text-sm text-[var(--ink-500)]">{metric.label}</div>
-            <div className="mt-3 text-3xl font-semibold text-[var(--ink-950)]">{metric.value}</div>
-            <div className="mt-2 text-sm text-[var(--brand-700)]">{metric.detail}</div>
-          </Card>
+          <SuperadminMetricCard
+            key={metric.label}
+            label={metric.label}
+            value={metric.value}
+            detail={metric.detail}
+            tone={
+              metric.label.includes("Revenue") || metric.label.includes("inflow")
+                ? "revenue"
+                : metric.label.includes("overdue")
+                  ? "risk"
+                  : "default"
+            }
+          />
         ))}
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <DataTableCard
-          title="Recent billing events"
-          columns={["Company", "Event", "Summary", "Time"]}
-          rows={dashboard.recentBillingEvents}
-        />
-        <DataTableCard
-          title="Recent payment events"
-          columns={["Company", "Reference", "Amount", "Status"]}
-          rows={dashboard.recentPaymentEvents}
-        />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="space-y-6">
-          <DataTableCard
-            title="Recent audit events"
-            columns={["Company", "Action", "Entity", "Time"]}
-            rows={dashboard.recentAuditEvents}
-          />
-          <DataTableCard
-            title="Companies by plan"
-            columns={["Plan", "Companies"]}
-            rows={dashboard.companiesByPlan.map((item) => [item.label, String(item.count)])}
-          />
-        </div>
-
+      <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <Card className="overflow-hidden">
-          <div className="border-b border-[var(--line)] px-6 py-4">
-            <h3 className="text-lg font-semibold text-[var(--ink-950)]">Company health</h3>
+          <div className="border-b border-[var(--line)] px-6 py-5">
+            <h2 className="text-lg font-semibold text-[var(--ink-950)]">Top revenue companies</h2>
             <p className="mt-1 text-sm text-[var(--ink-500)]">
-              Drill into tenant billing state, payout readiness, and transaction performance.
+              Who is driving platform revenue and payment flow in {dashboard.range.label.toLowerCase()}.
             </p>
           </div>
           <div className="divide-y divide-[var(--line)]">
-            {dashboard.companies.map((company) => (
-              <div
-                key={company.companyId}
-                className="grid gap-4 px-6 py-5 lg:grid-cols-[1.1fr_0.9fr_0.9fr_auto]"
-              >
+            {dashboard.topRevenueCompanies.map((company, index) => (
+              <div key={company.companyId} className="grid gap-3 px-6 py-4 lg:grid-cols-[auto_1fr_auto_auto] lg:items-center">
+                <div className="text-sm font-semibold text-[var(--ink-400)]">#{index + 1}</div>
                 <div>
-                  <div className="font-semibold text-[var(--ink-950)]">{company.companyName}</div>
-                  <div className="mt-1 text-sm text-[var(--ink-500)]">{company.companySlug}</div>
+                  <div className="font-semibold text-[var(--ink-950)]">
+                    <Link href={`/superadmin/companies/${company.companyId}`} className="hover:underline">
+                      {company.companyName}
+                    </Link>
+                  </div>
+                  <div className="mt-1 text-sm text-[var(--ink-500)]">{company.planLabel}</div>
                 </div>
                 <div className="text-sm text-[var(--ink-700)]">
-                  <div>{company.planLabel}</div>
-                  <div className="mt-1 text-[var(--ink-500)]">{company.subscriptionStatus}</div>
+                  <div className="font-semibold text-[var(--ink-950)]">{company.platformRevenueFormatted}</div>
+                  <div className="mt-1 text-[var(--ink-500)]">EstateOS revenue</div>
                 </div>
                 <div className="text-sm text-[var(--ink-700)]">
-                  <div>{company.transactionVolume}</div>
-                  <div className="mt-1 text-[var(--ink-500)]">{company.payoutReadiness}</div>
-                </div>
-                <div className="flex justify-end">
-                  <Link
-                    href={`/superadmin/companies/${company.companyId}`}
-                    className="rounded-2xl border border-[var(--line)] px-4 py-2 text-sm font-medium text-[var(--ink-700)] transition hover:bg-[var(--sand-100)]"
-                  >
-                    Inspect
-                  </Link>
+                  <div className="font-semibold text-[var(--ink-950)]">{company.inflowFormatted}</div>
+                  <div className="mt-1 text-[var(--ink-500)]">Platform inflow</div>
                 </div>
               </div>
             ))}
           </div>
         </Card>
+
+        <Card className="overflow-hidden">
+          <div className="border-b border-[var(--line)] px-6 py-5">
+            <h2 className="text-lg font-semibold text-[var(--ink-950)]">Risk and underperformance</h2>
+            <p className="mt-1 text-sm text-[var(--ink-500)]">
+              Companies with overdue exposure, weak activity, or onboarding gaps.
+            </p>
+          </div>
+          <div className="divide-y divide-[var(--line)]">
+            {dashboard.riskCompanies.length ? (
+              dashboard.riskCompanies.map((company) => (
+                <div key={company.companyId} className="grid gap-3 px-6 py-4 lg:grid-cols-[1fr_auto] lg:items-center">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Link
+                        href={`/superadmin/companies/${company.companyId}`}
+                        className="font-semibold text-[var(--ink-950)] hover:underline"
+                      >
+                        {company.companyName}
+                      </Link>
+                      <SuperadminHealthBadge health={company.health} />
+                    </div>
+                    <div className="mt-2 text-sm text-[var(--ink-600)]">{company.healthReason}</div>
+                    <div className="mt-2 text-sm text-[var(--ink-500)]">
+                      Overdue {company.overdueFormatted} · Last active {company.lastActiveLabel}
+                    </div>
+                  </div>
+                  <div className="text-right text-sm text-[var(--ink-500)]">
+                    <div className="font-semibold text-rose-700">{formatCurrency(company.overdueAmount)}</div>
+                    <div className="mt-1">Open collections risk</div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="px-6 py-10 text-sm text-[var(--ink-500)]">
+                No platform-wide risk flags in this range. The current company base is operating cleanly.
+              </div>
+            )}
+          </div>
+        </Card>
       </div>
+
+      <SuperadminActivityFeed
+        title="Platform inflow and activity"
+        subtitle={`Last updated ${dashboard.generatedAtLabel}. Financial events are separated from platform-owner revenue inside the cards above.`}
+        items={dashboard.recentActivity}
+      />
     </SuperadminShell>
   );
 }

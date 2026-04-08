@@ -38,8 +38,13 @@ export async function PlatformHome() {
                   <Link href="/app/onboarding">
                     <Button size="lg">Get Started</Button>
                   </Link>
-                  <Link href="/platform/pricing">
+                  <Link href="/demo">
                     <Button variant="secondary" size="lg">
+                      View Demo
+                    </Button>
+                  </Link>
+                  <Link href="/platform/pricing">
+                    <Button variant="outline" size="lg" className="border-white/15 text-white hover:bg-white/10">
                       See pricing
                     </Button>
                   </Link>
@@ -161,8 +166,13 @@ export async function PlatformHome() {
                 <Link href="/app/onboarding">
                   <Button size="lg">Start your workspace</Button>
                 </Link>
-                <Link href="/platform/features">
+                <Link href="/demo">
                   <Button variant="secondary" size="lg">
+                    View demo
+                  </Button>
+                </Link>
+                <Link href="/platform/features">
+                  <Button variant="outline" size="lg" className="border-white/15 text-white hover:bg-white/10">
                     Explore capabilities
                   </Button>
                 </Link>

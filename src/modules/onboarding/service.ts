@@ -2,8 +2,10 @@ import type { AppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { logInfo } from "@/lib/ops/logger";
+import { publishRealtimeEvent } from "@/lib/realtime/events";
 import { type TenantContext } from "@/lib/tenancy/context";
 import { loadSampleWorkspaceForTenant } from "@/modules/admin/sample-workspace";
+import { PRODUCT_EVENT_NAMES, trackProductEvent } from "@/modules/analytics/activity";
 
 function slugifyCompanyName(input: string) {
   return input
@@ -171,6 +173,9 @@ function buildTenantContext(input: {
     companyId: input.companyId,
     companySlug: input.companySlug,
     branchId: input.branchId,
+    companyStatus: "ACTIVE",
+    companySuspendedAt: null,
+    companySuspensionReason: null,
     roles: ["ADMIN"],
     isSuperAdmin: false,
     host: null,
@@ -253,6 +258,27 @@ export async function createSampleCompany(input: {
       }),
     );
   }
+
+  await trackProductEvent({
+    companyId: company.id,
+    userId: input.session.userId,
+    eventName: PRODUCT_EVENT_NAMES.companyCreated,
+    summary: `${company.name} workspace created`,
+    payload: {
+      companySlug: company.slug,
+      includeSampleData: input.includeSampleData === true,
+    },
+  });
+
+  publishRealtimeEvent({
+    scope: "platform",
+    companyId: company.id,
+    name: "company.created",
+    summary: `${company.name} joined EstateOS`,
+    metadata: {
+      companySlug: company.slug,
+    },
+  });
 
   logInfo("Company onboarding completed.", {
     companyId: company.id,

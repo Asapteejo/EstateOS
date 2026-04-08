@@ -5,8 +5,10 @@ import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { sendTransactionalEmail } from "@/lib/notifications/email";
 import { createInAppNotification, getTenantOperatorRecipients, notifyManyUsers } from "@/lib/notifications/service";
+import { publishRealtimeEvent } from "@/lib/realtime/events";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { PRODUCT_EVENT_NAMES, trackProductEvent } from "@/modules/analytics/activity";
+import { syncAnalyticsSnapshots } from "@/modules/analytics/aggregates";
 import { syncPaymentRequestStatuses } from "@/modules/payment-requests/service";
 import { syncPropertyVerificationStates } from "@/modules/properties/verification";
 import { syncMarketerRankingSnapshots } from "@/modules/team/performance";
@@ -176,6 +178,17 @@ export async function runOperationalAutomationSweep(input?: { companyId?: string
         transactionId: transaction.id,
         outstandingBalance,
       } as Prisma.InputJsonValue,
+    });
+
+    publishRealtimeEvent({
+      scope: "company",
+      companyId: transaction.companyId,
+      name: "overdue.detected",
+      summary: `${transaction.reservation?.reference ?? "Deal"} is overdue`,
+      amount: outstandingBalance,
+      metadata: {
+        transactionId: transaction.id,
+      },
     });
   }
 
@@ -381,11 +394,12 @@ export async function runScheduledOperationalJobs(input?: {
   });
 
   try {
-    const [automation, verification, paymentRequests, marketerSnapshots] = await Promise.all([
+    const [automation, verification, paymentRequests, marketerSnapshots, analyticsSnapshots] = await Promise.all([
       runOperationalAutomationSweep({ companyId: input?.companyId }),
       syncPropertyVerificationStates({ companyId: input?.companyId, now }),
       syncPaymentRequestStatuses(prisma, { companyId: input?.companyId, now }),
       syncMarketerRankingSnapshots({ companyId: input?.companyId, now }),
+      syncAnalyticsSnapshots({ companyId: input?.companyId, now }),
     ]);
 
     await prisma.backgroundJobLog.update({
@@ -398,6 +412,7 @@ export async function runScheduledOperationalJobs(input?: {
           verification,
           paymentRequests,
           marketerSnapshots,
+          analyticsSnapshots,
         } as Prisma.InputJsonValue,
       },
     });
@@ -409,6 +424,7 @@ export async function runScheduledOperationalJobs(input?: {
       verification,
       paymentRequests,
       marketerSnapshots,
+      analyticsSnapshots,
     };
   } catch (error) {
     await prisma.backgroundJobLog.update({

@@ -20,6 +20,9 @@ export function DealBoardActivationCard({
   activation,
   overdueCount = 0,
   onOpenCollectionsMode,
+  readOnly = false,
+  ctaHref,
+  inspect = false,
 }: {
   companySlug: string | null;
   activation: {
@@ -29,6 +32,9 @@ export function DealBoardActivationCard({
   };
   overdueCount?: number;
   onOpenCollectionsMode?: () => void;
+  readOnly?: boolean;
+  ctaHref?: string;
+  inspect?: boolean;
 }) {
   const storageKey = useMemo(
     () => `estateos:activation-checklist:${companySlug ?? "workspace"}`,
@@ -68,6 +74,11 @@ export function DealBoardActivationCard({
 
   return (
     <Card className="rounded-[32px] border-[var(--line)] bg-white p-6 sm:p-7">
+      {inspect ? (
+        <div className="mb-4 inline-flex rounded-full border border-dashed border-[var(--line)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--ink-500)]">
+          Inspect: Activation Checklist
+        </div>
+      ) : null}
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2">
           <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--ink-500)]">
@@ -80,6 +91,11 @@ export function DealBoardActivationCard({
             Move from first deal to first payment fast. The next milestone is{" "}
             <span className="font-semibold text-[var(--ink-950)]">{nextStep?.title.toLowerCase()}</span>.
           </p>
+          {readOnly ? (
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-[var(--ink-500)]">
+              Read-only demo workspace
+            </p>
+          ) : null}
         </div>
         <Button variant="outline" size="sm" onClick={dismiss}>
           Dismiss
@@ -103,9 +119,9 @@ export function DealBoardActivationCard({
             </div>
             <p className="mt-2 text-sm leading-6 text-[var(--ink-600)]">{step.description}</p>
             <div className="mt-4">
-              <Link href={step.href}>
+              <Link href={readOnly ? ctaHref ?? "/app/onboarding" : step.href}>
                 <Button size="sm" variant={step.complete ? "outline" : "default"}>
-                  {step.ctaLabel}
+                  {readOnly ? "Start your workspace" : step.ctaLabel}
                 </Button>
               </Link>
             </div>

@@ -41,6 +41,9 @@ export function PlatformHeader() {
         </nav>
 
         <div className="flex items-center gap-3">
+          <Link href="/demo" className="hidden text-sm font-medium text-[var(--ink-700)] sm:inline">
+            View demo
+          </Link>
           <Link href="/platform/pricing" className="hidden text-sm font-medium text-[var(--ink-700)] sm:inline">
             Hybrid pricing
           </Link>

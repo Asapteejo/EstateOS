@@ -18,7 +18,10 @@ type FirstEventInput = ProductEventInput & {
 };
 
 export const PRODUCT_EVENT_NAMES = {
+  companyCreated: "company.created",
   companyOnboarded: "company.onboarded",
+  companySuspended: "company.suspended",
+  companyReactivated: "company.reactivated",
   propertyCreated: "property.created",
   firstPropertyCreated: "property.first_created",
   teamMemberAdded: "team_member.added",

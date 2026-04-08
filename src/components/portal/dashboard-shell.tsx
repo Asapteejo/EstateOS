@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Container } from "@/components/shared/container";
 import { Logo } from "@/components/shared/logo";
+import { LiveSurfaceSync } from "@/components/realtime/live-surface-sync";
 import { requireAdminSession, requirePortalSession } from "@/lib/auth/guards";
 import { getTenantPresentation } from "@/modules/branding/service";
 import { cn } from "@/lib/utils";
@@ -60,6 +61,7 @@ export async function DashboardShell({
 
   return (
     <Container className="grid gap-6 py-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:py-8">
+      {tenant.companyId ? <LiveSurfaceSync channel="company" surface={area} /> : null}
       <aside className="rounded-[var(--tenant-card-radius,28px)] border border-[var(--tenant-nav-border)] bg-[var(--tenant-nav-surface)] p-5 shadow-[var(--tenant-nav-shadow)] lg:sticky lg:top-6 lg:self-start">
         <Logo href={`/${area}`} name={presentation.companyName} tagline={area === "portal" ? "Buyer workspace" : "Company workspace"} logoUrl={branding.logoUrl} />
         <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:mt-8 lg:block lg:space-y-2">

@@ -4,6 +4,7 @@ import { writeAuditLog } from "@/lib/audit/service";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
+import { publishRealtimeEvent } from "@/lib/realtime/events";
 import { findFirstForTenant, rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import type { ReservationCreateInput } from "@/lib/validations/reservations";
 import type { SavedPropertyMutationInput } from "@/lib/validations/saved-properties";
@@ -340,6 +341,18 @@ export async function createReservationForBuyer(
     } as Prisma.InputJsonValue,
   });
   await ensureCompanyOnboardedEvent(context);
+
+  publishRealtimeEvent({
+    scope: "company",
+    companyId: context.companyId,
+    name: "deal.created",
+    summary: `Deal opened from reservation ${created.reference}`,
+    amount: reservationFee,
+    metadata: {
+      reservationReference: created.reference,
+      propertyId: property.id,
+    },
+  });
 
   return {
     reference: created.reference,

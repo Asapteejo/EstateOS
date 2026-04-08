@@ -273,6 +273,17 @@ enum FollowUpStatus {
   CLOSED
 }
 
+enum CompanyStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+
+enum AnalyticsScope {
+  PLATFORM
+  COMPANY
+}
+
 enum AuditAction {
   CREATE
   UPDATE
@@ -289,6 +300,9 @@ model Company {
   id              String             @id @default(cuid())
   name            String
   slug            String             @unique
+  status          CompanyStatus      @default(ACTIVE)
+  suspendedAt     DateTime?
+  suspensionReason String?
   description     String?
   legalName       String?
   subdomain       String?            @unique
@@ -331,6 +345,7 @@ model Company {
   activityEvents  ActivityEvent[]
   webhookEvents   WebhookEvent[]
   backgroundJobs  BackgroundJobLog[]
+  analyticsSnapshots AnalyticsDailySnapshot[]
   billingSettings CompanyBillingSettings?
   subscriptions   CompanySubscription[]
   providerAccounts CompanyPaymentProviderAccount[]
@@ -341,6 +356,41 @@ model Company {
     marketerRankingSnapshots MarketerRankingSnapshot[]
     createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
+  @@index([status, createdAt])
+}
+
+model AnalyticsDailySnapshot {
+  id                     String         @id @default(cuid())
+  scope                  AnalyticsScope
+  scopeKey               String         @default("global")
+  companyId              String?
+  bucketDate             DateTime
+  totalCompanies         Int            @default(0)
+  activeCompanies        Int            @default(0)
+  newCompanies           Int            @default(0)
+  inquiryCount           Int            @default(0)
+  reservationCount       Int            @default(0)
+  dealCount              Int            @default(0)
+  paymentRequestCount    Int            @default(0)
+  successfulPaymentCount Int            @default(0)
+  overdueCount           Int            @default(0)
+  platformInflow         Decimal        @default(0) @db.Decimal(14, 2)
+  subscriptionRevenue    Decimal        @default(0) @db.Decimal(14, 2)
+  commissionRevenue      Decimal        @default(0) @db.Decimal(14, 2)
+  platformRevenue        Decimal        @default(0) @db.Decimal(14, 2)
+  overdueAmount          Decimal        @default(0) @db.Decimal(14, 2)
+  totalOutstandingAmount Decimal        @default(0) @db.Decimal(14, 2)
+  overdueRecoveredAmount Decimal        @default(0) @db.Decimal(14, 2)
+  avgDaysToCollect       Decimal?       @db.Decimal(8, 2)
+  companyStatus          CompanyStatus?
+  metadata               Json?
+  company                Company?       @relation(fields: [companyId], references: [id])
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  @@unique([scope, scopeKey, bucketDate])
+  @@index([scope, bucketDate])
+  @@index([companyId, bucketDate])
 }
 
 model Plan {
