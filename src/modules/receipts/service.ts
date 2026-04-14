@@ -267,7 +267,7 @@ export function renderReceiptHtml(payload: ReceiptDownloadPayload) {
       <div class="grid">
         <div class="card"><div class="label">Buyer</div><div class="value">${payload.buyerName}</div></div>
         <div class="card"><div class="label">Issued</div><div class="value">${payload.issuedAt}</div></div>
-        <div class="card"><div class="label">Property</div><div class="value">${payload.propertyTitle}${payload.unitTitle ? ` · ${payload.unitTitle}` : ""}</div></div>
+        <div class="card"><div class="label">Property</div><div class="value">${payload.propertyTitle}${payload.unitTitle ? `  -  ${payload.unitTitle}` : ""}</div></div>
         <div class="card"><div class="label">Payment reference</div><div class="value">${payload.paymentReference}</div></div>
       </div>
       <div class="meta">
@@ -277,7 +277,7 @@ export function renderReceiptHtml(payload: ReceiptDownloadPayload) {
         <div class="row"><span>Outstanding balance</span><strong>${payload.outstandingBalance}</strong></div>
         <div class="row"><span>Marketer</span><strong>${payload.marketerName ?? "Unassigned"}</strong></div>
         <div class="row"><span>Company address</span><strong>${payload.companyAddress ?? "Not configured"}</strong></div>
-        <div class="row"><span>Contact</span><strong>${payload.companyEmail ?? "Not configured"}${payload.companyPhone ? ` · ${payload.companyPhone}` : ""}</strong></div>
+        <div class="row"><span>Contact</span><strong>${payload.companyEmail ?? "Not configured"}${payload.companyPhone ? `  -  ${payload.companyPhone}` : ""}</strong></div>
       </div>
     </div>
   </body>

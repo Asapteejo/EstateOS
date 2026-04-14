@@ -148,15 +148,19 @@ export async function resolveTenantContext(
         })
       : null);
 
-  const sessionCompany = session?.companyId
+  const sessionCompanyById = session?.companyId
     ? await lookupCompany({
         companyId: session.companyId,
       })
-    : session?.companySlug
+    : null;
+
+  const sessionCompany =
+    sessionCompanyById ??
+    (session?.companySlug
       ? await lookupCompany({
           companySlug: session.companySlug,
         })
-      : null;
+      : null);
 
   const fallbackCompany = fallbackSlug
     ? await lookupCompany({
@@ -168,6 +172,26 @@ export async function resolveTenantContext(
     area === "marketing"
       ? hostHintCompany
       : sessionCompany ?? hintedCompany ?? fallbackCompany;
+
+  if (!featureFlags.isProduction && area === "marketing") {
+    logInfo("Marketing tenant resolution.", {
+      host,
+      hostHintCompanySlug: hostHintCompany?.slug ?? null,
+      hostResolutionSlug: hostResolution.companySlug,
+      sessionCompanySlug: sessionCompany?.slug ?? null,
+      tenantHintSlug,
+      fallbackSlug: fallbackSlug ?? null,
+      resolvedCompanyId: resolvedCompany?.id ?? null,
+      resolvedCompanySlug: resolvedCompany?.slug ?? null,
+      fallbackToPlatform: !resolvedCompany,
+      fallbackReason:
+        hostResolution.companySlug && !hostHintCompany
+          ? "tenant-host-detected-but-no-company-matched-slug"
+          : !resolvedCompany
+            ? "no-tenant-host-match"
+            : null,
+    });
+  }
 
   if (!session) {
     return {

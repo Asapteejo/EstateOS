@@ -70,7 +70,7 @@ export default async function SuperadminSettingsPage() {
                 </Link>
                 <div className="mt-1 text-[var(--ink-600)]">{company.providerReadinessLabel}</div>
                 <div className="mt-1 text-[var(--ink-500)]">
-                  Overdue {company.overdueFormatted} · EstateOS revenue {company.platformRevenueFormatted}
+                  Overdue {company.overdueFormatted}  -  EstateOS revenue {company.platformRevenueFormatted}
                 </div>
               </div>
             ))}
@@ -91,7 +91,7 @@ export default async function SuperadminSettingsPage() {
               controls.controls.recentWebhookIssues.map((item) => (
                 <div key={item.id} className="px-6 py-4 text-sm">
                   <div className="font-semibold text-[var(--ink-950)]">{item.companyName}</div>
-                  <div className="mt-1 text-[var(--ink-600)]">{item.provider} · {item.eventType}</div>
+                  <div className="mt-1 text-[var(--ink-600)]">{item.provider}  -  {item.eventType}</div>
                   <div className="mt-1 text-[var(--ink-500)]">{item.createdAt}</div>
                 </div>
               ))

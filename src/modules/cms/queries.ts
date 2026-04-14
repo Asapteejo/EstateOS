@@ -3,7 +3,10 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { requirePublicTenantContext, type TenantContext } from "@/lib/tenancy/context";
-import { findFirstForTenant, findManyForTenant } from "@/lib/tenancy/db";
+import {
+  findFirstPublicForTenant,
+  findManyPublicForTenant,
+} from "@/lib/tenancy/db";
 import { formatDate } from "@/lib/utils";
 import { blogPosts, faqs, teamMembers, testimonials } from "@/modules/cms/demo-data";
 import type { BlogPost, FaqItem, TeamMember, Testimonial } from "@/types/domain";
@@ -20,14 +23,11 @@ export async function getPublicTestimonials(context?: TenantContext): Promise<Te
     return testimonials;
   }
 
-  const rows = (await findManyForTenant(
+  const rows = (await findManyPublicForTenant(
     prisma.testimonial as ScopedFindManyDelegate,
     context,
     {
-      where: {
-        isPublished: true,
-        isActive: true,
-      },
+      where: {},
       orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
       select: {
         fullName: true,
@@ -36,6 +36,7 @@ export async function getPublicTestimonials(context?: TenantContext): Promise<Te
         quote: true,
       },
     } as Parameters<typeof prisma.testimonial.findMany>[0],
+    { modelName: "Testimonial", publishedOnly: true },
   )) as Array<{
     fullName: string;
     role: string | null;
@@ -56,13 +57,11 @@ export async function getPublicFaqs(context?: TenantContext): Promise<FaqItem[]>
     return faqs;
   }
 
-  const rows = (await findManyForTenant(
+  const rows = (await findManyPublicForTenant(
     prisma.fAQItem as ScopedFindManyDelegate,
     context,
     {
-      where: {
-        isPublished: true,
-      },
+      where: {},
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       select: {
         question: true,
@@ -70,6 +69,7 @@ export async function getPublicFaqs(context?: TenantContext): Promise<FaqItem[]>
         category: true,
       },
     } as Parameters<typeof prisma.fAQItem.findMany>[0],
+    { modelName: "FAQItem", publishedOnly: true },
   )) as Array<{
     question: string;
     answer: string;
@@ -88,13 +88,11 @@ export async function getPublicTeamMembers(context?: TenantContext): Promise<Tea
     return teamMembers;
   }
 
-  const rows = (await findManyForTenant(
+  const rows = (await findManyPublicForTenant(
     prisma.teamMember as ScopedFindManyDelegate,
     context,
     {
-      where: {
-        isPublished: true,
-      },
+      where: {},
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       select: {
         slug: true,
@@ -106,6 +104,7 @@ export async function getPublicTeamMembers(context?: TenantContext): Promise<Tea
         avatarUrl: true,
       },
     } as Parameters<typeof prisma.teamMember.findMany>[0],
+    { modelName: "TeamMember", publishedOnly: true, activeOnly: true },
   )) as Array<{
     slug: string;
     fullName: string;
@@ -132,13 +131,11 @@ export async function getPublicBlogPosts(context?: TenantContext): Promise<BlogP
     return blogPosts;
   }
 
-  const rows = (await findManyForTenant(
+  const rows = (await findManyPublicForTenant(
     prisma.blogPost as ScopedFindManyDelegate,
     context,
     {
-      where: {
-        isPublished: true,
-      },
+      where: {},
       orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
       select: {
         slug: true,
@@ -150,6 +147,7 @@ export async function getPublicBlogPosts(context?: TenantContext): Promise<BlogP
         content: true,
       },
     } as Parameters<typeof prisma.blogPost.findMany>[0],
+    { modelName: "BlogPost", publishedOnly: true },
   )) as Array<{
     slug: string;
     title: string;
@@ -186,13 +184,12 @@ export async function getPublicBlogPostBySlug(
     return post;
   }
 
-  const post = (await findFirstForTenant(
+  const post = (await findFirstPublicForTenant(
     prisma.blogPost as ScopedFindFirstDelegate,
     context,
     {
       where: {
         slug,
-        isPublished: true,
       },
       select: {
         slug: true,
@@ -204,6 +201,7 @@ export async function getPublicBlogPostBySlug(
         content: true,
       },
     } as Parameters<typeof prisma.blogPost.findFirst>[0],
+    { modelName: "BlogPost", publishedOnly: true },
   )) as {
     slug: string;
     title: string;

@@ -81,7 +81,7 @@ export function NotificationManagement({
                 {notification.title}
               </div>
               <div className="mt-1 text-sm text-[var(--ink-500)]">
-                {notification.channel} · {notification.recipient}
+                {notification.channel}  -  {notification.recipient}
               </div>
             </div>
             <div className="text-sm text-[var(--ink-700)]">{notification.created}</div>

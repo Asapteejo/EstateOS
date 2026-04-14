@@ -701,33 +701,27 @@ export async function getAdminDealBoard(context: TenantContext): Promise<DealBoa
     teamMemberCount,
     inquiryCount,
     reservationCount,
-    totalDeals,
     paymentRequestCount,
-    successfulPaymentCount,
-    collectedAgg,
+    paymentStats,
     overdueAgg,
     inquiries,
     inspections,
     transactions,
     recentEvents,
     sampleWorkspaceEvent,
-  ] = await Promise.all([
+  ] = await prisma.$transaction([
     prisma.property.count({ where: { companyId } }),
     prisma.teamMember.count({ where: { companyId, isActive: true } }),
     prisma.inquiry.count({ where: { companyId } }),
     prisma.reservation.count({ where: { companyId } }),
-    prisma.transaction.count({ where: { companyId } }),
     prisma.paymentRequest.count({ where: { companyId } }),
-    prisma.payment.count({
-      where: {
-        companyId,
-        status: "SUCCESS",
-      },
-    }),
     prisma.payment.aggregate({
       where: {
         companyId,
         status: "SUCCESS",
+      },
+      _count: {
+        _all: true,
       },
       _sum: {
         amount: true,
@@ -789,6 +783,8 @@ export async function getAdminDealBoard(context: TenantContext): Promise<DealBoa
     }),
   ]);
 
+  const totalDeals = transactions.length;
+  const successfulPaymentCount = paymentStats._count._all;
   const anySuccessfulPayments = transactions.filter((transaction) =>
     transaction.payments.some((payment) => payment.status === "SUCCESS"),
   ).length;
@@ -803,7 +799,7 @@ export async function getAdminDealBoard(context: TenantContext): Promise<DealBoa
   const summary = {
     totalDeals,
     totalAmountDue: dueAgg,
-    totalAmountCollected: decimalToNumber(collectedAgg._sum.amount),
+    totalAmountCollected: decimalToNumber(paymentStats._sum.amount),
     inquiryToReservationConversion: buildRatio(reservationCount, inquiryCount),
     reservationToPaymentConversion: buildRatio(anySuccessfulPayments, reservationCount),
     overdueCount: overdueAgg._count._all,

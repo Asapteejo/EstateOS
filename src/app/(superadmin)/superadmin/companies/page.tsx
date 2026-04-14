@@ -20,19 +20,22 @@ export default async function SuperadminCompaniesPage({
   const sort = parseCompanySort(resolvedSearchParams.sort);
   const search = resolvedSearchParams.search ?? "";
   const health = resolvedSearchParams.health ?? "all";
+  const filter = resolvedSearchParams.filter ?? "all";
 
   const dashboard = await getSuperadminCompaniesData({
     range,
     sort,
     search,
     health,
+    filter,
   });
 
-  const buildHref = (next: { sort?: string; health?: string }) => {
+  const buildHref = (next: { sort?: string; health?: string; filter?: string }) => {
     const params = new URLSearchParams();
     params.set("range", range);
     params.set("sort", next.sort ?? sort);
     params.set("health", next.health ?? health);
+    params.set("filter", next.filter ?? filter);
     if (search) {
       params.set("search", search);
     }
@@ -48,7 +51,7 @@ export default async function SuperadminCompaniesPage({
           <SuperadminRangeTabs
             pathname="/superadmin/companies"
             current={range}
-            extraParams={{ sort, health, search: search || null }}
+            extraParams={{ sort, health, filter, search: search || null }}
           />
           <div className="text-xs uppercase tracking-[0.18em] text-[var(--ink-400)]">
             Updated {dashboard.generatedAtLabel}
@@ -78,8 +81,18 @@ export default async function SuperadminCompaniesPage({
             <Link href={buildHref({ sort: "highest_inflow" })} className="rounded-full border border-[var(--line)] px-4 py-2 hover:bg-[var(--sand-100)]">Most inflow</Link>
             <Link href={buildHref({ sort: "most_active" })} className="rounded-full border border-[var(--line)] px-4 py-2 hover:bg-[var(--sand-100)]">Most active</Link>
             <Link href={buildHref({ health: "collections_risk" })} className="rounded-full border border-[var(--line)] px-4 py-2 hover:bg-[var(--sand-100)]">Collections risk</Link>
+            <Link href={buildHref({ filter: "inactive" })} className="rounded-full border border-[var(--line)] px-4 py-2 hover:bg-[var(--sand-100)]">Inactive</Link>
+            <Link href={buildHref({ filter: "payout-missing" })} className="rounded-full border border-[var(--line)] px-4 py-2 hover:bg-[var(--sand-100)]">Payout missing</Link>
+            {dashboard.activeFilter !== "all" ? (
+              <Link href={buildHref({ filter: "all" })} className="rounded-full border border-[var(--brand-500)] px-4 py-2 text-[var(--brand-700)] hover:bg-[var(--sand-100)]">Clear quick filter</Link>
+            ) : null}
           </div>
         </div>
+        {dashboard.activeFilter !== "all" ? (
+          <div className="border-b border-[var(--line)] px-6 py-3 text-sm text-[var(--ink-600)]">
+            Showing companies for filter: <span className="font-semibold text-[var(--ink-950)]">{dashboard.activeFilter}</span>. Drill down into a company to take action.
+          </div>
+        ) : null}
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-[var(--sand-100)] text-left text-[var(--ink-500)]">
@@ -92,6 +105,7 @@ export default async function SuperadminCompaniesPage({
                 <th className="px-6 py-3 font-medium">Overdue</th>
                 <th className="px-6 py-3 font-medium">EstateOS revenue</th>
                 <th className="px-6 py-3 font-medium">Last active</th>
+                <th className="px-6 py-3 font-medium">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--line)]">
@@ -121,6 +135,14 @@ export default async function SuperadminCompaniesPage({
                   <td className="px-6 py-4 text-[var(--ink-700)]">{company.overdueFormatted}</td>
                   <td className="px-6 py-4 font-semibold text-[var(--ink-950)]">{company.platformRevenueFormatted}</td>
                   <td className="px-6 py-4 text-[var(--ink-700)]">{company.lastActiveLabel}</td>
+                  <td className="px-6 py-4">
+                    <Link
+                      href={`/superadmin/companies/${company.companyId}`}
+                      className="rounded-full border border-[var(--line)] px-3 py-1.5 text-xs font-medium text-[var(--ink-700)] transition hover:border-[var(--brand-500)] hover:text-[var(--ink-950)]"
+                    >
+                      View
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>

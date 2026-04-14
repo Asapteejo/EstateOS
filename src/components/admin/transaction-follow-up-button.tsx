@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { AdminModalFrame, AdminStateBanner } from "@/components/admin/admin-ui";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 
 export function TransactionFollowUpButton({
   transactionId,
@@ -67,38 +68,10 @@ export function TransactionFollowUpButton({
         Follow Up Now
       </Button>
       {open ? (
-        <Card className="rounded-[20px] border-rose-200 bg-rose-50 p-3 shadow-none">
-          <div className="space-y-3">
-            {readOnly ? (
-              <div className="rounded-[16px] border border-rose-200 bg-white p-4 text-sm leading-6 text-[var(--ink-700)]">
-                Collections actions are read-only in the demo. Start your workspace to log real follow-up outcomes and track overdue money.
-              </div>
-            ) : null}
-            <select
-              className="h-10 w-full rounded-2xl border border-rose-200 bg-white px-3 text-sm text-[var(--ink-900)]"
-              value={followUpStatus}
-              onChange={(event) => setFollowUpStatus(event.target.value)}
-              disabled={readOnly}
-            >
-              <option value="CONTACTED">Contacted</option>
-              <option value="PROMISED_TO_PAY">Promised to pay</option>
-              <option value="NOT_REACHABLE">Not reachable</option>
-              <option value="CLOSED">Resolved</option>
-            </select>
-            <textarea
-              className="min-h-24 w-full rounded-2xl border border-rose-200 bg-white px-3 py-2 text-sm text-[var(--ink-900)] outline-none"
-              placeholder="Add a short collections note"
-              value={followUpNote}
-              onChange={(event) => setFollowUpNote(event.target.value)}
-              disabled={readOnly}
-            />
-            <input
-              type="date"
-              className="h-10 w-full rounded-2xl border border-rose-200 bg-white px-3 text-sm text-[var(--ink-900)]"
-              value={nextFollowUpAt}
-              onChange={(event) => setNextFollowUpAt(event.target.value)}
-              disabled={readOnly}
-            />
+        <AdminModalFrame
+          title="Collections follow-up"
+          description="Log the latest collections outcome and set the next follow-up date in one step."
+          footer={
             <div className="flex gap-2">
               {readOnly ? (
                 <a href={ctaHref}>
@@ -113,8 +86,49 @@ export function TransactionFollowUpButton({
                 Cancel
               </Button>
             </div>
+          }
+        >
+          <div className="space-y-3">
+            {readOnly ? (
+              <AdminStateBanner
+                tone="warning"
+                title="Collections actions are read-only in the demo"
+                message="Start your workspace to log real follow-up outcomes and track overdue money."
+              />
+            ) : (
+              <AdminStateBanner
+                tone="info"
+                title="Next best action"
+                message="Use this when money is still outstanding or a promised payment date needs operator follow-up."
+              />
+            )}
+            <select
+              className="h-10 w-full rounded-[var(--radius-md)] border border-[color:var(--danger-200)] bg-white px-3 text-sm text-[var(--ink-900)]"
+              value={followUpStatus}
+              onChange={(event) => setFollowUpStatus(event.target.value)}
+              disabled={readOnly}
+            >
+              <option value="CONTACTED">Contacted</option>
+              <option value="PROMISED_TO_PAY">Promised to pay</option>
+              <option value="NOT_REACHABLE">Not reachable</option>
+              <option value="CLOSED">Resolved</option>
+            </select>
+            <Textarea
+              className="min-h-24 border-[color:var(--danger-200)]"
+              placeholder="Add a short collections note"
+              value={followUpNote}
+              onChange={(event) => setFollowUpNote(event.target.value)}
+              disabled={readOnly}
+            />
+            <input
+              type="date"
+              className="h-10 w-full rounded-[var(--radius-md)] border border-[color:var(--danger-200)] bg-white px-3 text-sm text-[var(--ink-900)]"
+              value={nextFollowUpAt}
+              onChange={(event) => setNextFollowUpAt(event.target.value)}
+              disabled={readOnly}
+            />
           </div>
-        </Card>
+        </AdminModalFrame>
       ) : null}
     </div>
   );

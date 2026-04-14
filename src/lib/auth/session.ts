@@ -3,7 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 
 import { prisma } from "@/lib/db/prisma";
-import { featureFlags } from "@/lib/env";
+import { env, featureFlags } from "@/lib/env";
 
 export type AppSession = {
   userId: string;
@@ -152,12 +152,105 @@ export async function resolveDemoSessionRole(
 
 async function resolveDemoCompanyContext() {
   const cookieStore = await cookies();
+  const cookieCompanyId = cookieStore.get(DEV_SESSION_COMPANY_ID_COOKIE)?.value ?? null;
+  const cookieCompanySlug = cookieStore.get(DEV_SESSION_COMPANY_SLUG_COOKIE)?.value ?? null;
+  const cookieBranchId = cookieStore.get(DEV_SESSION_BRANCH_ID_COOKIE)?.value ?? null;
+
+  if (!featureFlags.hasDatabase) {
+    return {
+      companyId: cookieCompanyId ?? demoCompany.companyId,
+      companySlug: cookieCompanySlug ?? demoCompany.companySlug,
+      branchId: cookieBranchId ?? demoCompany.branchId,
+    };
+  }
+
+  const company =
+    (cookieCompanyId
+      ? await prisma.company.findUnique({
+          where: { id: cookieCompanyId },
+          select: {
+            id: true,
+            slug: true,
+            branches: {
+              select: { id: true },
+              take: 1,
+              orderBy: { createdAt: "asc" },
+            },
+          },
+        })
+      : null) ??
+    (cookieCompanySlug
+      ? await prisma.company.findFirst({
+          where: {
+            OR: [{ slug: cookieCompanySlug }, { subdomain: cookieCompanySlug }],
+          },
+          select: {
+            id: true,
+            slug: true,
+            branches: {
+              select: { id: true },
+              take: 1,
+              orderBy: { createdAt: "asc" },
+            },
+          },
+        })
+      : null) ??
+    (env.DEFAULT_COMPANY_SLUG
+      ? await prisma.company.findFirst({
+          where: {
+            OR: [{ slug: env.DEFAULT_COMPANY_SLUG }, { subdomain: env.DEFAULT_COMPANY_SLUG }],
+          },
+          select: {
+            id: true,
+            slug: true,
+            branches: {
+              select: { id: true },
+              take: 1,
+              orderBy: { createdAt: "asc" },
+            },
+          },
+        })
+      : null) ??
+    (await prisma.company.findFirst({
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        slug: true,
+        branches: {
+          select: { id: true },
+          take: 1,
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    }));
+
+  if (company) {
+    return {
+      companyId: company.id,
+      companySlug: company.slug,
+      branchId: cookieBranchId ?? company.branches[0]?.id ?? null,
+    };
+  }
 
   return {
-    companyId: cookieStore.get(DEV_SESSION_COMPANY_ID_COOKIE)?.value ?? demoCompany.companyId,
-    companySlug: cookieStore.get(DEV_SESSION_COMPANY_SLUG_COOKIE)?.value ?? demoCompany.companySlug,
-    branchId: cookieStore.get(DEV_SESSION_BRANCH_ID_COOKIE)?.value ?? demoCompany.branchId,
+    companyId: cookieCompanyId ?? demoCompany.companyId,
+    companySlug: cookieCompanySlug ?? demoCompany.companySlug,
+    branchId: cookieBranchId ?? demoCompany.branchId,
   };
+}
+
+export async function getPreferredTenantSiteCompanySlug() {
+  const company = await resolveDemoCompanyContext();
+
+  if (!company.companyId || !company.companySlug) {
+    return null;
+  }
+
+  if (featureFlags.hasDatabase && company.companyId === demoCompany.companyId) {
+    return null;
+  }
+
+  return company.companySlug;
 }
 
 export async function getAppSession(

@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { AdminAttentionBadge, AdminEmptyState, AdminStateBanner } from "@/components/admin/admin-ui";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { compareAttentionPriority, getAttentionTone, workflowVocabulary } from "@/modules/admin/workflow-vocabulary";
 import type { AdminClientProfile } from "@/modules/clients/queries";
 
 export function ClientActivityView({ client }: { client: AdminClientProfile }) {
@@ -25,6 +27,33 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
       ]),
     ),
   );
+
+  function isDirty(item: AdminClientProfile["wishlistItems"][number]) {
+    const draft = drafts[item.id];
+    return (
+      draft.assignedStaffId !== (item.assignedStaffId ?? "") ||
+      draft.followUpStatus !== item.followUpStatus ||
+      draft.followUpNote !== (item.followUpNote ?? "")
+    );
+  }
+
+  function resetWishlist(item: AdminClientProfile["wishlistItems"][number]) {
+    setDrafts((current) => ({
+      ...current,
+      [item.id]: {
+        assignedStaffId: item.assignedStaffId ?? "",
+        followUpStatus: item.followUpStatus,
+        followUpNote: item.followUpNote ?? "",
+      },
+    }));
+  }
+
+  function getAttentionState(item: AdminClientProfile["wishlistItems"][number]) {
+    return workflowVocabulary.clients.attention({
+      followUpStatus: drafts[item.id]?.followUpStatus ?? item.followUpStatus,
+      assignedStaffId: drafts[item.id]?.assignedStaffId ?? item.assignedStaffId,
+    });
+  }
 
   async function saveWishlistFollowUp(wishlistId: string) {
     setPendingId(wishlistId);
@@ -46,6 +75,21 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
     toast.success("Follow-up updated.");
     router.refresh();
   }
+
+  const sortedWishlistItems = client.wishlistItems
+    .slice()
+    .sort((left, right) => {
+      const attentionComparison = compareAttentionPriority(
+        getAttentionState(left)?.priority,
+        getAttentionState(right)?.priority,
+      );
+
+      if (attentionComparison !== 0) {
+        return attentionComparison;
+      }
+
+      return new Date(right.savedAt).getTime() - new Date(left.savedAt).getTime();
+    });
 
   return (
     <div className="space-y-8">
@@ -98,18 +142,32 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
       <Card className="rounded-[30px] border-[var(--line)] bg-white p-6">
         <h2 className="text-xl font-semibold text-[var(--ink-950)]">Wishlist intent and follow-up</h2>
         <div className="mt-5 space-y-4">
-          {client.wishlistItems.map((item) => (
+          {sortedWishlistItems.map((item) => {
+            const attention = getAttentionState(item);
+            const followUpStatus = drafts[item.id]?.followUpStatus ?? item.followUpStatus;
+
+            return (
             <div key={item.id} className="rounded-[28px] border border-[var(--line)] p-5">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <div className="text-lg font-semibold text-[var(--ink-950)]">{item.propertyTitle}</div>
                   <div className="mt-1 text-sm text-[var(--ink-500)]">
-                    Saved {item.savedAt} · {item.timeLabel}
+                    Saved {item.savedAt} - {item.timeLabel}
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Badge>{item.status}</Badge>
-                  <Badge>{item.followUpStatus}</Badge>
+                  <Badge>
+                    {workflowVocabulary.clients.followUpStatusLabels[
+                      followUpStatus as keyof typeof workflowVocabulary.clients.followUpStatusLabels
+                    ] ?? followUpStatus}
+                  </Badge>
+                  {attention ? (
+                    <AdminAttentionBadge
+                      label={attention.label}
+                      tone={getAttentionTone(attention.priority)}
+                    />
+                  ) : null}
                 </div>
               </div>
 
@@ -147,11 +205,11 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
                     }))
                   }
                 >
-                  <option value="NONE">None</option>
-                  <option value="PENDING_CALL">Pending call</option>
-                  <option value="CONTACTED">Contacted</option>
-                  <option value="FOLLOW_UP_SCHEDULED">Follow-up scheduled</option>
-                  <option value="CLOSED">Closed</option>
+                  <option value="NONE">{workflowVocabulary.clients.followUpStatusLabels.NONE}</option>
+                  <option value="PENDING_CALL">{workflowVocabulary.clients.followUpStatusLabels.PENDING_CALL}</option>
+                  <option value="CONTACTED">{workflowVocabulary.clients.followUpStatusLabels.CONTACTED}</option>
+                  <option value="FOLLOW_UP_SCHEDULED">{workflowVocabulary.clients.followUpStatusLabels.FOLLOW_UP_SCHEDULED}</option>
+                  <option value="CLOSED">{workflowVocabulary.clients.followUpStatusLabels.CLOSED}</option>
                 </select>
                 <div className="flex gap-2">
                   {item.whatsappHref ? (
@@ -159,7 +217,10 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
                       <Button variant="outline">WhatsApp</Button>
                     </a>
                   ) : null}
-                  <Button onClick={() => saveWishlistFollowUp(item.id)} disabled={pendingId === item.id}>
+                  <Button variant="outline" onClick={() => resetWishlist(item)} disabled={!isDirty(item) || pendingId === item.id}>
+                    Reset
+                  </Button>
+                  <Button onClick={() => saveWishlistFollowUp(item.id)} disabled={pendingId === item.id || !isDirty(item)}>
                     {pendingId === item.id ? "Saving..." : "Save"}
                   </Button>
                 </div>
@@ -180,6 +241,18 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
                 }
               />
 
+              <div className="mt-4">
+                <AdminStateBanner
+                  tone={isDirty(item) ? "warning" : "info"}
+                  title={isDirty(item) ? "Unsaved follow-up changes" : "Next best action"}
+                  message={
+                    isDirty(item)
+                      ? "Review owner, follow-up status, and note together, then save once."
+                      : workflowVocabulary.clients.nextAction(followUpStatus)
+                  }
+                />
+              </div>
+
               <div className="mt-4 flex flex-wrap gap-3">
                 <Link href={`/properties/${item.propertySlug}`}>
                   <Button variant="ghost">Open property</Button>
@@ -189,11 +262,12 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
                 ) : null}
               </div>
             </div>
-          ))}
+          )})}
           {client.wishlistItems.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-[var(--line)] px-4 py-10 text-center text-sm text-[var(--ink-500)]">
-              No wishlist activity yet for this client.
-            </div>
+            <AdminEmptyState
+              title="No wishlist activity yet"
+              description="Saved properties will appear here once the client begins showing intent on the public site or buyer portal."
+            />
           ) : null}
         </div>
       </Card>
@@ -201,37 +275,37 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
       <div className="grid gap-6 lg:grid-cols-2">
         <SimpleListCard
           title="Inquiries"
-          empty="No inquiries yet."
+          emptyTitle="No inquiries yet"
           rows={client.inquiries.map((item) => ({
             title: item.propertyTitle,
-            subtitle: `${item.status} · ${item.assignedStaffName}`,
+            subtitle: `${item.status} - ${item.assignedStaffName}`,
             meta: item.createdAt,
           }))}
         />
         <SimpleListCard
           title="Inspections"
-          empty="No inspections yet."
+          emptyTitle="No inspections yet"
           rows={client.inspections.map((item) => ({
             title: item.propertyTitle,
-            subtitle: `${item.status} · ${item.assignedStaffName}`,
+            subtitle: `${item.status} - ${item.assignedStaffName}`,
             meta: item.scheduledFor,
           }))}
         />
         <SimpleListCard
           title="Reservations"
-          empty="No reservations yet."
+          emptyTitle="No reservations yet"
           rows={client.reservations.map((item) => ({
             title: item.reference,
-            subtitle: `${item.propertyTitle} · ${item.status}${item.marketerName ? ` · ${item.marketerName}` : ""}`,
+            subtitle: `${item.propertyTitle} - ${item.status}${item.marketerName ? ` - ${item.marketerName}` : ""}`,
             meta: "Reservation flow",
           }))}
         />
         <SimpleListCard
           title="Payments"
-          empty="No payments yet."
+          emptyTitle="No payments yet"
           rows={client.payments.map((item) => ({
             title: item.reference,
-            subtitle: `${item.amount} · ${item.status} · ${item.method}`,
+            subtitle: `${item.amount} - ${item.status} - ${item.method}`,
             meta: item.receiptHref ? "Receipt available" : "No receipt yet",
           }))}
         />
@@ -239,7 +313,7 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
 
       <SimpleListCard
         title="Documents"
-        empty="No client documents available."
+        emptyTitle="No client documents available"
         rows={client.documents.map((item) => ({
           title: item.fileName,
           subtitle: item.type,
@@ -253,11 +327,11 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
 function SimpleListCard({
   title,
   rows,
-  empty,
+  emptyTitle,
 }: {
   title: string;
   rows: Array<{ title: string; subtitle: string; meta: string }>;
-  empty: string;
+  emptyTitle: string;
 }) {
   return (
     <Card className="rounded-[30px] border-[var(--line)] bg-white p-6">
@@ -272,9 +346,10 @@ function SimpleListCard({
             </div>
           ))
         ) : (
-          <div className="rounded-3xl border border-dashed border-[var(--line)] px-4 py-10 text-center text-sm text-[var(--ink-500)]">
-            {empty}
-          </div>
+          <AdminEmptyState
+            title={emptyTitle}
+            description="Nothing is currently recorded in this part of the client journey."
+          />
         )}
       </div>
     </Card>

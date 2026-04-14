@@ -117,3 +117,35 @@ test("tenant public urls default to the tenant homepage instead of listings", ()
     "https://myrealty.com/properties",
   );
 });
+
+test("tenant public urls use tenant subdomains when company slug is provided", () => {
+  assert.equal(
+    resolveTenantPublicUrl(config, {
+      companySlug: "acme",
+    }),
+    "https://acme.estateos.com/",
+  );
+  assert.equal(
+    resolveTenantPublicUrl(config, {
+      companySlug: "acme",
+      pathname: "/properties",
+    }),
+    "https://acme.estateos.com/properties",
+  );
+});
+
+test("tenant public urls use localhost tenant subdomains in development", () => {
+  const devConfig: DomainRuntimeConfig = {
+    appBaseUrl: "http://localhost:3000",
+    platformBaseUrl: "http://localhost:3000",
+    portalBaseUrl: "http://localhost:3000",
+    isProduction: false,
+  };
+
+  assert.equal(
+    resolveTenantPublicUrl(devConfig, {
+      companySlug: "acme",
+    }),
+    "http://acme.localhost:3000/",
+  );
+});

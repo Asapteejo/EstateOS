@@ -29,6 +29,7 @@ const adminLinks = [
   ["Transactions", "/admin/transactions"],
   ["Pipeline", "/admin/pipeline"],
   ["Analytics", "/admin/analytics"],
+  ["Feasibility", "/admin/feasibility"],
   ["Listings", "/admin/listings"],
   ["Team", "/admin/team"],
   ["Marketers", "/admin/marketers"],
@@ -60,18 +61,28 @@ export async function DashboardShell({
   const branding = presentation.branding;
 
   return (
-    <Container className="grid gap-6 py-6 lg:grid-cols-[260px_minmax(0,1fr)] lg:py-8">
+    <Container className="grid gap-6 py-5 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8 lg:py-8">
       {tenant.companyId ? <LiveSurfaceSync channel="company" surface={area} /> : null}
-      <aside className="rounded-[var(--tenant-card-radius,28px)] border border-[var(--tenant-nav-border)] bg-[var(--tenant-nav-surface)] p-5 shadow-[var(--tenant-nav-shadow)] lg:sticky lg:top-6 lg:self-start">
-        <Logo href={`/${area}`} name={presentation.companyName} tagline={area === "portal" ? "Buyer workspace" : "Company workspace"} logoUrl={branding.logoUrl} />
-        <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:mt-8 lg:block lg:space-y-2">
+      <aside className="rounded-[var(--radius-xl)] border border-[var(--tenant-nav-border)] bg-[var(--tenant-nav-surface)] p-4 shadow-[var(--tenant-nav-shadow)] lg:sticky lg:top-6 lg:self-start lg:p-5">
+        <div className="rounded-[var(--radius-lg)] border border-[var(--tenant-nav-border)]/60 bg-white/40 p-4">
+          <Logo href={`/${area}`} name={presentation.companyName} tagline={area === "portal" ? "Buyer workspace" : "Company workspace"} logoUrl={branding.logoUrl} />
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="admin-chip border-[var(--tenant-nav-border)] bg-white/60 text-[var(--ink-600)]">
+              {area === "portal" ? "Buyer surface" : "Operator surface"}
+            </span>
+            <span className="admin-chip border-[var(--tenant-nav-border)] bg-white/60 text-[var(--ink-600)]">
+              {links.length} views
+            </span>
+          </div>
+        </div>
+        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:mt-6 lg:block lg:space-y-2">
           {links.map(([label, href]) => (
             <Link
               key={href}
               href={href}
               className={cn(
-                "block rounded-2xl px-4 py-3 text-sm font-medium text-[var(--ink-700)] transition hover:bg-[var(--sand-100)]",
-                href === `/${area}` && "bg-[var(--sand-100)] text-[var(--ink-950)]",
+                "admin-interactive admin-focus block rounded-[var(--radius-md)] px-4 py-3 text-sm font-medium text-[var(--ink-700)] hover:bg-[var(--sand-100)] hover:text-[var(--ink-950)]",
+                href === `/${area}` && "bg-[var(--sand-100)] text-[var(--ink-950)] shadow-[inset_0_0_0_1px_rgba(15,23,42,0.06)]",
               )}
             >
               {label}
@@ -80,9 +91,14 @@ export async function DashboardShell({
         </div>
       </aside>
       <div className="min-w-0 space-y-6">
-        <div>
-          <h1 className="font-serif text-3xl text-[var(--ink-950)] sm:text-4xl">{title}</h1>
-          <p className="mt-2 text-sm leading-7 text-[var(--ink-600)]">{subtitle}</p>
+        <div className="border-b border-[var(--line)] pb-5 sm:pb-6">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--ink-400)]">
+            {area === "portal" ? "Buyer workspace" : "Company workspace"}
+          </div>
+          <h1 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-[var(--ink-950)] sm:text-4xl">
+            {title}
+          </h1>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--ink-500)]">{subtitle}</p>
         </div>
         {children}
       </div>

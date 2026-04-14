@@ -132,7 +132,7 @@ export default async function PropertiesPage({
       />
       <div className="flex items-center justify-between gap-4 rounded-3xl border border-[var(--line)] px-5 py-4 text-sm text-[var(--ink-600)]">
         <span>
-          Showing page {properties.page} of {properties.totalPages} · {properties.total} result(s)
+          Showing page {properties.page} of {properties.totalPages}  -  {properties.total} result(s)
         </span>
         <div className="flex gap-3">
           {properties.page > 1 ? (

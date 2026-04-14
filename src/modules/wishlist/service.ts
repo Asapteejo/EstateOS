@@ -473,7 +473,7 @@ export async function getBuyerWishlistItems(context: TenantContext): Promise<Buy
         "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80",
       propertyPrice: formatCurrency(price, row.property.currency),
       paymentPlanSummary: primaryPlan
-        ? `${primaryPlan.title} · ${primaryPlan.durationMonths} months`
+        ? `${primaryPlan.title}  -  ${primaryPlan.durationMonths} months`
         : "One-time payment available",
       savedAt: formatDate(row.createdAt),
       expiresAt: row.expiresAt ? formatDate(row.expiresAt) : null,

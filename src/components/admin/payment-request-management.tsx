@@ -4,8 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import { AdminAttentionBadge, AdminEmptyState, AdminField, AdminFormSection, AdminPanel, AdminQuickActions, AdminStateBanner, AdminToolbar } from "@/components/admin/admin-ui";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 type ClientOption = {
   id: string;
@@ -29,6 +31,27 @@ type PaymentRequestRow = {
   checkoutUrl: string | null;
 };
 
+function getRequestAttentionState(request: PaymentRequestRow): { label: string; tone: "warning" | "danger" | "info" | "success" } | null {
+  if (!request.dueAt) {
+    return request.status === "PAID" ? { label: "Paid", tone: "success" } : null;
+  }
+
+  const dueAt = new Date(request.dueAt).getTime();
+  const hoursUntilDue = (dueAt - Date.now()) / (1000 * 60 * 60);
+
+  if ((request.status === "SENT" || request.status === "AWAITING_PAYMENT") && hoursUntilDue < 0) {
+    return { label: "Overdue", tone: "danger" };
+  }
+  if ((request.status === "SENT" || request.status === "AWAITING_PAYMENT") && hoursUntilDue <= 24) {
+    return { label: "Due today", tone: "warning" };
+  }
+  if (request.status === "PAID") {
+    return { label: "Paid", tone: "success" };
+  }
+
+  return null;
+}
+
 export function PaymentRequestManagement({
   clients,
   requests,
@@ -49,6 +72,19 @@ export function PaymentRequestManagement({
     dueAt: "",
     notes: "",
   });
+
+  function handleClientChange(value: string) {
+    const nextClient = clients.find((client) => client.id === value) ?? null;
+    const nextDueDate = new Date();
+    nextDueDate.setDate(nextDueDate.getDate() + 7);
+
+    setSelectedClientId(value);
+    setForm((current) => ({
+      ...current,
+      title: nextClient ? `Outstanding payment - ${nextClient.label}` : "Outstanding property payment",
+      dueAt: current.dueAt || nextDueDate.toISOString().slice(0, 10),
+    }));
+  }
 
   async function submit() {
     if (!selectedClient) {
@@ -90,6 +126,10 @@ export function PaymentRequestManagement({
   }
 
   async function updateStatus(id: string, status: "CANCELLED" | "EXPIRED") {
+    if (status === "CANCELLED" && !window.confirm("Cancel this payment request? Buyers will no longer be able to act on it.")) {
+      return;
+    }
+
     const response = await fetch(`/api/admin/payment-requests/${id}`, {
       method: "PATCH",
       headers: {
@@ -110,78 +150,123 @@ export function PaymentRequestManagement({
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-      <Card className="rounded-[30px] border-[var(--line)] bg-white p-6">
-        <h3 className="text-xl font-semibold text-[var(--ink-950)]">Create payment request</h3>
-        <p className="mt-2 text-sm leading-6 text-[var(--ink-500)]">
-          Create a clear payment request for a buyer. Paystack hosted checkout is global-ready; temporary transfer account requests are Nigeria/Paystack-specific and only populate bank details when the provider returns them.
-        </p>
+      <AdminFormSection title="Create payment request" description="Create a clear buyer request with a hosted checkout, transfer reference, or shareable link.">
+        <AdminToolbar className="border-dashed bg-[var(--sand-50)]">
+          <div>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--ink-400)]">
+              Primary operator task
+            </div>
+            <p className="mt-1 text-sm leading-6 text-[var(--ink-500)]">
+              Select the active deal, confirm the amount, then send a buyer-ready request in one pass.
+            </p>
+          </div>
+        </AdminToolbar>
 
-        <div className="mt-6 space-y-4">
-          <Field label="Client / active deal">
-            <select className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm" value={selectedClientId} onChange={(event) => setSelectedClientId(event.target.value)}>
+        <AdminStateBanner
+          tone="info"
+          title="Provider behavior varies by collection method"
+          message="Hosted checkout is global-ready. Temporary transfer account requests are Paystack-specific and only show bank details when the provider returns them."
+        />
+
+        <div className="space-y-4">
+          <AdminField label="Client / active deal" hint={selectedClient ? `Outstanding balance: ${selectedClient.outstandingBalance}` : undefined}>
+            <select className="h-11 w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-4 text-sm" value={selectedClientId} onChange={(event) => handleClientChange(event.target.value)}>
               {clients.map((client) => (
                 <option key={client.id} value={client.id}>
                   {client.label}
                 </option>
               ))}
             </select>
-            {selectedClient ? <p className="mt-2 text-xs text-[var(--ink-500)]">Outstanding balance: {selectedClient.outstandingBalance}</p> : null}
-          </Field>
+          </AdminField>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Request title">
-              <input className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm" value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} />
-            </Field>
-            <Field label="Amount">
-              <input type="number" className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm" value={form.amount} onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))} />
-            </Field>
+            <AdminField label="Request title">
+              <Input value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} />
+            </AdminField>
+            <AdminField label="Amount" hint="Use the current outstanding balance unless you are deliberately collecting a partial amount.">
+              <Input type="number" value={form.amount} onChange={(event) => setForm((current) => ({ ...current, amount: event.target.value }))} />
+            </AdminField>
           </div>
 
-          <Field label="Purpose">
-            <input className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm" value={form.purpose} onChange={(event) => setForm((current) => ({ ...current, purpose: event.target.value }))} />
-          </Field>
+          <AdminField label="Purpose">
+            <Input value={form.purpose} onChange={(event) => setForm((current) => ({ ...current, purpose: event.target.value }))} />
+          </AdminField>
 
           <div className="grid gap-4 md:grid-cols-3">
-            <Field label="Collection method">
-              <select className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm" value={form.collectionMethod} onChange={(event) => setForm((current) => ({ ...current, collectionMethod: event.target.value }))}>
+            <AdminField label="Collection method">
+              <select className="h-11 w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-4 text-sm" value={form.collectionMethod} onChange={(event) => setForm((current) => ({ ...current, collectionMethod: event.target.value }))}>
                 <option value="HOSTED_CHECKOUT">Hosted checkout</option>
                 <option value="BANK_TRANSFER_TEMP_ACCOUNT">Paystack temporary transfer account</option>
                 <option value="CARD_LINK">Card link</option>
                 <option value="MANUAL_BANK_TRANSFER_REFERENCE">Manual bank transfer reference</option>
               </select>
-            </Field>
-            <Field label="Delivery channel">
-              <select className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm" value={form.channel} onChange={(event) => setForm((current) => ({ ...current, channel: event.target.value }))}>
+            </AdminField>
+            <AdminField label="Delivery channel">
+              <select className="h-11 w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-4 text-sm" value={form.channel} onChange={(event) => setForm((current) => ({ ...current, channel: event.target.value }))}>
                 <option value="EMAIL">Email</option>
                 <option value="IN_APP">In-app</option>
                 <option value="SHARE_LINK">Share link</option>
               </select>
-            </Field>
-            <Field label="Due date">
-              <input type="date" className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm" value={form.dueAt} onChange={(event) => setForm((current) => ({ ...current, dueAt: event.target.value }))} />
-            </Field>
+            </AdminField>
+            <AdminField label="Due date">
+              <Input type="date" value={form.dueAt} onChange={(event) => setForm((current) => ({ ...current, dueAt: event.target.value }))} />
+            </AdminField>
           </div>
 
-          <Field label="Notes">
-            <textarea className="min-h-24 w-full rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-sm" value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} />
-          </Field>
+          <AdminField label="Notes">
+            <Textarea className="min-h-24" value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} />
+          </AdminField>
+
+          <AdminQuickActions
+            title="Smart defaults"
+            actions={[
+              {
+                label: "Due in 3 days",
+                onClick: () => {
+                  const date = new Date();
+                  date.setDate(date.getDate() + 3);
+                  setForm((current) => ({ ...current, dueAt: date.toISOString().slice(0, 10) }));
+                },
+              },
+              {
+                label: "Due in 7 days",
+                onClick: () => {
+                  const date = new Date();
+                  date.setDate(date.getDate() + 7);
+                  setForm((current) => ({ ...current, dueAt: date.toISOString().slice(0, 10) }));
+                },
+              },
+              {
+                label: "Clear note",
+                onClick: () => setForm((current) => ({ ...current, notes: "" })),
+                disabled: !form.notes,
+              },
+            ]}
+          />
 
           <div className="flex justify-end">
-            <Button onClick={submit} disabled={pending || !selectedClient}>
+            <Button onClick={submit} disabled={pending || !selectedClient || Number(form.amount) <= 0}>
               {pending ? "Creating..." : "Create payment request"}
             </Button>
           </div>
         </div>
-      </Card>
+      </AdminFormSection>
 
-      <Card className="rounded-[30px] border-[var(--line)] bg-white p-6">
-        <h3 className="text-xl font-semibold text-[var(--ink-950)]">Recent payment requests</h3>
-        <div className="mt-5 space-y-3">
+      <AdminPanel title="Recent payment requests" description="Track newly created requests, copied links, and requests still awaiting payment.">
+        <div className="space-y-3">
           {requests.map((request) => (
-            <div key={request.id} className="rounded-2xl bg-[var(--sand-100)] p-4 text-sm text-[var(--ink-700)]">
+            <div key={request.id} className="admin-surface-muted px-4 py-4 text-sm text-[var(--ink-700)]">
               <div className="flex items-center justify-between gap-4">
                 <div className="font-semibold text-[var(--ink-950)]">{request.title}</div>
-                <div className="text-xs uppercase tracking-[0.16em] text-[var(--ink-500)]">{request.status}</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="text-xs uppercase tracking-[0.16em] text-[var(--ink-500)]">{request.status}</div>
+                  {getRequestAttentionState(request) ? (
+                    <AdminAttentionBadge
+                      label={getRequestAttentionState(request)?.label ?? ""}
+                      tone={getRequestAttentionState(request)?.tone ?? "info"}
+                    />
+                  ) : null}
+                </div>
               </div>
               <div className="mt-2 text-[var(--ink-600)]">{request.buyer}</div>
               <div className="mt-3 flex flex-wrap gap-4 text-xs uppercase tracking-[0.14em] text-[var(--ink-500)]">
@@ -213,22 +298,18 @@ export function PaymentRequestManagement({
                     Cancel
                   </Button>
                 ) : null}
-                {request.reference ? <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-xs text-[var(--ink-500)]">{request.reference}</span> : null}
+                {request.reference ? <span className="admin-chip bg-white">{request.reference}</span> : null}
               </div>
             </div>
           ))}
-          {requests.length === 0 ? <p className="text-sm text-[var(--ink-500)]">No payment requests yet.</p> : null}
+          {requests.length === 0 ? (
+            <AdminEmptyState
+              title="No payment requests yet"
+              description="Create the first request to start collecting reservation or outstanding balance payments from buyers."
+            />
+          ) : null}
         </div>
-      </Card>
+      </AdminPanel>
     </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block space-y-2">
-      <span className="text-sm font-medium text-[var(--ink-700)]">{label}</span>
-      {children}
-    </label>
   );
 }

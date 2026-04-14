@@ -110,7 +110,7 @@ export function PropertyActions({
           <option value="">Select a marketer you are working with</option>
           {marketers.map((marketer) => (
             <option key={marketer.id} value={marketer.id}>
-              {marketer.fullName} · {marketer.title}
+              {marketer.fullName}  -  {marketer.title}
             </option>
           ))}
         </select>
@@ -124,7 +124,7 @@ export function PropertyActions({
           <option value="">Select a payment option</option>
           {paymentPlans.map((plan) => (
             <option key={plan.id} value={plan.id}>
-              {plan.title} · {plan.kind.toLowerCase()}
+              {plan.title}  -  {plan.kind.toLowerCase()}
             </option>
           ))}
         </select>

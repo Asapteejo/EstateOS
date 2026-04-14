@@ -1,6 +1,7 @@
 import { type BillingInterval, type PaymentRequestStatus, type SubscriptionStatus } from "@prisma/client";
 import { formatDistanceToNowStrict, startOfDay, startOfMonth, subDays } from "date-fns";
 
+import { getPlatformAnalyticsReport, type AnalyticsRange } from "@/modules/analytics/aggregates";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -226,6 +227,104 @@ function getRangeWindow(range: SuperadminRange, now = new Date()) {
   };
 }
 
+function toAnalyticsRange(range: SuperadminRange): AnalyticsRange {
+  if (range === "today" || range === "7d") {
+    return "7d";
+  }
+
+  if (range === "30d") {
+    return "30d";
+  }
+
+  return "all";
+}
+
+async function loadCompanySnapshotMetrics(range: SuperadminRange, from: Date | null) {
+  const rows = await prisma.analyticsDailySnapshot.findMany({
+    where: {
+      scope: "COMPANY",
+      ...(from ? { bucketDate: { gte: startOfDay(from) } } : {}),
+    },
+    orderBy: [{ companyId: "asc" }, { bucketDate: "desc" }],
+    select: {
+      companyId: true,
+      bucketDate: true,
+      platformInflow: true,
+      successfulPaymentCount: true,
+      subscriptionRevenue: true,
+      commissionRevenue: true,
+      overdueAmount: true,
+    },
+  });
+
+  const metrics = new Map<
+    string,
+    {
+      inflowProcessed: number;
+      successfulPayments: number;
+      subscriptionRevenue: number;
+      commissionRevenue: number;
+      overdueAmount: number;
+    }
+  >();
+  const latestOverdueSeen = new Set<string>();
+
+  for (const row of rows) {
+    const companyId = row.companyId;
+    if (!companyId) {
+      continue;
+    }
+
+    const target = metrics.get(companyId) ?? {
+      inflowProcessed: 0,
+      successfulPayments: 0,
+      subscriptionRevenue: 0,
+      commissionRevenue: 0,
+      overdueAmount: 0,
+    };
+
+    target.inflowProcessed += decimalToNumber(row.platformInflow);
+    target.successfulPayments += row.successfulPaymentCount;
+    target.subscriptionRevenue += decimalToNumber(row.subscriptionRevenue);
+    target.commissionRevenue += decimalToNumber(row.commissionRevenue);
+
+    if (!latestOverdueSeen.has(companyId)) {
+      target.overdueAmount = decimalToNumber(row.overdueAmount);
+      latestOverdueSeen.add(companyId);
+    }
+
+    metrics.set(companyId, target);
+  }
+
+  if (range === "today") {
+    const todayKey = startOfDay(new Date()).getTime();
+    for (const [companyId, metric] of metrics) {
+      const todayRows = rows.filter(
+        (row) => row.companyId === companyId && startOfDay(row.bucketDate).getTime() === todayKey,
+      );
+      if (todayRows.length < 1) {
+        metrics.set(companyId, {
+          ...metric,
+          inflowProcessed: 0,
+          successfulPayments: 0,
+          subscriptionRevenue: 0,
+          commissionRevenue: 0,
+        });
+      } else {
+        metrics.set(companyId, {
+          ...metric,
+          inflowProcessed: todayRows.reduce((sum, row) => sum + decimalToNumber(row.platformInflow), 0),
+          successfulPayments: todayRows.reduce((sum, row) => sum + row.successfulPaymentCount, 0),
+          subscriptionRevenue: todayRows.reduce((sum, row) => sum + decimalToNumber(row.subscriptionRevenue), 0),
+          commissionRevenue: todayRows.reduce((sum, row) => sum + decimalToNumber(row.commissionRevenue), 0),
+        });
+      }
+    }
+  }
+
+  return metrics;
+}
+
 function buildPublicDomain(record: CompanyBaseRecord) {
   if (record.customDomain) {
     return record.customDomain;
@@ -363,111 +462,6 @@ export function classifyCompanyHealth(input: {
   };
 }
 
-function buildBucketLabel(value: Date, bucket: "day" | "week" | "month") {
-  if (bucket === "day") {
-    return formatDate(value, "MMM d");
-  }
-
-  if (bucket === "week") {
-    return formatDate(startOfDay(value), "MMM d");
-  }
-
-  return formatDate(value, "MMM yyyy");
-}
-
-function bucketKey(value: Date, bucket: "day" | "week" | "month") {
-  if (bucket === "day") {
-    return startOfDay(value).toISOString();
-  }
-
-  if (bucket === "week") {
-    const start = subDays(startOfDay(value), value.getDay());
-    return start.toISOString();
-  }
-
-  return new Date(value.getFullYear(), value.getMonth(), 1).toISOString();
-}
-
-function buildTrendSeries(input: {
-  bucket: "day" | "week" | "month";
-  payments: Array<{ timestamp: Date; amount: number }>;
-  subscriptionRevenue: Array<{ timestamp: Date; amount: number }>;
-  commissionRevenue: Array<{ timestamp: Date; amount: number }>;
-  signups: Array<{ timestamp: Date }>;
-  overdue: Array<{ timestamp: Date; amount: number }>;
-}) {
-  const points = new Map<
-    string,
-    {
-      label: string;
-      inflow: number;
-      platformRevenue: number;
-      subscriptionRevenue: number;
-      commissionRevenue: number;
-      signups: number;
-      overdueExposure: number;
-      sortAt: number;
-    }
-  >();
-
-  const ensure = (value: Date) => {
-    const key = bucketKey(value, input.bucket);
-    const existing = points.get(key);
-    if (existing) {
-      return existing;
-    }
-
-    const point = {
-      label: buildBucketLabel(new Date(key), input.bucket),
-      inflow: 0,
-      platformRevenue: 0,
-      subscriptionRevenue: 0,
-      commissionRevenue: 0,
-      signups: 0,
-      overdueExposure: 0,
-      sortAt: new Date(key).getTime(),
-    };
-    points.set(key, point);
-    return point;
-  };
-
-  for (const item of input.payments) {
-    ensure(item.timestamp).inflow += item.amount;
-  }
-
-  for (const item of input.subscriptionRevenue) {
-    const point = ensure(item.timestamp);
-    point.subscriptionRevenue += item.amount;
-    point.platformRevenue += item.amount;
-  }
-
-  for (const item of input.commissionRevenue) {
-    const point = ensure(item.timestamp);
-    point.commissionRevenue += item.amount;
-    point.platformRevenue += item.amount;
-  }
-
-  for (const item of input.signups) {
-    ensure(item.timestamp).signups += 1;
-  }
-
-  for (const item of input.overdue) {
-    ensure(item.timestamp).overdueExposure += item.amount;
-  }
-
-  return [...points.values()]
-    .sort((left, right) => left.sortAt - right.sortAt)
-    .map((item) => ({
-      label: item.label,
-      inflow: item.inflow,
-      platformRevenue: item.platformRevenue,
-      subscriptionRevenue: item.subscriptionRevenue,
-      commissionRevenue: item.commissionRevenue,
-      signups: item.signups,
-      overdueExposure: item.overdueExposure,
-    }));
-}
-
 async function loadPlatformAnalytics(range: SuperadminRange) {
   const window = getRangeWindow(range);
 
@@ -539,28 +533,14 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
           lt: window.previousTo,
         }
       : undefined;
+  const [platformReport, snapshotMetrics] = await Promise.all([
+    getPlatformAnalyticsReport(toAnalyticsRange(range)),
+    loadCompanySnapshotMetrics(range, window.from),
+  ]);
 
-  const [
-    companies,
-    paymentAgg,
-    previousPaymentAgg,
-    commissionAgg,
-    previousCommissionAgg,
-    subscriptionAgg,
-    previousSubscriptionAgg,
-    overdueAgg,
-    latestActivities,
-    latestPayments,
-    latestRequests,
-    latestTransactions,
-    recentSuccessfulPayments,
-    recentPaymentRequests,
-    recentBillingEvents,
-    recentCompanyActivity,
-    recentWebhookIssues,
-    recentJobFailures,
-    plans,
-  ] = await Promise.all([
+  const useSnapshotMetrics = snapshotMetrics.size > 0;
+
+  const [companies, latestActivities, latestPayments, latestRequests, latestTransactions, plans] = await Promise.all([
     prisma.company.findMany({
       orderBy: { createdAt: "desc" },
       select: {
@@ -646,67 +626,6 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
         },
       },
     }),
-    prisma.payment.groupBy({
-      by: ["companyId"],
-      where: {
-        status: "SUCCESS",
-        ...(timeWhere ? { paidAt: timeWhere } : {}),
-      },
-      _sum: { amount: true },
-      _count: { _all: true },
-    }),
-    previousWhere
-      ? prisma.payment.groupBy({
-          by: ["companyId"],
-          where: {
-            status: "SUCCESS",
-            paidAt: previousWhere,
-          },
-          _sum: { amount: true },
-          _count: { _all: true },
-        })
-      : Promise.resolve([]),
-    prisma.commissionRecord.groupBy({
-      by: ["companyId"],
-      where: {
-        ...(timeWhere ? { createdAt: timeWhere } : {}),
-      },
-      _sum: { platformCommission: true },
-    }),
-    previousWhere
-      ? prisma.commissionRecord.groupBy({
-          by: ["companyId"],
-          where: {
-            createdAt: previousWhere,
-          },
-          _sum: { platformCommission: true },
-        })
-      : Promise.resolve([]),
-    prisma.billingEvent.groupBy({
-      by: ["companyId"],
-      where: {
-        type: "SUBSCRIPTION_PAYMENT_RECORDED",
-        ...(timeWhere ? { createdAt: timeWhere } : {}),
-      },
-      _sum: { amount: true },
-    }),
-    previousWhere
-      ? prisma.billingEvent.groupBy({
-          by: ["companyId"],
-          where: {
-            type: "SUBSCRIPTION_PAYMENT_RECORDED",
-            createdAt: previousWhere,
-          },
-          _sum: { amount: true },
-        })
-      : Promise.resolve([]),
-    prisma.transaction.groupBy({
-      by: ["companyId"],
-      where: {
-        paymentStatus: "OVERDUE",
-      },
-      _sum: { outstandingBalance: true },
-    }),
     prisma.activityEvent.groupBy({
       by: ["companyId"],
       _max: { createdAt: true },
@@ -724,6 +643,99 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
       by: ["companyId"],
       _max: { updatedAt: true, createdAt: true },
     }),
+    prisma.plan.findMany({
+      orderBy: [{ code: "asc" }, { interval: "asc" }],
+      include: {
+        _count: {
+          select: {
+            subscriptions: {
+              where: {
+                isCurrent: true,
+                status: {
+                  in: ["ACTIVE", "TRIAL", "GRANTED"],
+                },
+              },
+            },
+          },
+        },
+      },
+    }),
+  ]);
+
+  const [paymentAgg, commissionAgg, subscriptionAgg, overdueAgg] = useSnapshotMetrics
+    ? [[], [], [], []]
+    : await Promise.all([
+        prisma.payment.groupBy({
+          by: ["companyId"],
+          where: {
+            status: "SUCCESS",
+            ...(timeWhere ? { paidAt: timeWhere } : {}),
+          },
+          _sum: { amount: true },
+          _count: { _all: true },
+        }),
+        prisma.commissionRecord.groupBy({
+          by: ["companyId"],
+          where: {
+            ...(timeWhere ? { createdAt: timeWhere } : {}),
+          },
+          _sum: { platformCommission: true },
+        }),
+        prisma.billingEvent.groupBy({
+          by: ["companyId"],
+          where: {
+            type: "SUBSCRIPTION_PAYMENT_RECORDED",
+            ...(timeWhere ? { createdAt: timeWhere } : {}),
+          },
+          _sum: { amount: true },
+        }),
+        prisma.transaction.groupBy({
+          by: ["companyId"],
+          where: {
+            paymentStatus: "OVERDUE",
+          },
+          _sum: { outstandingBalance: true },
+        }),
+      ]);
+
+  const [
+    previousPaymentAgg,
+    previousCommissionAgg,
+    previousSubscriptionAgg,
+    recentSuccessfulPayments,
+    recentPaymentRequests,
+    recentBillingEvents,
+    recentCompanyActivity,
+    recentWebhookIssues,
+    recentJobFailures,
+  ] = await Promise.all([
+    previousWhere
+      ? prisma.payment.aggregate({
+          where: {
+            status: "SUCCESS",
+            paidAt: previousWhere,
+          },
+          _sum: { amount: true },
+          _count: { _all: true },
+        })
+      : Promise.resolve({ _sum: { amount: null }, _count: { _all: 0 } }),
+    previousWhere
+      ? prisma.commissionRecord.aggregate({
+          where: {
+            createdAt: previousWhere,
+          },
+          _sum: { platformCommission: true },
+        })
+      : Promise.resolve({ _sum: { platformCommission: null } }),
+    previousWhere
+      ? prisma.billingEvent.aggregate({
+          where: {
+            type: "SUBSCRIPTION_PAYMENT_RECORDED",
+            createdAt: previousWhere,
+          },
+          _sum: { amount: true },
+        })
+      : Promise.resolve({ _sum: { amount: null } }),
     prisma.payment.findMany({
       where: { status: "SUCCESS", paidAt: { not: null } },
       orderBy: { paidAt: "desc" },
@@ -831,32 +843,25 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
         company: { select: { name: true } },
       },
     }),
-    prisma.plan.findMany({
-      orderBy: [{ code: "asc" }, { interval: "asc" }],
-      include: {
-        _count: {
-          select: {
-            subscriptions: {
-              where: {
-                isCurrent: true,
-                status: {
-                  in: ["ACTIVE", "TRIAL", "GRANTED"],
-                },
-              },
-            },
-          },
-        },
-      },
-    }),
   ]);
 
-  const paymentMap = new Map(paymentAgg.map((row) => [row.companyId, { amount: decimalToNumber(row._sum.amount), count: row._count._all }]));
-  const previousPaymentMap = new Map(previousPaymentAgg.map((row) => [row.companyId, { amount: decimalToNumber(row._sum.amount), count: row._count._all }]));
-  const commissionMap = new Map(commissionAgg.map((row) => [row.companyId, decimalToNumber(row._sum.platformCommission)]));
-  const previousCommissionMap = new Map(previousCommissionAgg.map((row) => [row.companyId, decimalToNumber(row._sum.platformCommission)]));
-  const subscriptionMap = new Map(subscriptionAgg.map((row) => [row.companyId ?? "unassigned", decimalToNumber(row._sum.amount)]));
-  const previousSubscriptionMap = new Map(previousSubscriptionAgg.map((row) => [row.companyId ?? "unassigned", decimalToNumber(row._sum.amount)]));
-  const overdueMap = new Map(overdueAgg.map((row) => [row.companyId, decimalToNumber(row._sum.outstandingBalance)]));
+  const paymentMap = useSnapshotMetrics
+    ? new Map(
+        [...snapshotMetrics.entries()].map(([companyId, metrics]) => [
+          companyId,
+          { amount: metrics.inflowProcessed, count: metrics.successfulPayments },
+        ]),
+      )
+    : new Map(paymentAgg.map((row) => [row.companyId, { amount: decimalToNumber(row._sum.amount), count: row._count._all }]));
+  const commissionMap = useSnapshotMetrics
+    ? new Map([...snapshotMetrics.entries()].map(([companyId, metrics]) => [companyId, metrics.commissionRevenue]))
+    : new Map(commissionAgg.map((row) => [row.companyId, decimalToNumber(row._sum.platformCommission)]));
+  const subscriptionMap = useSnapshotMetrics
+    ? new Map([...snapshotMetrics.entries()].map(([companyId, metrics]) => [companyId, metrics.subscriptionRevenue]))
+    : new Map(subscriptionAgg.map((row) => [row.companyId ?? "unassigned", decimalToNumber(row._sum.amount)]));
+  const overdueMap = useSnapshotMetrics
+    ? new Map([...snapshotMetrics.entries()].map(([companyId, metrics]) => [companyId, metrics.overdueAmount]))
+    : new Map(overdueAgg.map((row) => [row.companyId, decimalToNumber(row._sum.outstandingBalance)]));
   const activityMaxMap = new Map(latestActivities.map((row) => [row.companyId, row._max.createdAt]));
   const paymentMaxMap = new Map(latestPayments.map((row) => [row.companyId, row._max.paidAt ?? row._max.createdAt]));
   const requestMaxMap = new Map(latestRequests.map((row) => [row.companyId, row._max.sentAt ?? row._max.createdAt]));
@@ -925,18 +930,17 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
     } satisfies CompanyMetricRow;
   });
 
-  const totalPlatformInflow = companyRows.reduce((sum, company) => sum + company.inflowProcessed, 0);
-  const totalSuccessfulPayments = companyRows.reduce((sum, company) => sum + company.successfulPayments, 0);
-  const totalDeals = companyRows.reduce((sum, company) => sum + company.totalDeals, 0);
-  const overdueAmount = companyRows.reduce((sum, company) => sum + company.overdueAmount, 0);
-  const subscriptionRevenue = companyRows.reduce((sum, company) => sum + company.subscriptionRevenue, 0);
-  const commissionRevenue = companyRows.reduce((sum, company) => sum + company.commissionRevenue, 0);
-  const totalPlatformRevenue = subscriptionRevenue + commissionRevenue;
+  const totalPlatformInflow = platformReport.summary.totalPlatformInflow;
+  const totalSuccessfulPayments = platformReport.summary.successfulPayments;
+  const totalDeals = platformReport.summary.totalDeals;
+  const overdueAmount = platformReport.summary.overdueAmount;
+  const subscriptionRevenue = platformReport.summary.subscriptionRevenue;
+  const commissionRevenue = platformReport.summary.commissionRevenue;
+  const totalPlatformRevenue = platformReport.summary.totalPlatformRevenue;
 
-  const previousPlatformInflow = [...previousPaymentMap.values()].reduce((sum, row) => sum + row.amount, 0);
+  const previousPlatformInflow = decimalToNumber(previousPaymentAgg._sum.amount);
   const previousPlatformRevenue =
-    [...previousCommissionMap.values()].reduce((sum, value) => sum + value, 0) +
-    [...previousSubscriptionMap.values()].reduce((sum, value) => sum + value, 0);
+    decimalToNumber(previousCommissionAgg._sum.platformCommission) + decimalToNumber(previousSubscriptionAgg._sum.amount);
 
   const newCompaniesThisMonth = companyRows.filter((company) => company.createdAt >= startOfMonth(new Date())).length;
   const activeCompanies = companyRows.filter((company) => company.lastActiveAt && (!window.from || company.lastActiveAt >= window.from)).length;
@@ -961,7 +965,7 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
       companyId: request.companyId,
       companyName: request.company.name,
       title: "Payment request sent",
-      summary: `${request.title} · ${request.status.toLowerCase()}`,
+      summary: `${request.title}  -  ${request.status.toLowerCase()}`,
       amount: decimalToNumber(request.amount),
       amountLabel: formatCurrency(decimalToNumber(request.amount), request.currency),
       accent: request.status === "PAID" ? ("positive" as const) : ("neutral" as const),
@@ -1038,7 +1042,7 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
       companyId: event.companyId,
       companyName: event.company?.name ?? "Platform",
       title: "Automation issue",
-      summary: `${event.jobName}${event.error ? ` · ${event.error}` : ""}`,
+      summary: `${event.jobName}${event.error ? `  -  ${event.error}` : ""}`,
       amount: null,
       amountLabel: null,
       accent: "alert" as const,
@@ -1047,36 +1051,15 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
     .sort((left, right) => right.timestamp.getTime() - left.timestamp.getTime())
     .slice(0, 28);
 
-  const trendSeries = buildTrendSeries({
-    bucket: window.bucket,
-    payments: recentSuccessfulPayments
-      .filter((item) => !window.from || (item.paidAt ?? item.createdAt) >= window.from)
-      .map((item) => ({
-        timestamp: item.paidAt ?? item.createdAt,
-        amount: decimalToNumber(item.amount),
-      })),
-    subscriptionRevenue: recentBillingEvents
-      .filter((item) => !window.from || item.createdAt >= window.from)
-      .map((item) => ({
-        timestamp: item.createdAt,
-        amount: decimalToNumber(item.amount),
-      })),
-    commissionRevenue: recentSuccessfulPayments
-      .filter((item) => !window.from || (item.paidAt ?? item.createdAt) >= window.from)
-      .map((item) => ({
-        timestamp: item.paidAt ?? item.createdAt,
-        amount: companyRows.find((company) => company.companyId === item.companyId)?.commissionRevenue ?? 0,
-      })),
-    signups: companyRows
-      .filter((company) => !window.from || company.createdAt >= window.from)
-      .map((company) => ({ timestamp: company.createdAt })),
-    overdue: companyRows
-      .filter((company) => company.overdueAmount > 0)
-      .map((company) => ({
-        timestamp: company.lastActiveAt ?? company.createdAt,
-        amount: company.overdueAmount,
-      })),
-  });
+  const trendSeries = platformReport.trendSeries.map((item) => ({
+    label: item.label,
+    inflow: item.inflow,
+    platformRevenue: item.platformRevenue,
+    subscriptionRevenue: item.subscriptionRevenue,
+    commissionRevenue: item.commissionRevenue,
+    signups: item.newCompanies,
+    overdueExposure: item.overdueAmount,
+  }));
 
   return {
     generatedAt: new Date(),
@@ -1192,6 +1175,11 @@ export async function getSuperadminOverviewData(range: SuperadminRange) {
     ],
     topRevenueCompanies,
     riskCompanies,
+    actionBuckets: {
+      missingPayoutSetup: analytics.controls.missingPayoutSetup,
+      inactiveCompanies: analytics.controls.inactiveCompanies,
+      collectionsRiskCompanies: analytics.controls.collectionsRiskCompanies,
+    },
     recentActivity: analytics.recentActivity.slice(0, 12),
     generatedAtLabel: formatDate(analytics.generatedAt, "PPP p"),
   };
@@ -1225,11 +1213,13 @@ export async function getSuperadminCompaniesData(input: {
   range: SuperadminRange;
   search?: string | null;
   health?: string | null;
+  filter?: string | null;
   sort?: CompanySort;
 }) {
   const analytics = await loadPlatformAnalytics(input.range);
   const searchValue = input.search?.trim().toLowerCase() ?? "";
   const healthFilter = input.health && input.health !== "all" ? (input.health as CompanyHealth) : null;
+  const quickFilter = input.filter?.trim().toLowerCase() ?? "all";
 
   let rows = [...analytics.companies];
 
@@ -1244,6 +1234,14 @@ export async function getSuperadminCompaniesData(input: {
 
   if (healthFilter) {
     rows = rows.filter((row) => row.health === healthFilter);
+  }
+
+  if (quickFilter === "inactive") {
+    rows = rows.filter((row) => row.health === "inactive");
+  } else if (quickFilter === "collections-risk") {
+    rows = rows.filter((row) => row.health === "collections_risk");
+  } else if (quickFilter === "payout-missing") {
+    rows = rows.filter((row) => row.providerReadinessLabel !== "Payout ready");
   }
 
   const sort = input.sort ?? "highest_revenue";
@@ -1271,6 +1269,7 @@ export async function getSuperadminCompaniesData(input: {
     generatedAt: analytics.generatedAt,
     range: analytics.range,
     rows,
+    activeFilter: quickFilter,
     healthCounts: {
       healthy: analytics.companies.filter((company) => company.health === "healthy").length,
       collectionsRisk: analytics.companies.filter((company) => company.health === "collections_risk").length,

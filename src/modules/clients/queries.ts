@@ -521,7 +521,7 @@ export async function getAdminClientProfile(
     })),
     ...client.inspectionBookings.map((item) => ({
       title: "Inspection booking",
-      detail: `${item.property.title} · ${item.status.toLowerCase()}`,
+      detail: `${item.property.title}  -  ${item.status.toLowerCase()}`,
       time: formatDate(item.scheduledFor, "PPP p"),
       createdAt: item.scheduledFor,
     })),

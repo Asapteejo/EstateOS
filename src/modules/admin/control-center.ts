@@ -559,7 +559,7 @@ export async function getAdminPaymentMonitoring(context: TenantContext) {
       user: { id: string; firstName: string | null; lastName: string | null };
     }>).map((row) => ({
       id: row.user.id,
-      label: `${`${row.user.firstName ?? ""} ${row.user.lastName ?? ""}`.trim() || "Client"} · ${row.id}`,
+      label: `${`${row.user.firstName ?? ""} ${row.user.lastName ?? ""}`.trim() || "Client"}  -  ${row.id}`,
       transactionId: row.id,
       reservationId: row.reservationId,
       outstandingBalance: formatCurrency(decimalToNumber(row.outstandingBalance)),

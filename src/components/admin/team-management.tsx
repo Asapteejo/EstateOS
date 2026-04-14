@@ -253,7 +253,7 @@ export function TeamManagement({
                     </div>
                     <StatusPills member={member} />
                     <div className="text-xs uppercase tracking-[0.18em] text-[var(--ink-400)]">
-                      {member.staffCode ?? "No staff code"} · order {member.sortOrder}
+                      {member.staffCode ?? "No staff code"}  -  order {member.sortOrder}
                     </div>
                   </div>
                   <div className="flex gap-2 text-[var(--ink-400)]">

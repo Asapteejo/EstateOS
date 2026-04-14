@@ -1,7 +1,7 @@
 import Link from "next/link";
 
+import { AdminMetricCard, AdminMetricGrid, AdminPanel } from "@/components/admin/admin-ui";
 import { DashboardShell } from "@/components/portal/dashboard-shell";
-import { Card } from "@/components/ui/card";
 import { requireAdminSession } from "@/lib/auth/guards";
 import {
   formatAnalyticsCurrency,
@@ -33,144 +33,120 @@ export default async function AdminAnalyticsPage({
       title="Company analytics"
       subtitle="Track conversion, collections efficiency, and how fast your team turns buyer interest into cash."
     >
-      <div className="flex flex-wrap gap-2">
-        {RANGE_OPTIONS.map((option) => (
-          <Link
-            key={option.value}
-            href={`/admin/analytics?range=${option.value}`}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-              option.value === range
-                ? "bg-[var(--ink-950)] text-white"
-                : "border border-[var(--line)] bg-white text-[var(--ink-700)] hover:bg-[var(--sand-50)]"
-            }`}
-          >
-            {option.label}
-          </Link>
-        ))}
+      <div className="overflow-x-auto">
+        <div className="inline-flex min-w-full gap-1.5 rounded-[18px] border border-[var(--line)] bg-[var(--sand-50)]/90 p-1.5 sm:min-w-0">
+          {RANGE_OPTIONS.map((option) => (
+            <Link
+              key={option.value}
+              href={`/admin/analytics?range=${option.value}`}
+              className={
+                option.value === range
+                  ? "rounded-[14px] bg-white px-3.5 py-2 text-sm font-medium text-[var(--ink-950)] shadow-[0_1px_2px_rgba(15,23,42,0.06)]"
+                  : "rounded-[14px] px-3.5 py-2 text-sm font-medium text-[var(--ink-500)] transition hover:text-[var(--ink-900)]"
+              }
+            >
+              {option.label}
+            </Link>
+          ))}
+        </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <Card className="p-6">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-500)]">
-            Total collected
-          </div>
-          <div className="mt-3 text-3xl font-semibold text-[var(--ink-950)]">
-            {formatAnalyticsCurrency(analytics.summary.totalCollected)}
-          </div>
-          <p className="mt-3 text-sm leading-7 text-[var(--ink-600)]">
-            Successful payments recorded across the workspace.
-          </p>
-        </Card>
-        <Card className="p-6">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-500)]">
-            Outstanding balance
-          </div>
-          <div className="mt-3 text-3xl font-semibold text-[var(--ink-950)]">
-            {formatAnalyticsCurrency(analytics.summary.totalOutstanding)}
-          </div>
-          <p className="mt-3 text-sm leading-7 text-[var(--ink-600)]">
-            Open deal value that still needs collection.
-          </p>
-        </Card>
-        <Card className="p-6">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-500)]">
-            Inquiry → reservation
-          </div>
-          <div className="mt-3 text-3xl font-semibold text-[var(--ink-950)]">
-            {analytics.funnel.inquiryToReservationConversion.toFixed(1)}%
-          </div>
-          <p className="mt-3 text-sm leading-7 text-[var(--ink-600)]">
-            {analytics.funnel.reservationCount} reservations from {analytics.funnel.inquiryCount} tracked inquiries.
-          </p>
-        </Card>
-        <Card className="p-6">
-          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-500)]">
-            Collections efficiency
-          </div>
-          <div className="mt-3 text-3xl font-semibold text-[var(--ink-950)]">
-            {analytics.collections.overdueRecoveredPercent.toFixed(1)}%
-          </div>
-          <p className="mt-3 text-sm leading-7 text-[var(--ink-600)]">
-            Overdue value recovered in the current analytics snapshot.
-          </p>
-        </Card>
-      </div>
+      <AdminMetricGrid>
+        <AdminMetricCard
+          label="Total collected"
+          value={formatAnalyticsCurrency(analytics.summary.totalCollected)}
+          hint="Successful payments recorded across the workspace."
+        />
+        <AdminMetricCard
+          label="Outstanding balance"
+          value={formatAnalyticsCurrency(analytics.summary.totalOutstanding)}
+          hint="Open deal value that still needs collection."
+        />
+        <AdminMetricCard
+          label="Inquiry -> reservation"
+          value={`${analytics.funnel.inquiryToReservationConversion.toFixed(1)}%`}
+          hint={`${analytics.funnel.reservationCount} reservations from ${analytics.funnel.inquiryCount} tracked inquiries.`}
+        />
+        <AdminMetricCard
+          label="Collections efficiency"
+          value={`${analytics.collections.overdueRecoveredPercent.toFixed(1)}%`}
+          hint="Overdue value recovered in the current analytics snapshot."
+          tone={analytics.collections.overdueRecoveredPercent >= 50 ? "success" : "default"}
+        />
+      </AdminMetricGrid>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <Card className="overflow-hidden">
-          <div className="border-b border-[var(--line)] px-6 py-5">
-            <h2 className="text-lg font-semibold text-[var(--ink-950)]">Historical trend</h2>
-            <p className="mt-1 text-sm text-[var(--ink-500)]">
-              Daily and grouped analytics snapshots keep revenue and collections visible over time.
-            </p>
-          </div>
+        <AdminPanel
+          title="Historical trend"
+          description="Daily and grouped analytics snapshots keep revenue and collections visible over time."
+          className="px-0 py-0"
+        >
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-[var(--sand-100)] text-left text-[var(--ink-500)]">
+            <table className="admin-table">
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 font-medium">Period</th>
-                  <th className="px-6 py-3 font-medium">Deals</th>
-                  <th className="px-6 py-3 font-medium">Requests</th>
-                  <th className="px-6 py-3 font-medium">Collected</th>
-                  <th className="px-6 py-3 font-medium">Overdue</th>
+                  <th>Period</th>
+                  <th>Deals</th>
+                  <th>Requests</th>
+                  <th>Collected</th>
+                  <th>Overdue</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--line)]">
+              <tbody>
                 {analytics.trendSeries.map((item: (typeof analytics.trendSeries)[number]) => (
                   <tr key={item.label}>
-                    <td className="px-6 py-4 font-medium text-[var(--ink-950)]">{item.label}</td>
-                    <td className="px-6 py-4 text-[var(--ink-700)]">{item.totalDeals}</td>
-                    <td className="px-6 py-4 text-[var(--ink-700)]">{item.paymentRequests}</td>
-                    <td className="px-6 py-4 text-[var(--ink-700)]">{formatAnalyticsCurrency(item.collected)}</td>
-                    <td className="px-6 py-4 text-[var(--danger-700)]">{formatAnalyticsCurrency(item.overdueAmount)}</td>
+                    <td className="font-medium text-[var(--ink-950)]">{item.label}</td>
+                    <td>{item.totalDeals}</td>
+                    <td>{item.paymentRequests}</td>
+                    <td>{formatAnalyticsCurrency(item.collected)}</td>
+                    <td className="text-[var(--danger-700)]">{formatAnalyticsCurrency(item.overdueAmount)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </Card>
+        </AdminPanel>
 
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold text-[var(--ink-950)]">Collections performance</h2>
-          <p className="mt-2 text-sm leading-7 text-[var(--ink-600)]">
-            Use this block to understand whether the team is clearing risk fast enough.
-          </p>
-          <div className="mt-6 space-y-5">
-            <div className="rounded-[22px] border border-[var(--line)] bg-[var(--sand-50)] p-5">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ink-500)]">
+        <AdminPanel
+          title="Collections performance"
+          description="Use this block to understand whether the team is clearing risk fast enough."
+        >
+          <div className="space-y-4">
+            <div className="rounded-[18px] border border-[var(--line)] bg-[var(--sand-50)] px-4 py-4">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--ink-400)]">
                 Overdue amount
               </div>
               <div className="mt-2 text-2xl font-semibold text-[var(--danger-700)]">
                 {formatAnalyticsCurrency(analytics.summary.overdueAmount)}
               </div>
-              <p className="mt-2 text-sm leading-7 text-[var(--ink-600)]">
+              <p className="mt-2 text-sm leading-6 text-[var(--ink-500)]">
                 {analytics.summary.overdueCount} deals currently need collections attention.
               </p>
             </div>
-            <div className="rounded-[22px] border border-[var(--line)] p-5">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ink-500)]">
+            <div className="rounded-[18px] border border-[var(--line)] bg-white px-4 py-4">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--ink-400)]">
                 Avg days to collect
               </div>
               <div className="mt-2 text-2xl font-semibold text-[var(--ink-950)]">
                 {analytics.collections.avgDaysToCollect.toFixed(1)} days
               </div>
-              <p className="mt-2 text-sm leading-7 text-[var(--ink-600)]">
+              <p className="mt-2 text-sm leading-6 text-[var(--ink-500)]">
                 Based on paid reservations captured in the daily analytics snapshots.
               </p>
             </div>
-            <div className="rounded-[22px] border border-[var(--line)] p-5">
-              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ink-500)]">
-                Reservation → payment
+            <div className="rounded-[18px] border border-[var(--line)] bg-white px-4 py-4">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--ink-400)]">
+                Reservation {"->"} payment
               </div>
               <div className="mt-2 text-2xl font-semibold text-[var(--ink-950)]">
                 {analytics.funnel.reservationToPaymentConversion.toFixed(1)}%
               </div>
-              <p className="mt-2 text-sm leading-7 text-[var(--ink-600)]">
+              <p className="mt-2 text-sm leading-6 text-[var(--ink-500)]">
                 Shows how reliably reservations are turning into successful payments.
               </p>
             </div>
           </div>
-        </Card>
+        </AdminPanel>
       </div>
     </DashboardShell>
   );

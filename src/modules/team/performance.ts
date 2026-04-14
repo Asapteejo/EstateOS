@@ -251,7 +251,7 @@ export function buildMarketerPerformanceSummary(metrics: MarketerPerformanceMetr
     metrics.wishlistAdds > 0 ? `${metrics.wishlistAdds} wishlist ${metrics.wishlistAdds === 1 ? "save" : "saves"}` : null,
   ].filter(Boolean) as string[];
 
-  return summaryParts.slice(0, 3).join(" • ") || "Performance score will appear as real client activity builds.";
+  return summaryParts.slice(0, 3).join(" - ") || "Performance score will appear as real client activity builds.";
 }
 
 function toPublicMarketerPerformanceEntry(entry: ComputedMarketerPerformanceRow): MarketerPerformanceEntry {

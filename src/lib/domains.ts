@@ -214,9 +214,22 @@ export function resolveTenantPublicUrl(
 ) {
   const pathname = sanitizeReturnPath(input.pathname ?? "/", "/");
   const customDomain = sanitizeTenantHost(input.customDomain);
+  const tenantSlug = sanitizeTenantSlug(input.companySlug);
 
   if (customDomain) {
     return new URL(pathname, `https://${customDomain}`).toString();
+  }
+
+  if (tenantSlug) {
+    const platformUrl = normalizeBaseUrl(config.platformBaseUrl);
+    const host = normalizeHost(platformUrl.host);
+
+    if (host === "localhost" || host === "127.0.0.1") {
+      const port = platformUrl.port ? `:${platformUrl.port}` : "";
+      return `${platformUrl.protocol}//${tenantSlug}.localhost${port}${pathname}`;
+    }
+
+    return `${platformUrl.protocol}//${tenantSlug}.${host}${pathname}`;
   }
 
   return new URL(pathname, normalizeBaseUrl(config.platformBaseUrl)).toString();

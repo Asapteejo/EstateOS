@@ -157,7 +157,7 @@ test("snapshot records preserve ranking metrics for history tracking", () => {
         score: 28,
         starRating: 4.8,
         rank: 1,
-        summary: "1 closed deal â€¢ 2 successful payments",
+        summary: "1 closed deal  -  2 successful payments",
         metrics: {
           wishlistAdds: 2,
           qualifiedInquiries: 1,

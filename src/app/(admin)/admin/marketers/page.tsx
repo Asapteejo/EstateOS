@@ -1,9 +1,9 @@
 import Link from "next/link";
 
+import { AdminEmptyState, AdminMetricCard, AdminMetricGrid, AdminPanel, AdminToolbar } from "@/components/admin/admin-ui";
 import { OptimizedImage } from "@/components/media/optimized-image";
 import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { requireAdminSession } from "@/lib/auth/guards";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -74,45 +74,82 @@ export default async function AdminMarketersPage({
     now: new Date(),
   });
 
+  const activeRows = dashboard.rows.filter((row) => row.isActive);
+  const totalRevenue = dashboard.rows.reduce(
+    (sum, row) => sum + row.revenue[dashboard.period.toLowerCase() as "weekly" | "monthly" | "lifetime"],
+    0,
+  );
+  const averageScore =
+    dashboard.rows.length > 0
+      ? dashboard.rows.reduce((sum, row) => sum + row.score, 0) / dashboard.rows.length
+      : 0;
+
   return (
     <DashboardShell
       area="admin"
-      title="Marketer Performance"
-      subtitle="Private tenant-scoped marketer analytics across ranking, successful payments, completed deals, inspections, reservations, and attributed revenue."
+      title="Marketer performance"
+      subtitle="Tenant-scoped marketer analytics across ranking, successful payments, completed deals, inspections, reservations, and attributed revenue."
     >
-      <form method="GET" className="grid gap-3 rounded-[28px] border border-[var(--line)] bg-white p-5 lg:grid-cols-[minmax(0,1fr)_180px_220px_auto]">
-        <Input name="q" placeholder="Search marketer name or role" defaultValue={search} />
-        <select
-          name="period"
-          defaultValue={period}
-          className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
-        >
-          {PERIOD_OPTIONS.map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-        <select
-          name="sort"
-          defaultValue={sortBy}
-          className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
-        >
-          {SORT_OPTIONS.map(([value, label]) => (
-            <option key={value} value={value}>
-              Sort by {label}
-            </option>
-          ))}
-        </select>
-        <Button type="submit">Apply</Button>
-      </form>
+      <AdminToolbar>
+        <form method="GET" className="grid w-full gap-3 lg:grid-cols-[minmax(0,1fr)_180px_220px_auto]">
+          <Input name="q" placeholder="Search marketer name or role" defaultValue={search} />
+          <select
+            name="period"
+            defaultValue={period}
+            className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+          >
+            {PERIOD_OPTIONS.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <select
+            name="sort"
+            defaultValue={sortBy}
+            className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+          >
+            {SORT_OPTIONS.map(([value, label]) => (
+              <option key={value} value={value}>
+                Sort by {label}
+              </option>
+            ))}
+          </select>
+          <Button type="submit">Apply</Button>
+        </form>
+      </AdminToolbar>
 
-      <div className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-        <Card className="rounded-[30px] border-[var(--line)] bg-[linear-gradient(140deg,#fbf7f0,#eef6f2)] p-6">
-          <div className="text-xs uppercase tracking-[0.18em] text-[var(--ink-500)]">Top performer this period</div>
+      <AdminMetricGrid>
+        <AdminMetricCard
+          label="Tracked marketers"
+          value={dashboard.rows.length}
+          hint={`${activeRows.length} active profile${activeRows.length === 1 ? "" : "s"} in this workspace.`}
+        />
+        <AdminMetricCard
+          label={`${dashboard.period.toLowerCase()} revenue`}
+          value={formatCurrency(totalRevenue)}
+          hint="Attributed successful payment value across the selected period."
+        />
+        <AdminMetricCard
+          label="Average score"
+          value={averageScore.toFixed(1)}
+          hint="Weighted performance score across the current ranked set."
+        />
+        <AdminMetricCard
+          label="Latest snapshot"
+          value={dashboard.latestSnapshotDate ? formatDate(dashboard.latestSnapshotDate, "PPP") : "Not captured yet"}
+          hint="Daily ranking snapshots power trend direction and movement."
+        />
+      </AdminMetricGrid>
+
+      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <AdminPanel
+          title="Top performer"
+          description="Best current operator based on the selected performance window."
+        >
           {dashboard.topPerformer ? (
-            <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-center">
-              <div className="relative h-20 w-20 overflow-hidden rounded-3xl bg-white shadow-sm">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+              <div className="relative h-18 w-18 overflow-hidden rounded-[20px] bg-[var(--sand-50)] sm:h-20 sm:w-20">
                 {dashboard.topPerformer.avatarUrl ? (
                   <OptimizedImage
                     src={dashboard.topPerformer.avatarUrl}
@@ -127,101 +164,122 @@ export default async function AdminMarketersPage({
                   </div>
                 )}
               </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-semibold text-[var(--ink-950)]">{dashboard.topPerformer.fullName}</h2>
-                <p className="text-sm text-[var(--brand-700)]">{dashboard.topPerformer.title}</p>
-                <p className="text-sm leading-6 text-[var(--ink-600)]">{dashboard.topPerformer.summary}</p>
-                <div className="flex flex-wrap gap-3 text-sm text-[var(--ink-500)]">
-                  <span>{dashboard.period.toLowerCase()} score: <span className="font-semibold text-[var(--ink-950)]">{dashboard.topPerformer.score}</span></span>
-                  <span>{dashboard.period.toLowerCase()} revenue: <span className="font-semibold text-[var(--ink-950)]">{formatCurrency(dashboard.topPerformer.revenue[dashboard.period.toLowerCase() as "weekly" | "monthly" | "lifetime"])}</span></span>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-xl font-semibold tracking-[-0.02em] text-[var(--ink-950)]">
+                  {dashboard.topPerformer.fullName}
+                </h2>
+                <p className="mt-1 text-sm text-[var(--ink-500)]">{dashboard.topPerformer.title}</p>
+                <p className="mt-3 text-sm leading-6 text-[var(--ink-600)]">{dashboard.topPerformer.summary}</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="rounded-full border border-[var(--line)] bg-[var(--sand-50)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-500)]">
+                    Score {dashboard.topPerformer.score}
+                  </span>
+                  <span className="rounded-full border border-[var(--line)] bg-[var(--sand-50)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-500)]">
+                    Revenue {formatCurrency(dashboard.topPerformer.revenue[dashboard.period.toLowerCase() as "weekly" | "monthly" | "lifetime"])}
+                  </span>
+                  <span className="rounded-full border border-[var(--line)] bg-[var(--sand-50)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-500)]">
+                    Rating {dashboard.topPerformer.starRating.toFixed(1)}
+                  </span>
                 </div>
               </div>
             </div>
           ) : (
-            <p className="mt-4 text-sm text-[var(--ink-600)]">No marketer performance activity has been captured yet.</p>
+            <AdminEmptyState
+              title="No marketer activity yet"
+              description="Performance ranking will appear once marketer-linked inspections, reservations, and successful payments are captured."
+            />
           )}
-        </Card>
+        </AdminPanel>
 
-        <Card className="rounded-[30px] border-[var(--line)] bg-white p-6">
-          <div className="text-xs uppercase tracking-[0.18em] text-[var(--ink-500)]">Snapshot history</div>
-          <div className="mt-4 text-3xl font-semibold text-[var(--ink-950)]">
-            {dashboard.latestSnapshotDate ? formatDate(dashboard.latestSnapshotDate, "PPP") : "Not captured yet"}
+        <AdminPanel
+          title="Operator actions"
+          description="Use staff settings and the public team page to keep marketer profiles current."
+        >
+          <div className="space-y-4">
+            <div className="rounded-[18px] border border-[var(--line)] bg-[var(--sand-50)] px-4 py-4">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--ink-400)]">
+                Ranking note
+              </div>
+              <p className="mt-2 text-sm leading-6 text-[var(--ink-600)]">
+                Ranking blends wishlist intent, qualified inquiries, inspections, reservations, successful payments, and completed deals into one operator score.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Link href="/admin/team">
+                <Button variant="outline">Manage team profiles</Button>
+              </Link>
+              <Link href="/team">
+                <Button variant="outline">Open public team page</Button>
+              </Link>
+            </div>
           </div>
-          <p className="mt-3 text-sm leading-6 text-[var(--ink-600)]">
-            Daily marketer ranking snapshots are generated by the operational automation sweep so trends and rank movement can be compared over time.
-          </p>
-        </Card>
+        </AdminPanel>
       </div>
 
-      <Card className="overflow-hidden">
-        <div className="border-b border-[var(--line)] px-6 py-4">
-          <h2 className="text-lg font-semibold text-[var(--ink-950)]">Ranked marketer list</h2>
-          <p className="mt-1 text-sm text-[var(--ink-500)]">
-            {dashboard.rows.length} marketer{dashboard.rows.length === 1 ? "" : "s"} in this tenant workspace
-          </p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-[var(--sand-100)] text-[var(--ink-500)]">
-              <tr>
-                {["Rank", "Marketer", "Score", "Stars", "Weekly revenue", "Monthly revenue", "Lifetime revenue", "Deals", "Payments", "Inspections", "Reservations", "Trend"].map((column) => (
-                  <th key={column} className="px-6 py-3 font-medium">{column}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {dashboard.rows.map((row) => (
-                <tr key={row.id} className="border-t border-[var(--line)] align-top">
-                  <td className="px-6 py-4 font-semibold text-[var(--ink-950)]">#{row.rank}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex min-w-[220px] items-center gap-3">
-                      <div className="relative h-12 w-12 overflow-hidden rounded-2xl bg-[var(--sand-100)]">
-                        {row.avatarUrl ? (
-                          <OptimizedImage src={row.avatarUrl} alt={row.fullName} fill preset="profile" className="object-cover" />
-                        ) : (
-                          <div className="flex h-full items-center justify-center text-lg font-semibold text-[var(--ink-400)]">
-                            {row.fullName.charAt(0)}
+      <AdminPanel
+        title="Ranked marketer list"
+        description={`${dashboard.rows.length} marketer${dashboard.rows.length === 1 ? "" : "s"} in this tenant workspace.`}
+        className="px-0 py-0"
+      >
+        {dashboard.rows.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  {["Rank", "Marketer", "Score", "Stars", "Weekly revenue", "Monthly revenue", "Lifetime revenue", "Deals", "Payments", "Inspections", "Reservations", "Trend"].map((column) => (
+                    <th key={column}>{column}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {dashboard.rows.map((row) => (
+                  <tr key={row.id} className="align-top">
+                    <td className="font-semibold text-[var(--ink-950)]">#{row.rank}</td>
+                    <td>
+                      <div className="flex min-w-[220px] items-center gap-3">
+                        <div className="relative h-12 w-12 overflow-hidden rounded-[16px] bg-[var(--sand-50)]">
+                          {row.avatarUrl ? (
+                            <OptimizedImage src={row.avatarUrl} alt={row.fullName} fill preset="profile" className="object-cover" />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-lg font-semibold text-[var(--ink-400)]">
+                              {row.fullName.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-[var(--ink-950)]">{row.fullName}</div>
+                          <div className="text-[var(--ink-500)]">{row.title}</div>
+                          <div className="mt-1 flex flex-wrap gap-2 text-xs text-[var(--ink-500)]">
+                            {!row.isActive ? <span className="rounded-full border border-[var(--line)] bg-[var(--sand-50)] px-2.5 py-1">Inactive</span> : null}
+                            {!row.isPublished ? <span className="rounded-full border border-[var(--line)] bg-[var(--sand-50)] px-2.5 py-1">Private</span> : null}
                           </div>
-                        )}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-[var(--ink-950)]">{row.fullName}</div>
-                        <div className="text-[var(--ink-500)]">{row.title}</div>
-                        <div className="mt-1 flex flex-wrap gap-2 text-xs text-[var(--ink-500)]">
-                          {!row.isActive ? <span className="rounded-full bg-[var(--sand-100)] px-2 py-1">Inactive</span> : null}
-                          {!row.isPublished ? <span className="rounded-full bg-[var(--sand-100)] px-2 py-1">Private</span> : null}
                         </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 font-semibold text-[var(--ink-950)]">{row.score}</td>
-                  <td className="px-6 py-4 text-[var(--brand-700)]">{row.starRating.toFixed(1)}</td>
-                  <td className="px-6 py-4 text-[var(--ink-700)]">{formatCurrency(row.revenue.weekly)}</td>
-                  <td className="px-6 py-4 text-[var(--ink-700)]">{formatCurrency(row.revenue.monthly)}</td>
-                  <td className="px-6 py-4 text-[var(--ink-700)]">{formatCurrency(row.revenue.lifetime)}</td>
-                  <td className="px-6 py-4 text-[var(--ink-700)]">{row.metrics.completedDeals}</td>
-                  <td className="px-6 py-4 text-[var(--ink-700)]">{row.metrics.successfulPayments}</td>
-                  <td className="px-6 py-4 text-[var(--ink-700)]">{row.metrics.inspectionsHandled}</td>
-                  <td className="px-6 py-4 text-[var(--ink-700)]">{row.metrics.reservations}</td>
-                  <td className="px-6 py-4 text-[var(--ink-600)]">{trendLabel(row.trend)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {dashboard.rows.length === 0 ? (
-          <div className="px-6 py-8 text-sm text-[var(--ink-500)]">No marketers matched the current filter.</div>
-        ) : null}
-      </Card>
-
-      <div className="flex flex-wrap gap-3">
-        <Link href="/admin/team">
-          <Button variant="outline">Manage team profiles</Button>
-        </Link>
-        <Link href="/team">
-          <Button variant="outline">Open public team page</Button>
-        </Link>
-      </div>
+                    </td>
+                    <td className="font-semibold text-[var(--ink-950)]">{row.score}</td>
+                    <td>{row.starRating.toFixed(1)}</td>
+                    <td>{formatCurrency(row.revenue.weekly)}</td>
+                    <td>{formatCurrency(row.revenue.monthly)}</td>
+                    <td>{formatCurrency(row.revenue.lifetime)}</td>
+                    <td>{row.metrics.completedDeals}</td>
+                    <td>{row.metrics.successfulPayments}</td>
+                    <td>{row.metrics.inspectionsHandled}</td>
+                    <td>{row.metrics.reservations}</td>
+                    <td className="text-[var(--ink-600)]">{trendLabel(row.trend)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="px-5 py-5">
+            <AdminEmptyState
+              title="No marketers matched this filter"
+              description="Adjust search or period filters to bring marketers back into the ranking view."
+            />
+          </div>
+        )}
+      </AdminPanel>
     </DashboardShell>
   );
 }

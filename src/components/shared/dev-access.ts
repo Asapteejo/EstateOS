@@ -42,12 +42,26 @@ export function buildDevTenantSiteUrl(input: {
 }) {
   const host = input.currentHost?.toLowerCase() ?? "localhost:3000";
   const pathname = input.pathname ?? "/";
-  const slug = input.companySlug?.trim() || "acme-realty";
+  const resolvedHost = host.split("/")[0] ?? "localhost:3000";
+  const hostname = resolvedHost.split(":")[0] ?? "localhost";
+  const port = resolvedHost.includes(":") ? resolvedHost.split(":")[1] : "3000";
+  const hostSlug =
+    hostname.endsWith(".localhost") && !hostname.startsWith("localhost")
+      ? hostname.slice(0, -".localhost".length)
+      : null;
+  const slug = input.companySlug?.trim() || hostSlug || null;
 
-  if (host.includes("localhost") || host.startsWith("127.0.0.1")) {
-    const port = host.includes(":") ? host.split(":")[1] : "3000";
+  if (!slug) {
+    return null;
+  }
+
+  if (hostname.includes("localhost") || hostname.startsWith("127.0.0.1")) {
     return `${input.currentProtocol}://${slug}.localhost${port ? `:${port}` : ""}${pathname}`;
   }
 
-  return pathname;
+  if (hostname.split(".").length >= 2) {
+    return `${input.currentProtocol}://${slug}.${hostname}${pathname}`;
+  }
+
+  return `${input.currentProtocol}://${slug}.localhost${port ? `:${port}` : ""}${pathname}`;
 }

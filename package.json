@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "encoding:check": "node scripts/check-utf8.mjs",
     "test": "tsx --test src/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",

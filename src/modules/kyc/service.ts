@@ -42,7 +42,7 @@ export type BuyerKycSubmissionListItem = {
   downloadUrl: string;
 };
 
-export async function getBuyerProfileRecord(context: TenantContext): Promise<BuyerProfileRecord> {
+export async function getBuyerProfileRecord(context: TenantContext): Promise<BuyerProfileRecord | null> {
   if (!featureFlags.hasDatabase || !context.companyId || !context.userId) {
     return {
       firstName: "Ada",
@@ -113,7 +113,7 @@ export async function getBuyerProfileRecord(context: TenantContext): Promise<Buy
   } | null;
 
   if (!user) {
-    throw new Error("Buyer profile not found.");
+    return null;
   }
 
   return {

@@ -50,7 +50,7 @@ export function WishlistGrid({ items }: { items: BuyerWishlistItem[] }) {
             <div>
               <h2 className="text-2xl font-semibold text-[var(--ink-950)]">{item.propertyTitle}</h2>
               <div className="mt-2 text-sm text-[var(--ink-500)]">
-                Saved {item.savedAt} · {item.timeLabel}
+                Saved {item.savedAt}  -  {item.timeLabel}
               </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">

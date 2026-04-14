@@ -38,3 +38,25 @@ test("tenant site url resolves to localhost subdomain in development", () => {
     "http://acme-realty.localhost:3000/properties",
   );
 });
+
+test("tenant site url preserves current tenant localhost host when no explicit slug is set", () => {
+  assert.equal(
+    buildDevTenantSiteUrl({
+      currentHost: "acme.localhost:3000",
+      currentProtocol: "http",
+      companySlug: null,
+    }),
+    "http://acme.localhost:3000/",
+  );
+});
+
+test("tenant site url stays unavailable when no tenant slug can be resolved", () => {
+  assert.equal(
+    buildDevTenantSiteUrl({
+      currentHost: "localhost:3000",
+      currentProtocol: "http",
+      companySlug: null,
+    }),
+    null,
+  );
+});

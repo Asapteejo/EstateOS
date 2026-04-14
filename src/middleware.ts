@@ -43,10 +43,10 @@ export default clerkMiddleware(async (auth, req) => {
         entry: isAppRoute(req)
           ? "admin"
           : isAdminRoute(req)
-          ? "admin"
-          : isSuperadminRoute(req)
-            ? "superadmin"
-            : "buyer",
+            ? "admin"
+            : isSuperadminRoute(req)
+              ? "superadmin"
+              : "buyer",
       }),
     );
   }

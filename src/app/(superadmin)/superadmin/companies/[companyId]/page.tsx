@@ -46,6 +46,47 @@ export default async function SuperadminCompanyOverviewPage({
         <SuperadminMetricCard label="EstateOS revenue" value={formatCurrency(company.platformMetrics.estateRevenue)} detail="What this tenant has generated for the platform" tone="revenue" />
       </div>
 
+      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+        <Card className="p-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-lg font-semibold text-[var(--ink-950)]">Platform controls</h2>
+            <SuperadminCompanyStatusBadge status={company.company.companyStatus} />
+            <SuperadminHealthBadge health={company.company.health} />
+          </div>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--ink-600)]">
+            Governance actions are intentionally limited to lifecycle control. Suspending a company blocks operator and buyer access without deleting tenant data.
+          </p>
+          <div className="mt-5">
+            <CompanyLifecycleControls
+              companyId={companyId}
+              companyName={company.company.companyName}
+              status={company.company.companyStatus}
+              suspensionReason={company.company.suspensionReason}
+            />
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold text-[var(--ink-950)]">Company status</h2>
+          <div className="mt-4 space-y-3 text-sm">
+            <div>
+              <div className="text-[var(--ink-500)]">Current status</div>
+              <div className="mt-1 font-semibold text-[var(--ink-950)]">{company.company.companyStatus}</div>
+            </div>
+            <div>
+              <div className="text-[var(--ink-500)]">Last active</div>
+              <div className="mt-1 font-semibold text-[var(--ink-950)]">{company.company.lastActiveLabel}</div>
+            </div>
+            <div>
+              <div className="text-[var(--ink-500)]">Delete company</div>
+              <div className="mt-1 text-[var(--ink-700)]">
+                Not available. EstateOS does not yet have a safe archive/delete lifecycle for tenant-linked revenue, payments, and audit data.
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <Card className="p-6">
           <div className="flex flex-wrap items-center gap-3">
@@ -90,18 +131,6 @@ export default async function SuperadminCompanyOverviewPage({
           <div className="mt-5 rounded-[24px] bg-[var(--sand-100)] p-4 text-sm text-[var(--ink-600)]">
             Updated {company.generatedAtLabel}. This drill-down is read-only for safety and keeps platform-owner money distinct from tenant collections volume.
           </div>
-          <div className="mt-5">
-            <CompanyLifecycleControls
-              companyId={companyId}
-              companyName={company.company.companyName}
-              status={company.company.companyStatus}
-            />
-            {company.company.companyStatus === "SUSPENDED" && company.company.suspensionReason ? (
-              <div className="mt-3 text-sm text-rose-700">
-                Suspension reason: {company.company.suspensionReason}
-              </div>
-            ) : null}
-          </div>
         </Card>
 
         <Card className="overflow-hidden">
@@ -140,7 +169,7 @@ export default async function SuperadminCompanyOverviewPage({
               <div key={item.id} className="px-6 py-4 text-sm">
                 <div className="font-semibold text-[var(--ink-950)]">{item.title}</div>
                 <div className="mt-1 text-[var(--ink-600)]">{item.amount}</div>
-                <div className="mt-1 text-[var(--ink-500)]">{item.status} · Due {item.dueAt}</div>
+                <div className="mt-1 text-[var(--ink-500)]">{item.status}  -  Due {item.dueAt}</div>
               </div>
             ))}
           </div>
@@ -151,8 +180,8 @@ export default async function SuperadminCompanyOverviewPage({
             {company.providerAccounts.map((item) => (
               <div key={item.id} className="px-6 py-4 text-sm">
                 <div className="font-semibold text-[var(--ink-950)]">{item.name}</div>
-                <div className="mt-1 text-[var(--ink-600)]">{item.provider} · {item.status}</div>
-                <div className="mt-1 text-[var(--ink-500)]">{item.splitReady} · Updated {item.updatedAt}</div>
+                <div className="mt-1 text-[var(--ink-600)]">{item.provider}  -  {item.status}</div>
+                <div className="mt-1 text-[var(--ink-500)]">{item.splitReady}  -  Updated {item.updatedAt}</div>
               </div>
             ))}
             {company.subscriptions.map((item) => (
@@ -171,7 +200,7 @@ export default async function SuperadminCompanyOverviewPage({
               <div key={item.id} className="px-6 py-4 text-sm">
                 <div className="font-semibold text-[var(--ink-950)]">{item.type}</div>
                 <div className="mt-1 text-[var(--ink-600)]">{item.summary}</div>
-                <div className="mt-1 text-[var(--ink-500)]">{item.amount ?? "No amount"} · {item.createdAt}</div>
+                <div className="mt-1 text-[var(--ink-500)]">{item.amount ?? "No amount"}  -  {item.createdAt}</div>
               </div>
             ))}
           </div>

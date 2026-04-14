@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { AdminModalFrame, AdminStateBanner } from "@/components/admin/admin-ui";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 export function QuickPaymentRequestButton({
   userId,
@@ -76,51 +78,64 @@ export function QuickPaymentRequestButton({
         Send Payment Request
       </Button>
       {open ? (
-        <Card className="rounded-[20px] border-sky-200 bg-sky-50 p-3 shadow-none">
-          <div className="space-y-3">
-            {readOnly ? (
-              <div className="rounded-[16px] border border-sky-200 bg-white p-4 text-sm leading-6 text-[var(--ink-700)]">
-                Payment requests are disabled in the public demo. Start your workspace to send hosted checkout links and track real collections.
-              </div>
-            ) : null}
-            <input
-              type="number"
-              className="h-10 w-full rounded-2xl border border-sky-200 bg-white px-3 text-sm text-[var(--ink-900)]"
-              value={amount}
-              onChange={(event) => setAmount(event.target.value)}
-              placeholder="Amount"
-              disabled={readOnly}
-            />
-            <input
-              type="date"
-              className="h-10 w-full rounded-2xl border border-sky-200 bg-white px-3 text-sm text-[var(--ink-900)]"
-              value={dueAt}
-              onChange={(event) => setDueAt(event.target.value)}
-              disabled={readOnly}
-            />
-            <textarea
-              className="min-h-24 w-full rounded-2xl border border-sky-200 bg-white px-3 py-2 text-sm text-[var(--ink-900)] outline-none"
-              placeholder="Optional note"
-              value={notes}
-              onChange={(event) => setNotes(event.target.value)}
-              disabled={readOnly}
-            />
+        <AdminModalFrame
+          title="Quick payment request"
+          description="Send a hosted checkout request directly from the transaction context."
+          footer={
             <div className="flex gap-2">
               {readOnly ? (
                 <a href={ctaHref}>
                   <Button size="sm">Start your workspace</Button>
                 </a>
               ) : (
-                <Button size="sm" onClick={submit} disabled={pending}>
-                  {pending ? "Sending..." : "Send Request"}
+                <Button size="sm" onClick={submit} disabled={pending || Number(amount) <= 0}>
+                  {pending ? "Sending..." : "Send request"}
                 </Button>
               )}
               <Button size="sm" variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
             </div>
+          }
+        >
+          <div className="space-y-3">
+            {readOnly ? (
+              <AdminStateBanner
+                tone="warning"
+                title="Payment requests are disabled in the public demo"
+                message="Start your workspace to send hosted checkout links and track real collections."
+              />
+            ) : (
+              <AdminStateBanner
+                tone="info"
+                title="Primary next step"
+                message="Use the current outstanding balance unless you are intentionally collecting a partial amount."
+              />
+            )}
+            <Input
+              type="number"
+              className="border-sky-200"
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              placeholder="Amount"
+              disabled={readOnly}
+            />
+            <Input
+              type="date"
+              className="border-sky-200"
+              value={dueAt}
+              onChange={(event) => setDueAt(event.target.value)}
+              disabled={readOnly}
+            />
+            <Textarea
+              className="min-h-24 border-sky-200"
+              placeholder="Optional note"
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              disabled={readOnly}
+            />
           </div>
-        </Card>
+        </AdminModalFrame>
       ) : null}
     </div>
   );

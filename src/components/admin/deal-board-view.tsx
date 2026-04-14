@@ -218,7 +218,7 @@ function BoardCard({
       <div className="mt-4 space-y-2 text-sm text-[var(--ink-600)]">
         <div>
           <span className="font-semibold text-[var(--ink-900)]">Owner:</span> {card.ownerName}{" "}
-          <span className="text-[var(--ink-500)]">· {card.ownerRole}</span>
+          <span className="text-[var(--ink-500)]"> -  {card.ownerRole}</span>
         </div>
         <div>
           <span className="font-semibold text-[var(--ink-900)]">Latest activity:</span>{" "}

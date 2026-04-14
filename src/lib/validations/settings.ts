@@ -1,19 +1,40 @@
 import { z } from "zod";
 
-const optionalString = z.string().trim().optional().or(z.literal("")).transform((value) => value || undefined);
-const optionalUrl = z.string().trim().url().optional().or(z.literal("")).transform((value) => value || undefined);
+const optionalString = z
+  .string()
+  .trim()
+  .optional()
+  .nullable()
+  .or(z.literal(""))
+  .transform((value) => value || undefined);
+const optionalUrl = z
+  .string()
+  .trim()
+  .url()
+  .optional()
+  .nullable()
+  .or(z.literal(""))
+  .transform((value) => value || undefined);
 const optionalColor = z
   .string()
   .trim()
   .regex(/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/)
   .optional()
+  .nullable()
   .or(z.literal(""))
   .transform((value) => value || undefined);
 
 export const tenantSettingsSchema = z.object({
   companyName: z.string().trim().min(2),
   logoUrl: optionalUrl,
-  supportEmail: z.string().trim().email().optional().or(z.literal("")).transform((value) => value || undefined),
+  supportEmail: z
+    .string()
+    .trim()
+    .email()
+    .optional()
+    .nullable()
+    .or(z.literal(""))
+    .transform((value) => value || undefined),
   supportPhone: optionalString,
   whatsappNumber: optionalString,
   address: optionalString,

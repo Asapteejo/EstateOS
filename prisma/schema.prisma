@@ -284,6 +284,22 @@ enum AnalyticsScope {
   COMPANY
 }
 
+enum DevelopmentSaleMode {
+  PER_SQM
+  PER_PLOT
+  MIXED
+}
+
+enum DevelopmentPaymentMode {
+  OUTRIGHT
+  INSTALLMENT
+}
+
+enum DevelopmentSalesMixPriceMode {
+  PER_SQM
+  PER_UNIT
+}
+
 enum AuditAction {
   CREATE
   UPDATE
@@ -346,6 +362,9 @@ model Company {
   webhookEvents   WebhookEvent[]
   backgroundJobs  BackgroundJobLog[]
   analyticsSnapshots AnalyticsDailySnapshot[]
+  developmentCalculations DevelopmentCalculation[]
+  developmentCalculationPhases DevelopmentCalculationPhase[]
+  developmentSalesMixItems DevelopmentCalculationSalesMixItem[]
   billingSettings CompanyBillingSettings?
   subscriptions   CompanySubscription[]
   providerAccounts CompanyPaymentProviderAccount[]
@@ -357,6 +376,108 @@ model Company {
     createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
   @@index([status, createdAt])
+}
+
+model DevelopmentCalculation {
+    id                                   String                   @id @default(cuid())
+    companyId                            String
+    versionGroupId                       String?
+    versionNumber                        Int                      @default(1)
+    versionLabel                         String?
+    sourcePresetKey                      String?
+    createdByUserId                      String?
+    updatedByUserId                      String?
+  projectName                          String
+  location                             String?
+  notes                                String?
+  currency                             String                   @default("NGN")
+  landSizeHectares                     Decimal                  @db.Decimal(12, 4)
+  landPurchasePrice                    Decimal                  @db.Decimal(14, 2)
+  purchaseDate                         DateTime?
+  projectDurationMonths                Int
+  salesDurationMonths                  Int
+  roadsPercentage                      Decimal                  @default(0) @db.Decimal(5, 2)
+  drainagePercentage                   Decimal                  @default(0) @db.Decimal(5, 2)
+  greenAreaPercentage                  Decimal                  @default(0) @db.Decimal(5, 2)
+  utilitiesPercentage                  Decimal                  @default(0) @db.Decimal(5, 2)
+  surveyCost                           Decimal                  @default(0) @db.Decimal(14, 2)
+  legalDocumentationCost               Decimal                  @default(0) @db.Decimal(14, 2)
+  titlePerfectionCost                  Decimal                  @default(0) @db.Decimal(14, 2)
+  siteClearingCost                     Decimal                  @default(0) @db.Decimal(14, 2)
+  sandFillingEarthworkCost             Decimal                  @default(0) @db.Decimal(14, 2)
+  roadConstructionCost                 Decimal                  @default(0) @db.Decimal(14, 2)
+  drainageCost                         Decimal                  @default(0) @db.Decimal(14, 2)
+  powerInfrastructureCost              Decimal                  @default(0) @db.Decimal(14, 2)
+  waterInfrastructureCost              Decimal                  @default(0) @db.Decimal(14, 2)
+  fencingGatehouseSecurityCost         Decimal                  @default(0) @db.Decimal(14, 2)
+  marketingSalesCommissionCost         Decimal                  @default(0) @db.Decimal(14, 2)
+  adminCost                            Decimal                  @default(0) @db.Decimal(14, 2)
+  contingencyCost                      Decimal                  @default(0) @db.Decimal(14, 2)
+  annualInflationRate                  Decimal                  @default(0) @db.Decimal(5, 2)
+  constructionCostEscalationRate       Decimal                  @default(0) @db.Decimal(5, 2)
+  annualSellingPriceAppreciationRate   Decimal                  @default(0) @db.Decimal(5, 2)
+  marketRiskPremiumRate                Decimal                  @default(0) @db.Decimal(5, 2)
+  financingCostRate                    Decimal                  @default(0) @db.Decimal(5, 2)
+  requiredTargetProfitMarginRate       Decimal                  @default(0) @db.Decimal(5, 2)
+  saleMode                             DevelopmentSaleMode      @default(PER_SQM)
+  currentSellingPricePerSqm            Decimal?                 @db.Decimal(14, 2)
+  paymentMode                          DevelopmentPaymentMode   @default(OUTRIGHT)
+  installmentTenureMonths              Int?
+  installmentPremiumRate               Decimal?                 @db.Decimal(5, 2)
+  useInflationAdjustedInstallmentPricing Boolean                @default(false)
+  archivedAt                           DateTime?
+  company                              Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  salesMixItems                        DevelopmentCalculationSalesMixItem[]
+  phases                               DevelopmentCalculationPhase[]
+    createdAt                            DateTime                 @default(now())
+    updatedAt                            DateTime                 @updatedAt
+  
+    @@index([companyId, archivedAt, updatedAt])
+    @@index([companyId, projectName])
+    @@index([companyId, versionGroupId, archivedAt, updatedAt])
+  }
+
+model DevelopmentCalculationSalesMixItem {
+  id            String                       @id @default(cuid())
+  companyId     String
+  calculationId String
+  label         String
+  quantity      Int
+  sizeSqm       Decimal                      @db.Decimal(10, 2)
+  priceMode     DevelopmentSalesMixPriceMode @default(PER_UNIT)
+  pricePerSqm   Decimal?                     @db.Decimal(14, 2)
+  unitPrice     Decimal?                     @db.Decimal(14, 2)
+  displayOrder  Int                          @default(0)
+  company       Company                      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  calculation   DevelopmentCalculation       @relation(fields: [calculationId], references: [id], onDelete: Cascade)
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
+
+  @@index([companyId, calculationId])
+  @@index([calculationId, displayOrder])
+}
+
+model DevelopmentCalculationPhase {
+  id                     String                 @id @default(cuid())
+  companyId              String
+  calculationId          String
+  name                   String
+  startMonthOffset       Int                    @default(0)
+  durationMonths         Int                    @default(1)
+  developmentCostShare   Decimal                @default(0) @db.Decimal(5, 2)
+  sellableInventoryShare Decimal                @default(0) @db.Decimal(5, 2)
+  sellingPriceOverridePerSqm Decimal?           @db.Decimal(14, 2)
+  sellingPriceUpliftRate Decimal?               @db.Decimal(6, 2)
+  salesVelocityRate      Decimal                @default(100) @db.Decimal(5, 2)
+  notes                  String?
+  displayOrder           Int                    @default(0)
+  company                Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  calculation            DevelopmentCalculation @relation(fields: [calculationId], references: [id], onDelete: Cascade)
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+
+  @@index([companyId, calculationId])
+  @@index([calculationId, displayOrder])
 }
 
 model AnalyticsDailySnapshot {

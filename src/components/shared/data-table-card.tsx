@@ -10,16 +10,16 @@ export function DataTableCard({
   rows: string[][];
 }) {
   return (
-    <Card className="overflow-hidden">
-      <div className="border-b border-[var(--line)] px-6 py-4">
+    <Card className="admin-table-shell">
+      <div className="border-b border-[var(--line)] px-5 py-4">
         <h3 className="text-lg font-semibold text-[var(--ink-950)]">{title}</h3>
       </div>
       <div className="overflow-auto">
-        <table className="min-w-full text-left text-sm">
-          <thead className="bg-[var(--sand-100)] text-[var(--ink-500)]">
+        <table className="admin-table">
+          <thead>
             <tr>
               {columns.map((column) => (
-                <th key={column} className="px-6 py-3 font-medium">
+                <th key={column}>
                   {column}
                 </th>
               ))}
@@ -27,9 +27,9 @@ export function DataTableCard({
           </thead>
           <tbody>
             {rows.map((row, index) => (
-              <tr key={`${title}-${index}`} className="border-t border-[var(--line)]">
+              <tr key={`${title}-${index}`}>
                 {row.map((cell) => (
-                  <td key={cell} className="px-6 py-4 text-[var(--ink-700)]">
+                  <td key={cell}>
                     {cell}
                   </td>
                 ))}

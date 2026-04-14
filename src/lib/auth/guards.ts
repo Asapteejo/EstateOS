@@ -10,6 +10,30 @@ export async function requirePortalSession(options?: {
   return requireTenantContext("portal", options);
 }
 
+export async function requireBuyerPortalSession(options?: {
+  redirectOnMissingAuth?: boolean;
+}) {
+  const session = await requireTenantContext("portal", options);
+
+  if (!hasRequiredRole(session.roles, ["BUYER"])) {
+    if (options?.redirectOnMissingAuth === false) {
+      throw new Error("Buyer access is required.");
+    }
+
+    if (hasRequiredRole(session.roles, ["SUPER_ADMIN"])) {
+      redirect("/superadmin");
+    }
+
+    if (hasRequiredRole(session.roles, ["ADMIN", "STAFF", "LEGAL", "FINANCE"])) {
+      redirect("/admin");
+    }
+
+    redirect("/app/onboarding");
+  }
+
+  return session;
+}
+
 export async function requireAdminSession(
   requiredRoles?: AppRole[],
   options?: {

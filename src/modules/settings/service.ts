@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { writeAuditLog } from "@/lib/audit/service";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
+import { logInfo } from "@/lib/ops/logger";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import type { TenantSettingsInput } from "@/lib/validations/settings";
@@ -283,9 +284,27 @@ export async function updateTenantAdminSettings(
     whatsapp: rawInput.whatsappNumber,
   };
 
+  if (!featureFlags.isProduction) {
+    logInfo("Resolving tenant settings update target.", {
+      companyId: context.companyId,
+      companySlug: context.companySlug,
+      userId: context.userId,
+      resolutionSource: context.resolutionSource,
+    });
+  }
+
+  const companyRecord = await prisma.company.findUnique({
+    where: { id: context.companyId },
+    select: { id: true },
+  });
+
+  if (!companyRecord) {
+    throw new Error("Company not found for update");
+  }
+
   await prisma.$transaction(async (tx) => {
     await tx.company.update({
-      where: { id: context.companyId! },
+      where: { id: companyRecord.id },
       data: {
         name: rawInput.companyName,
         logoUrl: rawInput.logoUrl ?? null,
@@ -295,7 +314,7 @@ export async function updateTenantAdminSettings(
     });
 
     await tx.siteSettings.upsert({
-      where: { companyId: context.companyId! },
+      where: { companyId: companyRecord.id },
       update: {
         companyName: rawInput.companyName,
         supportEmail: rawInput.supportEmail ?? null,
@@ -309,7 +328,7 @@ export async function updateTenantAdminSettings(
         verificationWarningReminderDays: rawInput.verificationWarningReminderDays,
       },
       create: {
-        companyId: context.companyId!,
+        companyId: companyRecord.id,
         companyName: rawInput.companyName,
         supportEmail: rawInput.supportEmail ?? null,
         supportPhone: rawInput.supportPhone ?? null,
@@ -324,14 +343,14 @@ export async function updateTenantAdminSettings(
     });
 
     await tx.companyBillingSettings.upsert({
-      where: { companyId: context.companyId! },
+      where: { companyId: companyRecord.id },
       update: {
         defaultCurrency: rawInput.defaultCurrency,
         requireActivePlanForTransactions: rawInput.requireActivePlanForTransactions,
         requireActivePlanForAdminOps: rawInput.requireActivePlanForAdminOps,
       },
       create: {
-        companyId: context.companyId!,
+        companyId: companyRecord.id,
         defaultCurrency: rawInput.defaultCurrency,
         requireActivePlanForTransactions: rawInput.requireActivePlanForTransactions,
         requireActivePlanForAdminOps: rawInput.requireActivePlanForAdminOps,
@@ -344,7 +363,7 @@ export async function updateTenantAdminSettings(
     actorUserId: context.userId ?? undefined,
     action: "UPDATE",
     entityType: "TenantSettings",
-    entityId: context.companyId,
+    entityId: companyRecord.id,
     summary: "Updated tenant settings and branding",
     payload: {
       companyName: rawInput.companyName,

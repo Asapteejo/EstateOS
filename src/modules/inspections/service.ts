@@ -314,6 +314,7 @@ export async function updateInspectionBookingForAdmin(
         where: { id: input.assignedStaffId, isAssignable: true },
         select: { id: true },
       } as Parameters<typeof prisma.staffProfile.findFirst>[0],
+      { modelName: "StaffProfile", strategy: "staffProfileUserCompanyId" },
     );
 
     if (!assignedStaff) {

@@ -206,6 +206,24 @@ function average(input: number[]) {
   return roundToTwo(input.reduce((sum, value) => sum + value, 0) / input.length);
 }
 
+function logAnalyticsDebug(input: {
+  scope: "platform" | "company";
+  range: AnalyticsRange;
+  snapshotsUsed: boolean;
+  fallbackUsed: boolean;
+  sourceQueries: number;
+}) {
+  if (featureFlags.isProduction) {
+    return;
+  }
+
+  console.info(
+    `[analytics] ${input.scope} range=${input.range} snapshots=${input.snapshotsUsed ? "yes" : "no"} fallback=${
+      input.fallbackUsed ? "yes" : "no"
+    } sourceQueries=${input.sourceQueries}`,
+  );
+}
+
 function normalizeSnapshotRows(rows: SnapshotRow[], range: AnalyticsRange) {
   const { bucket, seed, map } = buildBucketMap(range);
 
@@ -649,63 +667,37 @@ async function loadCompanySnapshotRows(companyId: string, range: AnalyticsRange)
 async function buildPlatformTrendsFromSource(range: AnalyticsRange) {
   const window = getRangeWindow(range);
   const { bucket, seed, map } = buildBucketMap(range);
-
-  const [
-    payments,
-    commissions,
-    billings,
-    companies,
-    inquiries,
-    reservations,
-    paymentRequests,
-    overdueTransactions,
-  ] = await Promise.all([
-    prisma.payment.findMany({
-      where: {
-        status: "SUCCESS",
-        ...(window.from ? { paidAt: { gte: window.from, lte: window.to } } : {}),
-      },
-      select: { paidAt: true, amount: true },
-    }),
-    prisma.commissionRecord.findMany({
-      where: window.from ? { createdAt: { gte: window.from, lte: window.to } } : undefined,
-      select: { createdAt: true, platformCommission: true },
-    }),
-    prisma.billingEvent.findMany({
-      where: {
-        type: "SUBSCRIPTION_PAYMENT_RECORDED",
-        ...(window.from ? { createdAt: { gte: window.from, lte: window.to } } : {}),
-      },
-      select: { createdAt: true, amount: true },
-    }),
-    prisma.company.findMany({
-      where: window.from ? { createdAt: { gte: window.from, lte: window.to } } : undefined,
-      select: { createdAt: true },
-    }),
-    prisma.inquiry.findMany({
-      where: window.from ? { createdAt: { gte: window.from, lte: window.to } } : undefined,
-      select: { createdAt: true },
-    }),
-    prisma.reservation.findMany({
-      where: window.from ? { createdAt: { gte: window.from, lte: window.to } } : undefined,
-      select: { createdAt: true },
-    }),
-    prisma.paymentRequest.findMany({
-      where: window.from
-        ? {
-            OR: [
-              { sentAt: { gte: window.from, lte: window.to } },
-              { createdAt: { gte: window.from, lte: window.to } },
-            ],
-          }
-        : undefined,
-      select: { sentAt: true, createdAt: true },
-    }),
-    prisma.transaction.findMany({
-      where: { paymentStatus: "OVERDUE" },
-      select: { outstandingBalance: true },
-    }),
-  ]);
+  const payments = await prisma.payment.findMany({
+    where: {
+      status: "SUCCESS",
+      ...(window.from ? { paidAt: { gte: window.from, lte: window.to } } : {}),
+    },
+    select: { paidAt: true, amount: true },
+  });
+  const commissions = await prisma.commissionRecord.findMany({
+    where: window.from ? { createdAt: { gte: window.from, lte: window.to } } : undefined,
+    select: { createdAt: true, platformCommission: true },
+  });
+  const billings = await prisma.billingEvent.findMany({
+    where: {
+      type: "SUBSCRIPTION_PAYMENT_RECORDED",
+      ...(window.from ? { createdAt: { gte: window.from, lte: window.to } } : {}),
+    },
+    select: { createdAt: true, amount: true },
+  });
+  const companies = await prisma.company.findMany({
+    where: window.from ? { createdAt: { gte: window.from, lte: window.to } } : undefined,
+    select: { createdAt: true },
+  });
+  const deals = await prisma.transaction.findMany({
+    where: window.from ? { createdAt: { gte: window.from, lte: window.to } } : undefined,
+    select: { createdAt: true },
+  });
+  const overdueSummary = await prisma.transaction.aggregate({
+    where: { paymentStatus: "OVERDUE" },
+    _sum: { outstandingBalance: true },
+    _count: { id: true },
+  });
 
   const writeValue = (dateValue: Date | null | undefined, writer: (target: TrendAccumulator) => void) => {
     if (!dateValue) {
@@ -749,30 +741,16 @@ async function buildPlatformTrendsFromSource(range: AnalyticsRange) {
     });
   }
 
-  for (const inquiry of inquiries) {
-    writeValue(inquiry.createdAt, (target) => {
-      target.inquiries += 1;
-    });
-  }
-
-  for (const reservation of reservations) {
-    writeValue(reservation.createdAt, (target) => {
-      target.reservations += 1;
-    });
-  }
-
-  for (const request of paymentRequests) {
-    writeValue(request.sentAt ?? request.createdAt, (target) => {
-      target.paymentRequests += 1;
+  for (const deal of deals) {
+    writeValue(deal.createdAt, (target) => {
+      target.totalDeals += 1;
     });
   }
 
   const todayTarget = map.get(bucketStartForDate(new Date(), bucket).toISOString());
   if (todayTarget) {
-    for (const item of overdueTransactions) {
-      todayTarget.overdueAmount += decimalToNumber(item.outstandingBalance);
-      todayTarget.overdueCount += 1;
-    }
+    todayTarget.overdueAmount += decimalToNumber(overdueSummary._sum.outstandingBalance);
+    todayTarget.overdueCount += overdueSummary._count.id;
   }
 
   return seed;
@@ -912,9 +890,15 @@ export async function getPlatformAnalyticsReport(range: AnalyticsRange = "30d") 
   }
 
   const snapshotRows = await loadPlatformSnapshotRows(range);
-  const trendSeries = snapshotRows.some((item) => item.inflow > 0 || item.platformRevenue > 0 || item.newCompanies > 0)
-    ? snapshotRows
-    : await buildPlatformTrendsFromSource(range);
+  const snapshotsUsed = snapshotRows.some((item) => item.inflow > 0 || item.platformRevenue > 0 || item.newCompanies > 0);
+  const trendSeries = snapshotsUsed ? snapshotRows : await buildPlatformTrendsFromSource(range);
+  logAnalyticsDebug({
+    scope: "platform",
+    range,
+    snapshotsUsed,
+    fallbackUsed: !snapshotsUsed,
+    sourceQueries: snapshotsUsed ? 0 : 6,
+  });
 
   const totalCompanies = await prisma.company.count();
   const activeCompanies = await prisma.company.count({

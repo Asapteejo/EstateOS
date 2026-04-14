@@ -9,10 +9,12 @@ export function CompanyLifecycleControls({
   companyId,
   companyName,
   status,
+  suspensionReason,
 }: {
   companyId: string;
   companyName: string;
   status: "ACTIVE" | "SUSPENDED" | "DISABLED";
+  suspensionReason?: string | null;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -43,9 +45,34 @@ export function CompanyLifecycleControls({
 
   return (
     <div className="space-y-3">
-      <Button variant={status === "SUSPENDED" ? "default" : "outline"} onClick={() => setOpen(true)}>
-        {status === "SUSPENDED" ? "Reactivate company" : "Suspend company"}
-      </Button>
+      <div className="rounded-[24px] border border-[var(--line)] bg-[var(--sand-100)] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-500)]">
+              Platform controls
+            </div>
+            <div className="mt-2 text-sm font-semibold text-[var(--ink-950)]">
+              {status === "SUSPENDED" ? "Company access is suspended" : "Company is active on the platform"}
+            </div>
+            <div className="mt-1 text-sm text-[var(--ink-600)]">
+              {status === "SUSPENDED"
+                ? "Admin access, buyer portal access, and authenticated payment actions are blocked."
+                : "Suspend this workspace if collections, compliance, or platform risk requires intervention."}
+            </div>
+          </div>
+          <Button variant={status === "SUSPENDED" ? "default" : "outline"} onClick={() => setOpen(true)}>
+            {status === "SUSPENDED" ? "Reactivate company" : "Suspend company"}
+          </Button>
+        </div>
+        {status === "SUSPENDED" && suspensionReason ? (
+          <div className="mt-3 rounded-2xl bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            Suspension reason: {suspensionReason}
+          </div>
+        ) : null}
+        <div className="mt-3 text-xs text-[var(--ink-500)]">
+          Company deletion is not exposed here because the platform does not yet have a safe archive or deletion lifecycle.
+        </div>
+      </div>
       {open ? (
         <div className="rounded-[28px] border border-[var(--line)] bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.10)]">
           <div className="text-sm font-semibold text-[var(--ink-950)]">

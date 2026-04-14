@@ -267,10 +267,10 @@ export function BillingManagement({
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <div className="font-semibold text-[var(--ink-950)]">
-                      {plan.name} · {plan.interval.toLowerCase()}
+                      {plan.name}  -  {plan.interval.toLowerCase()}
                     </div>
                     <div className="mt-1 text-sm text-[var(--ink-500)]">
-                      {plan.currency} {plan.priceAmount.toLocaleString()} · {plan.subscriberCount} subscribers
+                      {plan.currency} {plan.priceAmount.toLocaleString()}  -  {plan.subscriberCount} subscribers
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -372,7 +372,7 @@ export function BillingManagement({
               >
                 {plans.map((plan) => (
                   <option key={plan.id} value={plan.id}>
-                    {plan.name} · {plan.interval.toLowerCase()}
+                    {plan.name}  -  {plan.interval.toLowerCase()}
                   </option>
                 ))}
               </select>
@@ -447,7 +447,7 @@ export function BillingManagement({
                 <div className="text-sm text-[var(--ink-700)]">
                   <div>{company.planLabel}</div>
                   <div className="mt-1 text-[var(--ink-500)]">
-                    {company.status} · expires {company.expiresAt}
+                    {company.status}  -  expires {company.expiresAt}
                   </div>
                 </div>
                 <div className="text-sm text-[var(--ink-700)]">

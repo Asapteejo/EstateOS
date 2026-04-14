@@ -21,3 +21,31 @@ test("tenant verification thresholds must remain ordered", () => {
 
   assert.equal(parsed.success, false);
 });
+
+test("tenant settings allow nullable optional brand and contact fields", () => {
+  const parsed = tenantSettingsSchema.safeParse({
+    companyName: "Acme Realty",
+    logoUrl: null,
+    supportEmail: null,
+    supportPhone: null,
+    whatsappNumber: null,
+    address: null,
+    primaryColor: null,
+    accentColor: null,
+    paymentDisplayLabel: null,
+    receiptFooterNote: null,
+    defaultWishlistDurationDays: 14,
+    verificationFreshDays: 7,
+    verificationStaleDays: 30,
+    verificationHideDays: 45,
+    verificationWarningReminderDays: 2,
+    defaultCurrency: "NGN",
+    publicStaffDirectoryEnabled: true,
+    showStaffEmail: true,
+    showStaffWhatsApp: true,
+    requireActivePlanForTransactions: true,
+    requireActivePlanForAdminOps: false,
+  });
+
+  assert.equal(parsed.success, true);
+});

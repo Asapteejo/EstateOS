@@ -75,6 +75,7 @@ export async function getAssignableStaffOptions(context: TenantContext) {
         },
       },
     } as Parameters<typeof prisma.staffProfile.findMany>[0],
+    { modelName: "StaffProfile", strategy: "staffProfileUserCompanyId" },
   )) as Array<{
     id: string;
     title: string | null;
@@ -336,6 +337,7 @@ export async function updateInquiryForAdmin(
         where: { id: input.assignedStaffId, isAssignable: true },
         select: { id: true, user: { select: { id: true, firstName: true, email: true } } },
       } as Parameters<typeof prisma.staffProfile.findFirst>[0],
+      { modelName: "StaffProfile", strategy: "staffProfileUserCompanyId" },
     )) as {
       id: string;
       user: { id: string; firstName: string | null; email: string };
