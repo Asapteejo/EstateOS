@@ -68,6 +68,9 @@ const serverEnvSchema = z
     UPSTASH_REDIS_REST_TOKEN: optionalString,
     RESEND_API_KEY: optionalString,
     EMAIL_FROM: z.string().trim().min(3).default("Acme Realty <no-reply@example.com>"),
+    TWILIO_ACCOUNT_SID: optionalString,
+    TWILIO_AUTH_TOKEN: optionalString,
+    TWILIO_WHATSAPP_FROM: optionalString, // e.g. "whatsapp:+14155238886"
     SENTRY_DSN: optionalUrl,
   })
   .superRefine((value, ctx) => {
@@ -107,6 +110,11 @@ const serverEnvSchema = z
     requireGroup("Inngest", [
       "INNGEST_EVENT_KEY",
       "INNGEST_SIGNING_KEY",
+    ]);
+    requireGroup("Twilio", [
+      "TWILIO_ACCOUNT_SID",
+      "TWILIO_AUTH_TOKEN",
+      "TWILIO_WHATSAPP_FROM",
     ]);
 
     if (
@@ -238,6 +246,10 @@ export function buildFeatureFlags(env: ServerEnv) {
     hasInngest:
       Boolean(env.INNGEST_EVENT_KEY) &&
       Boolean(env.INNGEST_SIGNING_KEY),
+    hasTwilio:
+      Boolean(env.TWILIO_ACCOUNT_SID) &&
+      Boolean(env.TWILIO_AUTH_TOKEN) &&
+      Boolean(env.TWILIO_WHATSAPP_FROM),
   };
 }
 

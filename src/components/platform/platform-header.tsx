@@ -4,6 +4,7 @@ import { Container } from "@/components/shared/container";
 import { Button } from "@/components/ui/button";
 
 const links = [
+  { href: "/platform/properties", label: "Properties" },
   { href: "/platform/features", label: "Features" },
   { href: "/platform/how-it-works", label: "How it works" },
   { href: "/platform/pricing", label: "Pricing" },

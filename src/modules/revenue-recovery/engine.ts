@@ -30,6 +30,7 @@ import {
 } from "@/lib/notifications/service";
 import { formatCurrency } from "@/lib/utils";
 import { PRODUCT_EVENT_NAMES, trackProductEvent } from "@/modules/analytics/activity";
+import { sendWhatsAppMessage } from "@/lib/notifications/whatsapp";
 import { buildWhatsAppHref } from "@/modules/team/contact";
 
 // ─── Stage constants ────────────────────────────────────────────────────────
@@ -174,6 +175,23 @@ export async function runRevenueRecoverySweep(input?: {
         companyName,
       });
       await sendTransactionalEmail({ to: tx.user.email, subject, html });
+    }
+
+    // ── WhatsApp buyer message (stages 1–3) ──────────────────────────────
+    if (
+      targetStage === STAGE_DAY_1 ||
+      targetStage === STAGE_DAY_3 ||
+      targetStage === STAGE_DAY_7
+    ) {
+      const stageMessages: Record<number, string> = {
+        [STAGE_DAY_1]: `Hi ${tx.user.firstName ?? "there"}, your payment of ${outstandingBalance} for ${reservationRef} at ${companyName} is now due. Please log in to complete your payment: ${portalUrl}`,
+        [STAGE_DAY_3]: `Hi ${tx.user.firstName ?? "there"}, your payment of ${outstandingBalance} for ${reservationRef} at ${companyName} is now 3 days overdue. To avoid further action, please pay now: ${portalUrl}`,
+        [STAGE_DAY_7]: `Hi ${tx.user.firstName ?? "there"}, this is an urgent notice. Your payment of ${outstandingBalance} for ${reservationRef} at ${companyName} is 7 days overdue. Your assigned agent has been notified. Please resolve this immediately: ${portalUrl}`,
+      };
+      await sendWhatsAppMessage({
+        to: tx.user.phone,
+        body: stageMessages[targetStage] ?? stageMessages[STAGE_DAY_1],
+      });
     }
 
     // ── Stage-specific escalations ────────────────────────────────────────

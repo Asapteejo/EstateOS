@@ -928,6 +928,7 @@ model Property {
   hiddenNotificationSentAt DateTime?
   wishlistDurationDays Int?
   wishlistReminderEnabled Boolean   @default(true)
+  isMarketplaceListed Boolean       @default(false)
   company            Company        @relation(fields: [companyId], references: [id])
   branch             Branch?        @relation(fields: [branchId], references: [id])
   location           PropertyLocation?
@@ -951,6 +952,7 @@ model Property {
   @@index([companyId, isFeatured])
   @@index([companyId, verificationStatus, verificationDueAt])
   @@index([companyId, isPubliclyVisible, status])
+  @@index([isMarketplaceListed, isPubliclyVisible, status])
 }
 
 model PropertyUnit {
