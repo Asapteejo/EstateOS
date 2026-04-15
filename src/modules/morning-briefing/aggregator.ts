@@ -152,7 +152,7 @@ export async function getMorningBriefingData(
       prisma.property.count({
         where: {
           companyId,
-          OR: [{ isPublished: false }, { verificationStatus: { not: "VERIFIED" } }],
+          OR: [{ isPubliclyVisible: false }, { verificationStatus: { not: "VERIFIED" } }],
         },
       }),
 

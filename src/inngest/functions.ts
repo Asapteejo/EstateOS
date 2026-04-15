@@ -215,11 +215,10 @@ export const notificationFunctions = [
         // Only include companies that have at least one active ADMIN with an email.
         return prisma.company.findMany({
           where: {
-            isActive: true,
+            status: "ACTIVE",
             users: {
               some: {
                 isActive: true,
-                email: { not: null },
                 roles: {
                   some: {
                     role: { name: "ADMIN" satisfies AppRole },
@@ -282,7 +281,6 @@ export const notificationFunctions = [
           where: {
             companyId,
             isActive: true,
-            email: { not: null },
             roles: {
               some: {
                 role: { name: "ADMIN" satisfies AppRole },

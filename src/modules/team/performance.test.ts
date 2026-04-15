@@ -226,6 +226,8 @@ test("admin marketer sorting can prioritize payment and deal outcomes", () => {
           monthly: 2000000,
           lifetime: 4500000,
         },
+        commissionTotal: 0,
+        commissionPending: 0,
       },
       {
         id: "marketer_2",
@@ -254,6 +256,8 @@ test("admin marketer sorting can prioritize payment and deal outcomes", () => {
           monthly: 4750000,
           lifetime: 9000000,
         },
+        commissionTotal: 0,
+        commissionPending: 0,
       },
     ],
     "payments",

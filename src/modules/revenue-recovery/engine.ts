@@ -26,6 +26,7 @@ import {
 } from "@/lib/notifications/templates";
 import {
   createInAppNotification,
+  getTenantOperatorRecipients,
   notifyManyUsers,
 } from "@/lib/notifications/service";
 import { formatCurrency } from "@/lib/utils";
@@ -63,7 +64,22 @@ export async function runRevenueRecoverySweep(input?: {
   const portalBaseUrl = process.env.NEXT_PUBLIC_PORTAL_BASE_URL ?? "";
 
   // Fetch overdue transactions that haven't reached the final stage yet.
-  const transactions = await prisma.transaction.findMany({
+  // Cast as `any` because `overdueReminderStage` is a new schema field that
+  // won't appear in the generated Prisma types until `prisma generate` is run.
+  type TxRow = {
+    id: string;
+    companyId: string;
+    userId: string;
+    nextPaymentDueAt: Date | null;
+    outstandingBalance: { toNumber?: () => number } | number;
+    overdueReminderStage: number;
+    reservation: { reference: string } | null;
+    user: { id: string; email: string | null; firstName: string | null; phone: string | null };
+    marketer: { id: string; fullName: string; email: string | null; whatsappNumber: string | null } | null;
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const transactions = (await (prisma.transaction.findMany as (args: any) => Promise<any[]>)({
     where: {
       ...(input?.companyId ? { companyId: input.companyId } : {}),
       paymentStatus: "OVERDUE",
@@ -89,14 +105,13 @@ export async function runRevenueRecoverySweep(input?: {
       marketer: {
         select: {
           id: true,
-          firstName: true,
-          lastName: true,
+          fullName: true,
           email: true,
           whatsappNumber: true,
         },
       },
     },
-  });
+  })) as TxRow[];
 
   if (transactions.length === 0) {
     return { processed: 0, escalated: 0 };
@@ -219,7 +234,7 @@ export async function runRevenueRecoverySweep(input?: {
           : buildWhatsAppHref(marketer.whatsappNumber);
 
         const { subject, html } = renderMarketerEscalationEmail({
-          marketerName: marketer.firstName ?? "there",
+          marketerName: marketer.fullName.split(" ")[0] ?? "there",
           buyerName: tx.user.firstName ?? reservationRef,
           reservationRef,
           outstandingBalance,
@@ -234,9 +249,7 @@ export async function runRevenueRecoverySweep(input?: {
     if (targetStage === STAGE_DAY_14) {
       // Flag to all ADMIN users for this company
       const admins = adminsByCompany[tx.companyId] ?? [];
-      const marketerName = tx.marketer
-        ? `${tx.marketer.firstName ?? ""} ${tx.marketer.lastName ?? ""}`.trim() || null
-        : null;
+      const marketerName = tx.marketer?.fullName ?? null;
 
       for (const admin of admins) {
         if (admin.email) {
