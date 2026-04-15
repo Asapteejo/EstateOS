@@ -8,7 +8,8 @@ export type UploadPurpose =
   | "RESUME"
   | "PROPERTY_MEDIA"
   | "BROCHURE"
-  | "KYC_DOCUMENT";
+  | "KYC_DOCUMENT"
+  | "CONTRACT_DOCUMENT";
 
 export type UploadPurposeConfig = {
   domain: string;
@@ -78,6 +79,14 @@ const uploadPurposeConfig: Record<UploadPurpose, UploadPurposeConfig> = {
     documentType: "OTHER",
     accept: ".pdf,image/*,application/pdf",
     label: "KYC document",
+  },
+  CONTRACT_DOCUMENT: {
+    domain: "contracts",
+    visibility: "PRIVATE",
+    isPublicAsset: false,
+    documentType: "CONTRACT",
+    accept: ".pdf,application/pdf",
+    label: "Contract document",
   },
 };
 

@@ -1176,6 +1176,7 @@ model Transaction {
   documents          Document[]
   commissionRecords  CommissionRecord[]
   marketerCommissions MarketerCommission[] @relation("TransactionMarketerCommissions")
+  signedAgreement    SignedAgreement?
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
 
@@ -1368,6 +1369,7 @@ model Document {
   transaction        Transaction?       @relation(fields: [transactionId], references: [id])
   accessLogs         DocumentAccessLog[]
   kycSubmissions     KYCSubmission[]
+  signedAgreement    SignedAgreement?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
@@ -1394,17 +1396,24 @@ model KYCSubmission {
 }
 
 model SignedAgreement {
-  id            String          @id @default(cuid())
-  companyId     String
-  transactionId String          @unique
-  documentId    String
-  provider      String?
-  status        MilestoneStatus @default(PENDING)
-  company       Company         @relation(fields: [companyId], references: [id])
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  id                  String          @id @default(cuid())
+  companyId           String
+  transactionId       String          @unique
+  documentId          String          @unique
+  provider            String?
+  status              MilestoneStatus @default(PENDING)
+  sentAt              DateTime?
+  acceptedAt          DateTime?
+  acceptedByIp        String?
+  acceptedByUserAgent String?
+  company             Company         @relation(fields: [companyId], references: [id])
+  transaction         Transaction     @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  document            Document        @relation(fields: [documentId], references: [id])
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
   @@index([companyId, transactionId])
+  @@index([companyId, status])
 }
 
 model DocumentAccessLog {

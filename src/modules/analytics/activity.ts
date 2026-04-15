@@ -35,6 +35,7 @@ export const PRODUCT_EVENT_NAMES = {
   paymentCompleted: "payment.completed",
   overduePaymentDetected: "payment.overdue_detected",
   dealClosed: "deal.closed",
+  contractAccepted: "contract.accepted",
   sampleWorkspaceLoaded: "sample_workspace.loaded",
 } as const;
 
