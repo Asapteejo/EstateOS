@@ -6,6 +6,7 @@ import { featureFlags } from "@/lib/env";
 import { sendTransactionalEmail } from "@/lib/notifications/email";
 import { publishDomainEvent } from "@/lib/notifications/events";
 import { createInAppNotification, getTenantOperatorRecipients, notifyManyUsers } from "@/lib/notifications/service";
+import { renderInspectionBookedEmail, renderOperatorAssignmentAlert, renderOperatorInspectionAlert } from "@/lib/notifications/templates";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { findFirstForTenant, findManyForTenant } from "@/lib/tenancy/db";
 import { inspectionSchema, inspectionUpdateSchema } from "@/lib/validations/inquiries";
@@ -190,6 +191,12 @@ export async function createInspectionBooking(
     return created;
   });
 
+  const company = await prisma.company.findUnique({
+    where: { id: tenant.companyId },
+    select: { name: true },
+  });
+  const companyName = company?.name ?? "EstateOS";
+
   const operators = await getTenantOperatorRecipients(tenant.companyId);
   await notifyManyUsers(operators, {
     companyId: tenant.companyId,
@@ -201,9 +208,12 @@ export async function createInspectionBooking(
       propertyId: booking.propertyId,
       inquiryId: booking.inquiryId,
     } as Prisma.InputJsonValue,
-    emailSubject: "New EstateOS inspection request",
-    emailHtml: (recipient) =>
-      `<p>Hi ${recipient},</p><p>${booking.fullName} requested an inspection for ${property.title}.</p>`,
+    emailSubject: `New inspection request — ${property.title}`,
+    emailHtml: renderOperatorInspectionAlert({
+      buyerName: booking.fullName,
+      propertyTitle: property.title,
+      companyName,
+    }),
   });
 
   if (booking.userId) {
@@ -219,11 +229,12 @@ export async function createInspectionBooking(
     });
   }
 
-  await sendTransactionalEmail({
-    to: booking.email,
-    subject: "Your EstateOS inspection request was received",
-    html: `<p>Hi ${booking.fullName},</p><p>Your inspection request for ${property.title} has been received and is awaiting confirmation.</p>`,
+  const { subject: inspectionSubject, html: inspectionHtml } = renderInspectionBookedEmail({
+    fullName: booking.fullName,
+    propertyTitle: property.title,
+    companyName,
   });
+  await sendTransactionalEmail({ to: booking.email, subject: inspectionSubject, html: inspectionHtml });
 
   await publishDomainEvent("inspection/booked", {
     companyId: tenant.companyId,
@@ -372,9 +383,8 @@ export async function updateInspectionBookingForAdmin(
       metadata: {
         inspectionId: bookingId,
       } as Prisma.InputJsonValue,
-      emailSubject: "New EstateOS inspection assignment",
-      emailHtml: (recipient) =>
-        `<p>Hi ${recipient},</p><p>An inspection booking has been assigned to you in EstateOS.</p>`,
+      emailSubject: "Inspection assigned to you",
+      emailHtml: renderOperatorAssignmentAlert({ entityLabel: "Inspection", companyName: "EstateOS" }),
     });
   }
 

@@ -5,6 +5,7 @@ import { writeAuditLog } from "@/lib/audit/service";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { sendTransactionalEmail } from "@/lib/notifications/email";
+import { renderWishlistReminderEmail } from "@/lib/notifications/templates";
 import { createInAppNotification, getTenantOperatorRecipients } from "@/lib/notifications/service";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { findFirstForTenant, findManyForTenant, rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
@@ -654,6 +655,12 @@ export async function sendWishlistReminder(savedPropertyId: string) {
           email: true,
         },
       },
+      company: {
+        select: {
+          name: true,
+          slug: true,
+        },
+      },
     },
   });
 
@@ -670,11 +677,16 @@ export async function sendWishlistReminder(savedPropertyId: string) {
     return { delivered: false, reason: "not-eligible" as const };
   }
 
-  await sendTransactionalEmail({
-    to: wishlist.user.email,
-    subject: `Your wishlist interest in ${wishlist.property.title} is nearing expiry`,
-    html: `<p>Hi ${wishlist.user.firstName ?? "there"},</p><p>Your saved interest in <strong>${wishlist.property.title}</strong> is due to expire on ${formatDate(wishlist.expiresAt!)}.</p><p>Review the property and continue your purchase journey from your EstateOS buyer portal.</p>`,
+  const portalBaseUrl = process.env.NEXT_PUBLIC_PORTAL_BASE_URL ?? "";
+  const propertyUrl = `${portalBaseUrl}/properties/${wishlist.property.slug}`;
+  const { subject, html } = renderWishlistReminderEmail({
+    buyerName: wishlist.user.firstName ?? "there",
+    propertyTitle: wishlist.property.title,
+    expiryDate: formatDate(wishlist.expiresAt!),
+    propertyUrl,
+    companyName: wishlist.company?.name ?? "EstateOS",
   });
+  await sendTransactionalEmail({ to: wishlist.user.email!, subject, html });
 
   await prisma.savedProperty.update({
     where: {

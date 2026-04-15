@@ -208,6 +208,9 @@ export default async function AdminMarketersPage({
               <Link href="/admin/team">
                 <Button variant="outline">Manage team profiles</Button>
               </Link>
+              <Link href="/admin/team/commission-rules">
+                <Button variant="outline">Commission rules</Button>
+              </Link>
               <Link href="/team">
                 <Button variant="outline">Open public team page</Button>
               </Link>
@@ -226,7 +229,7 @@ export default async function AdminMarketersPage({
             <table className="admin-table">
               <thead>
                 <tr>
-                  {["Rank", "Marketer", "Score", "Stars", "Weekly revenue", "Monthly revenue", "Lifetime revenue", "Deals", "Payments", "Inspections", "Reservations", "Trend"].map((column) => (
+                  {["Rank", "Marketer", "Score", "Stars", "Weekly revenue", "Monthly revenue", "Lifetime revenue", "Commission earned", "Deals", "Payments", "Inspections", "Reservations", "Trend"].map((column) => (
                     <th key={column}>{column}</th>
                   ))}
                 </tr>
@@ -261,6 +264,14 @@ export default async function AdminMarketersPage({
                     <td>{formatCurrency(row.revenue.weekly)}</td>
                     <td>{formatCurrency(row.revenue.monthly)}</td>
                     <td>{formatCurrency(row.revenue.lifetime)}</td>
+                    <td>
+                      <div className="font-medium text-[var(--ink-950)]">{formatCurrency(row.commissionTotal)}</div>
+                      {row.commissionPending > 0 && (
+                        <div className="mt-0.5 text-xs text-[var(--ink-400)]">
+                          {formatCurrency(row.commissionPending)} pending
+                        </div>
+                      )}
+                    </td>
                     <td>{row.metrics.completedDeals}</td>
                     <td>{row.metrics.successfulPayments}</td>
                     <td>{row.metrics.inspectionsHandled}</td>

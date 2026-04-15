@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { findManyForTenant } from "@/lib/tenancy/db";
+import { getMarketerCommissionTotals, type MarketerCommissionTotals } from "@/modules/commission/calculator";
 
 type ScopedFindManyDelegate = { findMany: (args?: unknown) => Promise<unknown> };
 type MarketerRankingSnapshotDelegate = {
@@ -79,6 +80,8 @@ export type MarketerPerformanceTrend = {
 export type AdminMarketerPerformanceRow = MarketerPerformanceEntry & {
   trend: MarketerPerformanceTrend | null;
   revenue: MarketerRevenueMetrics;
+  commissionTotal: number;   // lifetime PENDING + PAID commissions
+  commissionPending: number; // unsettled
 };
 
 type ComputedMarketerPerformanceRow = MarketerPerformanceEntry & {
@@ -765,6 +768,10 @@ export async function getAdminMarketerPerformanceDashboard(
       )
     : entries;
 
+  const commissionTotals: Map<string, MarketerCommissionTotals> = context.companyId
+    ? await getMarketerCommissionTotals(context.companyId)
+    : new Map<string, MarketerCommissionTotals>();
+
   const snapshotDelegate = getMarketerRankingSnapshotDelegate();
   const snapshots = context.companyId && snapshotDelegate
     ? await snapshotDelegate.findMany({
@@ -796,10 +803,15 @@ export async function getAdminMarketerPerformanceDashboard(
   }
 
   const rows = sortMarketerPerformanceEntries(
-    filtered.map((entry) => ({
-      ...entry,
-      trend: period === "MONTHLY" ? buildMarketerPerformanceTrend(entry, previousByMember.get(entry.id) ?? null) : null,
-    })),
+    filtered.map((entry) => {
+      const ct = commissionTotals.get(entry.id);
+      return {
+        ...entry,
+        trend: period === "MONTHLY" ? buildMarketerPerformanceTrend(entry, previousByMember.get(entry.id) ?? null) : null,
+        commissionTotal: ct ? ct.lifetime : 0,
+        commissionPending: ct ? ct.pending : 0,
+      };
+    }),
     input?.sortBy ?? "score",
     period,
   );

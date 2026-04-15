@@ -3,10 +3,13 @@ import type { PaymentStatus, Prisma } from "@prisma/client";
 import { writeAuditLog } from "@/lib/audit/service";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
+import { sendTransactionalEmail } from "@/lib/notifications/email";
+import { renderPaymentConfirmedEmail } from "@/lib/notifications/templates";
 import {
   createReceiptFromPayment,
   type PaymentInitializationInput,
 } from "@/lib/payments/paystack";
+import { formatCurrency } from "@/lib/utils";
 import {
   assertInstallmentMatchesCompany,
   assertInstallmentMatchesTransaction,
@@ -24,6 +27,8 @@ import { publishRealtimeEvent } from "@/lib/realtime/events";
 import { syncTransactionMilestones, syncTransactionPaymentState } from "@/modules/transactions/mutations";
 import { buildSettlementQuote, getCompanyPlanStatus, recordBillingEvent } from "@/modules/billing/service";
 import { reconcilePaymentRequestFromPayment } from "@/modules/payment-requests/service";
+import { calculateCommissionAmount, recordMarketerCommission } from "@/modules/commission/calculator";
+import { getApplicableCommissionRule } from "@/modules/commission/rules";
 
 type PaystackWebhookPayload = {
   event: string;
@@ -59,6 +64,7 @@ async function resolveCompanyFromReference(reference: string) {
       return {
         id: "demo-company-acme",
         slug: "acme-realty",
+        name: "Acme Realty",
       };
     }
 
@@ -75,6 +81,7 @@ async function resolveCompanyFromReference(reference: string) {
     select: {
       id: true,
       slug: true,
+      name: true,
     },
   });
 }
@@ -786,6 +793,71 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
             transactionId: payment.transactionId,
           } as Prisma.InputJsonValue,
         });
+      }
+
+      if (payment.userId) {
+        const buyer = await prisma.user.findUnique({
+          where: { id: payment.userId },
+          select: { email: true, firstName: true },
+        });
+        if (buyer?.email) {
+          const { subject, html } = renderPaymentConfirmedEmail({
+            buyerName: buyer.firstName ?? "there",
+            reference,
+            amount: formatCurrency(payment.amount.toNumber()),
+            companyName: company.name,
+          });
+          await sendTransactionalEmail({ to: buyer.email, subject, html });
+        }
+      }
+
+      // ── Marketer commission ───────────────────────────────────────────
+      // Resolve the marketer from payment → transaction → reservation chain.
+      const commissionMarketerId =
+        payment.marketerId ??
+        (payment.transactionId
+          ? (
+              await prisma.transaction.findFirst({
+                where: { id: payment.transactionId, companyId: company.id },
+                select: { marketerId: true },
+              })
+            )?.marketerId
+          : null) ??
+        null;
+
+      if (commissionMarketerId && payment.transactionId) {
+        const txForCommission = await prisma.transaction.findFirst({
+          where: { id: payment.transactionId, companyId: company.id },
+          select: {
+            id: true,
+            propertyId: true,
+            property: { select: { propertyType: true } },
+          },
+        });
+
+        const rule = await getApplicableCommissionRule({
+          companyId: company.id,
+          propertyId: txForCommission?.propertyId,
+          propertyType: txForCommission?.property?.propertyType,
+        });
+
+        if (rule) {
+          const commissionAmount = calculateCommissionAmount(
+            payment.amount.toNumber(),
+            rule,
+          );
+          if (commissionAmount > 0) {
+            await recordMarketerCommission({
+              companyId: company.id,
+              marketerId: commissionMarketerId,
+              paymentId: payment.id,
+              transactionId: payment.transactionId,
+              ruleId: rule.id,
+              amount: commissionAmount,
+              currency: rule.currency,
+            });
+          }
+        }
       }
     }
 

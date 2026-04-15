@@ -151,6 +151,12 @@ enum SettlementStatus {
   NOT_APPLICABLE
 }
 
+enum MarketerCommissionStatus {
+  PENDING
+  PAID
+  VOIDED
+}
+
 enum ProviderAccountStatus {
   PENDING
   ACTIVE
@@ -371,6 +377,8 @@ model Company {
   commissionRules CommissionRule[]
   commissionRecords CommissionRecord[]
   splitSettlements SplitSettlement[]
+  marketerCommissionRules MarketerCommissionRule[] @relation("CompanyMarketerCommissionRules")
+  marketerCommissions     MarketerCommission[]     @relation("CompanyMarketerCommissions")
     billingEvents   BillingEvent[]
     marketerRankingSnapshots MarketerRankingSnapshot[]
     createdAt       DateTime           @default(now())
@@ -664,6 +672,56 @@ model CommissionRecord {
   @@index([companyId, transactionId])
 }
 
+// ─── Marketer commission rules ─────────────────────────────────────────────
+// Admins define how much each marketer earns when a payment is confirmed.
+// Rules are matched by specificity: property > property type > company-wide.
+
+model MarketerCommissionRule {
+  id             String                @id @default(cuid())
+  companyId      String
+  name           String
+  feeType        CommissionType        // FLAT | PERCENTAGE (reuse existing enum)
+  flatAmount     Decimal?              @db.Decimal(12, 2)
+  percentageRate Decimal?              @db.Decimal(5, 2)
+  currency       String                @default("NGN")
+  propertyType   PropertyType?         // null = applies to all property types
+  propertyId     String?               // null = applies to all properties
+  isActive       Boolean               @default(true)
+  sortOrder      Int                   @default(0)
+  company        Company               @relation("CompanyMarketerCommissionRules", fields: [companyId], references: [id])
+  property       Property?             @relation("PropertyMarketerCommissionRules", fields: [propertyId], references: [id])
+  commissions    MarketerCommission[]
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([companyId, isActive])
+  @@index([companyId, propertyType, isActive])
+  @@index([companyId, propertyId, isActive])
+}
+
+model MarketerCommission {
+  id            String                   @id @default(cuid())
+  companyId     String
+  marketerId    String
+  paymentId     String                   @unique
+  transactionId String?
+  ruleId        String?
+  amount        Decimal                  @db.Decimal(12, 2)
+  currency      String                   @default("NGN")
+  status        MarketerCommissionStatus @default(PENDING)
+  company       Company                  @relation("CompanyMarketerCommissions", fields: [companyId], references: [id])
+  marketer      TeamMember               @relation("MarketerCommissions", fields: [marketerId], references: [id])
+  payment       Payment                  @relation("PaymentMarketerCommission", fields: [paymentId], references: [id])
+  transaction   Transaction?             @relation("TransactionMarketerCommissions", fields: [transactionId], references: [id])
+  rule          MarketerCommissionRule?  @relation(fields: [ruleId], references: [id])
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+
+  @@index([companyId, marketerId])
+  @@index([companyId, status])
+  @@index([marketerId, status, createdAt])
+}
+
 model SplitSettlement {
   id                  String                        @id @default(cuid())
   companyId           String
@@ -885,6 +943,8 @@ model Property {
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
+  marketerCommissionRules MarketerCommissionRule[] @relation("PropertyMarketerCommissionRules")
+
   @@unique([companyId, slug])
   @@index([companyId, branchId])
   @@index([companyId, status, propertyType])
@@ -1095,6 +1155,7 @@ model Transaction {
   nextPaymentDueAt   DateTime?
   lastPaymentAt      DateTime?
   lastPaymentReminderAt DateTime?
+  overdueReminderStage  Int                   @default(0)
   followUpStatus     FollowUpStatus        @default(NONE)
   followUpNote       String?
   lastFollowedUpAt   DateTime?
@@ -1112,6 +1173,7 @@ model Transaction {
   receipts           Receipt[]
   documents          Document[]
   commissionRecords  CommissionRecord[]
+  marketerCommissions MarketerCommission[] @relation("TransactionMarketerCommissions")
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
 
@@ -1207,10 +1269,11 @@ model Payment {
   user              User?         @relation(fields: [userId], references: [id])
   marketer          TeamMember?   @relation("SelectedMarketerPayments", fields: [marketerId], references: [id])
   paymentRequest    PaymentRequest? @relation(fields: [paymentRequestId], references: [id])
-  receipt           Receipt?
-  webhookEvents     WebhookEvent[]
-  commissionRecord  CommissionRecord?
-  splitSettlement   SplitSettlement?
+  receipt              Receipt?
+  webhookEvents        WebhookEvent[]
+  commissionRecord     CommissionRecord?
+  splitSettlement      SplitSettlement?
+  marketerCommission   MarketerCommission? @relation("PaymentMarketerCommission")
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
@@ -1422,6 +1485,7 @@ model TeamMember {
     payments    Payment[] @relation("SelectedMarketerPayments")
     savedProperties SavedProperty[] @relation("WishlistSelectedMarketer")
     rankingSnapshots MarketerRankingSnapshot[]
+    commissions  MarketerCommission[] @relation("MarketerCommissions")
     createdAt   DateTime @default(now())
     updatedAt   DateTime @updatedAt
 

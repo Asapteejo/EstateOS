@@ -6,6 +6,7 @@ import { featureFlags } from "@/lib/env";
 import { sendTransactionalEmail } from "@/lib/notifications/email";
 import { publishDomainEvent } from "@/lib/notifications/events";
 import { createInAppNotification, getTenantOperatorRecipients, notifyManyUsers } from "@/lib/notifications/service";
+import { renderInquiryReceivedEmail, renderOperatorInquiryAlert } from "@/lib/notifications/templates";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { findFirstForTenant, findManyForTenant } from "@/lib/tenancy/db";
 import { inquirySchema, inquiryUpdateSchema } from "@/lib/validations/inquiries";
@@ -217,6 +218,12 @@ export async function createInquiry(
     },
   });
 
+  const company = await prisma.company.findUnique({
+    where: { id: tenant.companyId },
+    select: { name: true },
+  });
+  const companyName = company?.name ?? "EstateOS";
+
   const operators = await getTenantOperatorRecipients(tenant.companyId);
   await notifyManyUsers(operators, {
     companyId: tenant.companyId,
@@ -227,9 +234,12 @@ export async function createInquiry(
       inquiryId: inquiry.id,
       propertyId: inquiry.propertyId,
     } as Prisma.InputJsonValue,
-    emailSubject: "New EstateOS inquiry received",
-    emailHtml: (recipient) =>
-      `<p>Hi ${recipient},</p><p>${inquiry.fullName} submitted a new inquiry${inquiry.property?.title ? ` for ${inquiry.property.title}` : ""}.</p>`,
+    emailSubject: `New inquiry — ${inquiry.property?.title ?? inquiry.fullName}`,
+    emailHtml: renderOperatorInquiryAlert({
+      buyerName: inquiry.fullName,
+      propertyTitle: inquiry.property?.title,
+      companyName,
+    }),
   });
 
   if (inquiry.userId) {
@@ -245,11 +255,12 @@ export async function createInquiry(
     });
   }
 
-  await sendTransactionalEmail({
-    to: inquiry.email,
-    subject: "We received your EstateOS inquiry",
-    html: `<p>Hi ${inquiry.fullName},</p><p>Your inquiry has been received${inquiry.property?.title ? ` for ${inquiry.property.title}` : ""}. A sales representative will reach out shortly.</p>`,
+  const { subject: inquirySubject, html: inquiryHtml } = renderInquiryReceivedEmail({
+    fullName: inquiry.fullName,
+    propertyTitle: inquiry.property?.title,
+    companyName,
   });
+  await sendTransactionalEmail({ to: inquiry.email, subject: inquirySubject, html: inquiryHtml });
 
   await publishDomainEvent("inquiry/received", {
     companyId: tenant.companyId,
@@ -389,6 +400,10 @@ export async function updateInquiryForAdmin(
   }
 
   if (updated.assignedStaff?.user.id && updated.assignedStaffId !== inquiry.assignedStaffId) {
+    const assignedCompany = await prisma.company.findUnique({
+      where: { id: context.companyId },
+      select: { name: true },
+    });
     await notifyManyUsers([updated.assignedStaff.user], {
       companyId: context.companyId,
       type: "INQUIRY_ASSIGNED",
@@ -397,9 +412,11 @@ export async function updateInquiryForAdmin(
       metadata: {
         inquiryId,
       } as Prisma.InputJsonValue,
-      emailSubject: "New EstateOS inquiry assignment",
-      emailHtml: (recipient) =>
-        `<p>Hi ${recipient},</p><p>A new inquiry has been assigned to you in EstateOS.</p>`,
+      emailSubject: "Inquiry assigned to you",
+      emailHtml: renderOperatorInquiryAlert({
+        buyerName: "a client",
+        companyName: assignedCompany?.name ?? "EstateOS",
+      }),
     });
   }
 

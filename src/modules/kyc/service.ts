@@ -4,6 +4,8 @@ import { writeAuditLog } from "@/lib/audit/service";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { assertDocumentAccess } from "@/lib/documents/access";
+import { sendTransactionalEmail } from "@/lib/notifications/email";
+import { renderKycStatusEmail } from "@/lib/notifications/templates";
 import { isTenantStorageKey } from "@/lib/storage/paths";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { findFirstForTenant, findManyForTenant, rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
@@ -516,12 +518,19 @@ export async function reviewKycSubmission(
         id: true,
         userId: true,
         status: true,
+        user: {
+          select: {
+            email: true,
+            firstName: true,
+          },
+        },
       },
     } as Parameters<typeof prisma.kYCSubmission.findFirst>[0],
   )) as {
     id: string;
     userId: string;
     status: string;
+    user: { email: string; firstName: string | null };
   } | null;
 
   if (!submission) {
@@ -557,6 +566,19 @@ export async function reviewKycSubmission(
       } as Prisma.InputJsonValue,
     },
   });
+
+  const company = await prisma.company.findUnique({
+    where: { id: context.companyId },
+    select: { name: true },
+  });
+
+  const { subject, html } = renderKycStatusEmail({
+    buyerName: submission.user.firstName ?? "there",
+    status: input.status,
+    notes: input.notes,
+    companyName: company?.name ?? "EstateOS",
+  });
+  await sendTransactionalEmail({ to: submission.user.email, subject, html });
 
   await writeAuditLog({
     companyId: context.companyId,

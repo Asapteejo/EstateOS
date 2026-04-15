@@ -4,6 +4,7 @@ import { addHours, subDays, subMinutes } from "date-fns";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { sendTransactionalEmail } from "@/lib/notifications/email";
+import { renderInspectionBookedEmail, renderOperatorPaymentOverdueAlert, renderPaymentOverdueEmail } from "@/lib/notifications/templates";
 import { createInAppNotification, getTenantOperatorRecipients, notifyManyUsers } from "@/lib/notifications/service";
 import { publishRealtimeEvent } from "@/lib/realtime/events";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -109,6 +110,44 @@ export async function runOperationalAutomationSweep(input?: { companyId?: string
     },
   });
 
+  const inspectionBookings = await prisma.inspectionBooking.findMany({
+    where: {
+      ...(input?.companyId ? { companyId: input.companyId } : {}),
+      scheduledFor: {
+        gte: now,
+        lte: addHours(now, 24),
+      },
+    },
+    select: {
+      id: true,
+      companyId: true,
+      status: true,
+      reminderSentAt: true,
+      scheduledFor: true,
+      email: true,
+      fullName: true,
+      userId: true,
+      property: {
+        select: {
+          title: true,
+        },
+      },
+    },
+  });
+
+  // Batch-fetch company names for all affected companies (transactions + inspections) to avoid N+1.
+  const uniqueCompanyIds = [
+    ...new Set([
+      ...transactions.map((t) => t.companyId),
+      ...inspectionBookings.map((b) => b.companyId),
+    ]),
+  ];
+  const companyRows = await prisma.company.findMany({
+    where: { id: { in: uniqueCompanyIds } },
+    select: { id: true, name: true },
+  });
+  const companyNameById = Object.fromEntries(companyRows.map((c) => [c.id, c.name]));
+
   let overduePayments = 0;
 
   for (const transaction of transactions) {
@@ -136,27 +175,36 @@ export async function runOperationalAutomationSweep(input?: { companyId?: string
     }
 
     overduePayments += 1;
+    const companyName = companyNameById[transaction.companyId] ?? "EstateOS";
+    const reservationRef = transaction.reservation?.reference ?? "your reservation";
+    const formattedBalance = formatCurrency(outstandingBalance);
     const operators = await getTenantOperatorRecipients(transaction.companyId);
 
     await notifyManyUsers(operators, {
       companyId: transaction.companyId,
       type: "INSTALLMENT_DUE",
       title: "Payment overdue",
-      body: `${transaction.reservation?.reference ?? "A deal"} is overdue with ${formatCurrency(outstandingBalance)} outstanding.`,
+      body: `${reservationRef} is overdue with ${formattedBalance} outstanding.`,
       metadata: {
         transactionId: transaction.id,
         href: "/admin/payments",
       } as Prisma.InputJsonValue,
+      emailSubject: `Payment overdue — ${reservationRef}`,
+      emailHtml: renderOperatorPaymentOverdueAlert({
+        reservationRef,
+        outstandingBalance: formattedBalance,
+        companyName,
+      }),
     });
 
     if (transaction.user.email) {
-      await sendTransactionalEmail({
-        to: transaction.user.email,
-        subject: "Your EstateOS payment is overdue",
-        html: `<p>Hi ${transaction.user.firstName ?? "there"},</p><p>Your payment for ${
-          transaction.reservation?.reference ?? "your reservation"
-        } is overdue. Outstanding balance: <strong>${formatCurrency(outstandingBalance)}</strong>.</p>`,
+      const { subject, html } = renderPaymentOverdueEmail({
+        buyerName: transaction.user.firstName ?? "there",
+        reservationRef,
+        outstandingBalance: formattedBalance,
+        companyName,
       });
+      await sendTransactionalEmail({ to: transaction.user.email, subject, html });
     }
 
     await prisma.transaction.update({
@@ -192,31 +240,6 @@ export async function runOperationalAutomationSweep(input?: { companyId?: string
     });
   }
 
-  const inspectionBookings = await prisma.inspectionBooking.findMany({
-    where: {
-      ...(input?.companyId ? { companyId: input.companyId } : {}),
-      scheduledFor: {
-        gte: now,
-        lte: addHours(now, 24),
-      },
-    },
-    select: {
-      id: true,
-      companyId: true,
-      status: true,
-      reminderSentAt: true,
-      scheduledFor: true,
-      email: true,
-      fullName: true,
-      userId: true,
-      property: {
-        select: {
-          title: true,
-        },
-      },
-    },
-  });
-
   let inspectionReminders = 0;
 
   for (const booking of inspectionBookings) {
@@ -233,11 +256,13 @@ export async function runOperationalAutomationSweep(input?: { companyId?: string
 
     inspectionReminders += 1;
 
-    await sendTransactionalEmail({
-      to: booking.email,
-      subject: "Inspection reminder",
-      html: `<p>Hi ${booking.fullName},</p><p>This is a reminder for your inspection at <strong>${booking.property.title}</strong> on ${formatDate(booking.scheduledFor, "PPP p")}.</p>`,
+    const bookingCompanyName = companyNameById[booking.companyId] ?? "EstateOS";
+    const { subject: reminderSubject, html: reminderHtml } = renderInspectionBookedEmail({
+      fullName: booking.fullName,
+      propertyTitle: booking.property.title,
+      companyName: bookingCompanyName,
     });
+    await sendTransactionalEmail({ to: booking.email, subject: `Reminder: ${reminderSubject}`, html: reminderHtml });
 
     if (booking.userId) {
       await createInAppNotification({
