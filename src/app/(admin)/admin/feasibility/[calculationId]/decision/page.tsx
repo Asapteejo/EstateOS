@@ -2,9 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { InvestorReportView } from "@/components/admin/development-calculator-workspace";
+import { FeasibilityAiNarrative } from "@/components/admin/feasibility-ai-narrative";
 import { Button } from "@/components/ui/button";
 import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { requireAdminSession } from "@/lib/auth/guards";
+import { featureFlags } from "@/lib/env";
 import { calculateDevelopmentFeasibility } from "@/modules/development-calculations/engine";
 import { buildCalculatorRecommendations } from "@/modules/development-calculations/recommendations";
 import { getDevelopmentCalculationDetail } from "@/modules/development-calculations/service";
@@ -93,6 +95,23 @@ export default async function AdminFeasibilityDecisionPage({
             </Link>
           </div>
         </div>
+
+        {featureFlags.hasGeminiAi && (
+          <div className="rounded-[30px] border border-[var(--line)] bg-white p-6">
+            <div className="mb-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--brand-700)]">
+                AI analysis
+              </div>
+              <h2 className="mt-3 text-xl font-semibold text-[var(--ink-950)]">
+                Feasibility narrative
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-[var(--ink-500)]">
+                Generate a plain-English executive summary of viability, key risks, and recommended action.
+              </p>
+            </div>
+            <FeasibilityAiNarrative calculationId={calculationId} />
+          </div>
+        )}
 
         <InvestorReportView
           form={form}

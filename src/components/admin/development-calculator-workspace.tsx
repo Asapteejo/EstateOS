@@ -61,6 +61,7 @@ type WorkspaceProps = {
   showProjectBrowser?: boolean;
   allowPresentationView?: boolean;
   decisionHref?: string | null;
+  initialPreset?: DevelopmentPresetKey | null;
 };
 
 type ScenarioItem = ReturnType<typeof calculateDevelopmentFeasibility>["scenarios"][number];
@@ -130,11 +131,13 @@ export function DevelopmentCalculatorWorkspace({
   showProjectBrowser = true,
   allowPresentationView = true,
   decisionHref = null,
+  initialPreset = null,
 }: WorkspaceProps) {
   const router = useRouter();
-  const [form, setForm] = useState<DevelopmentCalculationInput>(
-    selected?.form ?? blankForm ?? createDraft(defaultCurrency),
-  );
+  const [form, setForm] = useState<DevelopmentCalculationInput>(() => {
+    const base = selected?.form ?? blankForm ?? createDraft(defaultCurrency);
+    return initialPreset && !selected ? applyDevelopmentPreset(base, initialPreset) : base;
+  });
   const [pending, setPending] = useState<"save" | "saveVersion" | "delete" | null>(null);
   const [advancedMode, setAdvancedMode] = useState(true);
   const [presentationView, setPresentationView] = useState(false);
@@ -143,7 +146,7 @@ export function DevelopmentCalculatorWorkspace({
   const [quickStartMode, setQuickStartMode] = useState(!selected);
   const [comparisonMode, setComparisonMode] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<DevelopmentPresetKey | null>(
-    inferDevelopmentPreset(selected?.form ?? blankForm ?? createDraft(defaultCurrency)) ?? "BALANCED",
+    initialPreset ?? inferDevelopmentPreset(selected?.form ?? blankForm ?? createDraft(defaultCurrency)) ?? "BALANCED",
   );
   const [comparisonSelection, setComparisonSelection] = useState<string[]>([]);
   const [comparisonDetails, setComparisonDetails] = useState<Record<string, DevelopmentCalculationDetail>>({});

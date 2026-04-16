@@ -148,6 +148,7 @@ const calculationSelect = Prisma.validator<Prisma.DevelopmentCalculationFindMany
     installmentTenureMonths: true,
     installmentPremiumRate: true,
     useInflationAdjustedInstallmentPricing: true,
+    decisionStatus: true,
     notes: true,
     createdByUserId: true,
     updatedByUserId: true,
@@ -209,6 +210,8 @@ export type DevelopmentCalculationListItem = {
   estimatedRevenue: number;
   roiPercent: number;
   marginPercent: number;
+  irrPercent: number;
+  decisionStatus: "PENDING" | "APPROVED" | "REJECTED";
 };
 
 export type DevelopmentCalculationDetail = {
@@ -341,7 +344,15 @@ function mapRecordToListItem(
     estimatedRevenue: result.revenue.estimatedRevenue,
     roiPercent: result.revenue.roiPercent,
     marginPercent: result.revenue.marginPercent,
+    irrPercent: computeAnnualizedIrr(result.revenue.roiPercent, record.projectDurationMonths),
+    decisionStatus: (record.decisionStatus ?? "PENDING") as "PENDING" | "APPROVED" | "REJECTED",
   };
+}
+
+function computeAnnualizedIrr(roiPercent: number, projectDurationMonths: number): number {
+  if (projectDurationMonths <= 0) return 0;
+  const years = projectDurationMonths / 12;
+  return (Math.pow(1 + roiPercent / 100, 1 / years) - 1) * 100;
 }
 
 function mapRecordToVersionListItem(
@@ -869,6 +880,40 @@ export async function updateDevelopmentCalculation(
   }
 
   return detail;
+}
+
+export async function updateFeasibilityDecisionStatus(
+  context: TenantContext,
+  calculationId: string,
+  status: "PENDING" | "APPROVED" | "REJECTED",
+) {
+  if (!context.companyId) {
+    throw new Error("Tenant context is required.");
+  }
+
+  if (!featureFlags.hasDatabase) {
+    throw new Error("Database unavailable.");
+  }
+
+  const updated = await prisma.developmentCalculation.updateMany({
+    where: { id: calculationId, companyId: context.companyId, archivedAt: null },
+    data: { decisionStatus: status, updatedByUserId: context.userId },
+  });
+
+  if (updated.count < 1) {
+    throw new Error("Feasibility project not found.");
+  }
+
+  await writeAuditLog({
+    companyId: context.companyId,
+    actorUserId: context.userId ?? undefined,
+    action: "UPDATE",
+    entityType: "development_calculation",
+    entityId: calculationId,
+    summary: `Decision status set to ${status}.`,
+  });
+
+  return { id: calculationId, decisionStatus: status };
 }
 
 export async function archiveDevelopmentCalculation(

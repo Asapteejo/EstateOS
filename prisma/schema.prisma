@@ -301,6 +301,12 @@ enum DevelopmentPaymentMode {
   INSTALLMENT
 }
 
+enum FeasibilityDecisionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum DevelopmentSalesMixPriceMode {
   PER_SQM
   PER_UNIT
@@ -436,6 +442,7 @@ model DevelopmentCalculation {
   installmentTenureMonths              Int?
   installmentPremiumRate               Decimal?                 @db.Decimal(5, 2)
   useInflationAdjustedInstallmentPricing Boolean                @default(false)
+  decisionStatus                       FeasibilityDecisionStatus @default(PENDING)
   archivedAt                           DateTime?
   company                              Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   salesMixItems                        DevelopmentCalculationSalesMixItem[]

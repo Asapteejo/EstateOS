@@ -1,5 +1,11 @@
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+import { env, featureFlags } from "@/lib/env";
+import type { TenantContext } from "@/lib/tenancy/context";
 import type { DevelopmentCalculationInput } from "@/lib/validations/development-calculations";
 import type { DevelopmentCalculationResult } from "@/modules/development-calculations/engine";
+import { calculateDevelopmentFeasibility } from "@/modules/development-calculations/engine";
+import { getDevelopmentCalculationDetail } from "@/modules/development-calculations/service";
 
 export type RecommendationSeverity = "CRITICAL" | "WATCH" | "OPPORTUNITY";
 export type RecommendationCategory =
@@ -316,4 +322,71 @@ export function buildComparisonRecommendations(
   ];
 
   return { recommendations };
+}
+
+export async function generateFeasibilityNarrative(
+  context: TenantContext,
+  calculationId: string,
+): Promise<ReadableStream<Uint8Array>> {
+  if (!featureFlags.hasGeminiAi) {
+    throw new Error("AI narrative is not configured.");
+  }
+
+  const detail = await getDevelopmentCalculationDetail(context, calculationId);
+  if (!detail) {
+    throw new Error("Calculation not found.");
+  }
+
+  const form = detail.form;
+  const results = detail.result ?? calculateDevelopmentFeasibility(form);
+  const fmt = (n: number) => new Intl.NumberFormat("en-NG").format(Math.round(n));
+
+  const baseScenario = results.scenarios.find((s) => s.label === "BASE");
+  const bestScenario = results.scenarios.find((s) => s.label === "BEST");
+  const worstScenario = results.scenarios.find((s) => s.label === "WORST");
+
+  const prompt = `You are a senior real estate development analyst. Write a 3-paragraph plain-English feasibility narrative for the project described below.
+
+Paragraph 1 — Viability summary: State whether the project is viable based on margin, ROI, and break-even cushion. Quote specific numbers.
+Paragraph 2 — Key risks and scenario triggers: Identify the 2–3 most significant risks from the warnings and downside scenario. Be specific about what numbers would change and why.
+Paragraph 3 — Recommended action with numbers: Give a direct recommendation — proceed, pause for revision, or abandon — with specific thresholds or conditions attached.
+
+Use short, direct sentences. No bullet points. No headers. No markdown. Output only the three paragraphs separated by blank lines.
+
+PROJECT DATA:
+Project name: ${form.projectName}
+Total land: ${fmt(form.landSizeHectares * 10000)} sqm | Sellable: ${fmt(results.area.sellableSqm)} sqm (${results.area.reservedPercentage.toFixed(1)}% reserved)
+Sale mode: ${form.saleMode}
+Adjusted total cost: ${fmt(results.costs.adjustedTotalCost)}
+Estimated revenue: ${fmt(results.revenue.estimatedRevenue)}
+Break-even price/sqm: ${fmt(results.revenue.breakevenPricePerSqm)}
+Effective selling price/sqm: ${fmt(results.revenue.effectiveSellingPricePerSqm)}
+ROI: ${results.revenue.roiPercent.toFixed(1)}% | Margin: ${results.revenue.marginPercent.toFixed(1)}%
+Target margin: ${form.requiredTargetProfitMarginRate}%
+Peak funding gap: ${fmt(results.phasing.peakFundingGap)}
+Payback month: ${results.phasing.paybackMonth != null ? `Month ${results.phasing.paybackMonth}` : "Not reached in plan window"}
+BASE scenario — ROI: ${baseScenario ? baseScenario.roiPercent.toFixed(1) + "%" : "n/a"}, Margin: ${baseScenario ? baseScenario.marginPercent.toFixed(1) + "%" : "n/a"}
+BEST scenario — ROI: ${bestScenario ? bestScenario.roiPercent.toFixed(1) + "%" : "n/a"}, Revenue: ${bestScenario ? fmt(bestScenario.estimatedRevenue) : "n/a"}
+WORST scenario — ROI: ${worstScenario ? worstScenario.roiPercent.toFixed(1) + "%" : "n/a"}, Margin: ${worstScenario ? worstScenario.marginPercent.toFixed(1) + "%" : "n/a"}
+Warnings: ${results.warnings.length > 0 ? results.warnings.join("; ") : "None"}`;
+
+  const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY!);
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const streamResult = await model.generateContentStream(prompt);
+
+  const encoder = new TextEncoder();
+  return new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        for await (const chunk of streamResult.stream) {
+          const text = chunk.text();
+          if (text) {
+            controller.enqueue(encoder.encode(text));
+          }
+        }
+      } finally {
+        controller.close();
+      }
+    },
+  });
 }

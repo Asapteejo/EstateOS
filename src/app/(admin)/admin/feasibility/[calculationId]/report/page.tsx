@@ -3,8 +3,12 @@ import { notFound } from "next/navigation";
 import { AutoPrintOnLoad } from "@/components/admin/auto-print-on-load";
 import { InvestorReportView } from "@/components/admin/development-calculator-workspace";
 import { requireAdminSession } from "@/lib/auth/guards";
+import { featureFlags } from "@/lib/env";
 import { calculateDevelopmentFeasibility } from "@/modules/development-calculations/engine";
-import { buildCalculatorRecommendations } from "@/modules/development-calculations/recommendations";
+import {
+  buildCalculatorRecommendations,
+  generateFeasibilityNarrative,
+} from "@/modules/development-calculations/recommendations";
 import { getDevelopmentCalculationDetail } from "@/modules/development-calculations/service";
 
 function getWarningTone(warning: string): "danger" | "caution" {
@@ -63,6 +67,24 @@ export default async function AdminFeasibilityReportPage({
         : "Target margin sits in a balanced range for management review and market testing.";
   const recommendationBundle = buildCalculatorRecommendations(form, results);
 
+  let aiNarrative: string | null = null;
+  if (featureFlags.hasGeminiAi) {
+    try {
+      const stream = await generateFeasibilityNarrative(tenant, calculationId);
+      const reader = stream.getReader();
+      const decoder = new TextDecoder();
+      const chunks: string[] = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(decoder.decode(value, { stream: true }));
+      }
+      aiNarrative = chunks.join("");
+    } catch {
+      // non-critical — omit from report if generation fails
+    }
+  }
+
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-6 py-8 print:max-w-none print:px-0 print:py-0">
       <AutoPrintOnLoad title={`${form.projectName} Feasibility Report`} />
@@ -75,6 +97,22 @@ export default async function AdminFeasibilityReportPage({
           This route renders the saved feasibility report without dashboard chrome so browser export stays clean and print-friendly.
         </p>
       </div>
+      {aiNarrative && (
+        <div className="mb-6 rounded-2xl border border-[var(--line)] bg-[var(--surface-50)] p-6 space-y-4">
+          <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--brand-700)]">
+            AI feasibility narrative
+          </div>
+          {aiNarrative
+            .split(/\n\n+/)
+            .filter((p) => p.trim())
+            .map((paragraph, i) => (
+              <p key={i} className="text-sm leading-7 text-[var(--ink-700)]">
+                {paragraph.trim()}
+              </p>
+            ))}
+        </div>
+      )}
+
       <InvestorReportView
         form={form}
         results={results}
