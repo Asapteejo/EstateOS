@@ -329,6 +329,8 @@ model Company {
   legalName       String?
   subdomain       String?            @unique
   customDomain    String?            @unique
+  customDomainStatus CustomDomainStatus? @default(PENDING)
+  customDomainVerifiedAt DateTime?
   logoUrl         String?
   primaryColor    String?
   accentColor     String?
@@ -1654,6 +1656,12 @@ enum InvitationStatus {
   ACCEPTED
   REVOKED
   EXPIRED
+}
+
+enum CustomDomainStatus {
+  PENDING
+  VERIFIED
+  FAILED
 }
 
 model TeamMemberInvitation {

@@ -3,12 +3,13 @@ import { TeamManagement } from "@/components/admin/team-management";
 import { requireAdminSession } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
+import { resolveCompanyPublicUrl } from "@/lib/domains/public-url";
 import { getAdminTeamMembers, getAvailableResumeDocuments } from "@/modules/team/queries";
 
 export default async function AdminTeamPage() {
   const tenant = await requireAdminSession(["ADMIN"]);
 
-  const [members, resumeDocuments, pendingInvitations] = await Promise.all([
+  const [members, resumeDocuments, pendingInvitations, companyDomain] = await Promise.all([
     getAdminTeamMembers(tenant),
     getAvailableResumeDocuments(tenant),
     featureFlags.hasDatabase && tenant.companyId
@@ -30,6 +31,17 @@ export default async function AdminTeamPage() {
           },
         })
       : Promise.resolve([]),
+    featureFlags.hasDatabase && tenant.companyId
+      ? prisma.company.findUnique({
+          where: { id: tenant.companyId },
+          select: {
+            slug: true,
+            subdomain: true,
+            customDomain: true,
+            customDomainStatus: true,
+          },
+        })
+      : Promise.resolve(null),
   ]);
 
   const serializedInvitations = pendingInvitations.map((inv) => ({
@@ -39,6 +51,10 @@ export default async function AdminTeamPage() {
     createdAt: inv.createdAt.toISOString(),
     expiresAt: inv.expiresAt.toISOString(),
   }));
+
+  const siteBaseUrl = companyDomain
+    ? resolveCompanyPublicUrl(companyDomain)
+    : null;
 
   return (
     <DashboardShell
@@ -50,6 +66,7 @@ export default async function AdminTeamPage() {
         members={members}
         resumeDocuments={resumeDocuments}
         pendingInvitations={serializedInvitations}
+        siteBaseUrl={siteBaseUrl}
       />
     </DashboardShell>
   );

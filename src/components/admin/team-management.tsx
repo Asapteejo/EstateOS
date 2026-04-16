@@ -150,10 +150,12 @@ export function TeamManagement({
   members,
   resumeDocuments,
   pendingInvitations = [],
+  siteBaseUrl = null,
 }: {
   members: TeamMemberManagementRecord[];
   resumeDocuments: Array<{ id: string; fileName: string }>;
   pendingInvitations?: PendingInvitation[];
+  siteBaseUrl?: string | null;
 }) {
   const router = useRouter();
   const [createState, setCreateState] = useState<TeamMemberFormState>(emptyState());
@@ -271,8 +273,19 @@ export function TeamManagement({
                       {member.staffCode ?? "No staff code"}  -  order {member.sortOrder}
                     </div>
                   </div>
-                  <div className="flex gap-2 text-[var(--ink-400)]">
+                  <div className="flex flex-col items-end gap-2 text-[var(--ink-400)]">
                     {member.isPublished ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    {siteBaseUrl && member.isPublished && (
+                      <a
+                        href={`${siteBaseUrl.replace(/\/$/, "")}/team/${member.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--brand-600)] underline underline-offset-2 hover:text-[var(--brand-800)]"
+                      >
+                        View profile
+                      </a>
+                    )}
                   </div>
                 </div>
               </button>

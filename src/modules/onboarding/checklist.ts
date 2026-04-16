@@ -16,6 +16,7 @@
 
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
+import { getCompanyPublicUrlLabel } from "@/lib/domains/public-url";
 import type { TenantContext } from "@/lib/tenancy/context";
 
 export type OnboardingStep = {
@@ -47,7 +48,13 @@ export async function getOnboardingChecklist(
     await Promise.all([
       prisma.company.findUnique({
         where: { id: context.companyId },
-        select: { logoUrl: true },
+        select: {
+          logoUrl: true,
+          slug: true,
+          subdomain: true,
+          customDomain: true,
+          customDomainStatus: true,
+        },
       }),
 
       prisma.siteSettings.findUnique({
@@ -77,7 +84,18 @@ export async function getOnboardingChecklist(
       prisma.transaction.count({ where: { companyId: context.companyId } }),
     ]);
 
-  steps[0].complete = true; // workspace always done
+  // Update workspace step description with live URL
+  if (company) {
+    const urlLabel = getCompanyPublicUrlLabel({
+      slug: company.slug,
+      subdomain: company.subdomain,
+      customDomain: company.customDomain,
+      customDomainStatus: company.customDomainStatus,
+    });
+    steps[0].description = `Your workspace is live at ${urlLabel}.`;
+  }
+
+  steps[0].complete = true;
   steps[1].complete = Boolean(company?.logoUrl) && Boolean(siteSettings?.supportEmail);
   steps[2].complete = siteSettings?.publishedBrandingConfig != null;
   steps[3].complete = propertyCount > 0;

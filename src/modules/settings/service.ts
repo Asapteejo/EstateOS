@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, type CustomDomainStatus } from "@prisma/client";
 
 import { writeAuditLog } from "@/lib/audit/service";
 import { prisma } from "@/lib/db/prisma";
@@ -55,6 +55,12 @@ export type TenantAdminSettings = {
   showStaffWhatsApp: boolean;
   requireActivePlanForTransactions: boolean;
   requireActivePlanForAdminOps: boolean;
+  // domain
+  slug: string;
+  subdomain: string | null;
+  customDomain: string | null;
+  customDomainStatus: CustomDomainStatus | null;
+  customDomainVerifiedAt: Date | null;
 };
 
 const defaultTenantAdminSettings: TenantAdminSettings = {
@@ -79,6 +85,11 @@ const defaultTenantAdminSettings: TenantAdminSettings = {
   showStaffWhatsApp: true,
   requireActivePlanForTransactions: true,
   requireActivePlanForAdminOps: false,
+  slug: "demo",
+  subdomain: null,
+  customDomain: null,
+  customDomainStatus: null,
+  customDomainVerifiedAt: null,
 };
 
 function parseMarketingConfig(value: Prisma.JsonValue | null | undefined): MarketingConfigShape {
@@ -106,6 +117,11 @@ export async function getTenantAdminSettings(context: TenantContext): Promise<Te
     where: { id: context.companyId },
     select: {
       name: true,
+      slug: true,
+      subdomain: true,
+      customDomain: true,
+      customDomainStatus: true,
+      customDomainVerifiedAt: true,
       logoUrl: true,
       primaryColor: true,
       accentColor: true,
@@ -190,6 +206,11 @@ export async function getTenantAdminSettings(context: TenantContext): Promise<Te
     requireActivePlanForAdminOps:
       company.billingSettings?.requireActivePlanForAdminOps ??
       defaultTenantAdminSettings.requireActivePlanForAdminOps,
+    slug: company.slug,
+    subdomain: company.subdomain,
+    customDomain: company.customDomain,
+    customDomainStatus: company.customDomainStatus,
+    customDomainVerifiedAt: company.customDomainVerifiedAt,
   };
 }
 
@@ -202,6 +223,11 @@ export async function getCompanyOperationalDefaults(companyId: string) {
     where: { id: companyId },
     select: {
       name: true,
+      slug: true,
+      subdomain: true,
+      customDomain: true,
+      customDomainStatus: true,
+      customDomainVerifiedAt: true,
       logoUrl: true,
       primaryColor: true,
       accentColor: true,
