@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 import { requireAdminSession } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
@@ -11,7 +11,7 @@ export async function POST(
   const tenant = await requireAdminSession();
   const { inquiryId } = await params;
 
-  if (!featureFlags.hasAnthropicAi) {
+  if (!featureFlags.hasGeminiAi) {
     return Response.json({ error: "AI drafting is not configured." }, { status: 503 });
   }
   if (!featureFlags.hasDatabase || !tenant.companyId) {
@@ -52,12 +52,10 @@ export async function POST(
     ? `Property enquired about: "${inquiry.property.title}"${inquiry.property.shortDescription ? `\nProperty summary: ${inquiry.property.shortDescription}` : ""}`
     : "General inquiry — no specific property selected.";
 
-  const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-
-  const stream = client.messages.stream({
-    model: "claude-sonnet-4-6",
-    max_tokens: 1024,
-    system: `You are a professional sales assistant at ${companyName}, a real estate company. Draft a warm, professional first-response email to a buyer who submitted a property inquiry.
+  const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY!);
+  const model = genAI.getGenerativeModel({
+    model: "gemini-1.5-flash",
+    systemInstruction: `You are a professional sales assistant at ${companyName}, a real estate company. Draft a warm, professional first-response email to a buyer who submitted a property inquiry.
 
 Guidelines:
 - Address the buyer by first name only
@@ -68,31 +66,27 @@ Guidelines:
 - Sign off as "The ${companyName} Team"
 
 Output only the email body text starting with "Dear [Name]," — no subject line, no extra commentary.`,
-    messages: [
-      {
-        role: "user",
-        content: `Buyer name: ${inquiry.fullName}
+  });
+
+  const prompt = `Buyer name: ${inquiry.fullName}
 Buyer email: ${inquiry.email}
 ${propertyContext}
 
 Their message:
 "${inquiry.message}"
 
-Draft the personalised first-response email.`,
-      },
-    ],
-  });
+Draft the personalised first-response email.`;
+
+  const result = await model.generateContentStream(prompt);
 
   const encoder = new TextEncoder();
   const readable = new ReadableStream({
     async start(controller) {
       try {
-        for await (const event of stream) {
-          if (
-            event.type === "content_block_delta" &&
-            event.delta.type === "text_delta"
-          ) {
-            controller.enqueue(encoder.encode(event.delta.text));
+        for await (const chunk of result.stream) {
+          const text = chunk.text();
+          if (text) {
+            controller.enqueue(encoder.encode(text));
           }
         }
       } finally {

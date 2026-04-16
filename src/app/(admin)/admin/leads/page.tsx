@@ -15,7 +15,7 @@ export default async function AdminLeadsPage() {
     <DashboardShell area="admin" title="Leads & Inquiries" subtitle="Lead source, owner assignment, and pipeline qualification view.">
       <InquiryManagement
         inquiries={inquiries}
-        hasAiDraft={featureFlags.hasAnthropicAi}
+        hasAiDraft={featureFlags.hasGeminiAi}
         staffOptions={staff.map((member) => ({
           id: member.id,
           label:
