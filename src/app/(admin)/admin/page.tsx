@@ -1,7 +1,9 @@
 import { DealBoardView } from "@/components/admin/deal-board-view";
+import { OnboardingChecklistCard } from "@/components/admin/onboarding-checklist";
 import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { requireAdminSession } from "@/lib/auth/guards";
 import { getAdminDealBoard } from "@/modules/admin/deal-board";
+import { getOnboardingChecklist } from "@/modules/onboarding/checklist";
 
 export default async function AdminDashboardPage({
   searchParams,
@@ -10,7 +12,10 @@ export default async function AdminDashboardPage({
 }) {
   const tenant = await requireAdminSession(["ADMIN"]);
   const params = await searchParams;
-  const board = await getAdminDealBoard(tenant);
+  const [board, checklist] = await Promise.all([
+    getAdminDealBoard(tenant),
+    getOnboardingChecklist(tenant),
+  ]);
   const setupMode =
     typeof params.mode === "string" && (params.mode === "sample" || params.mode === "clean")
       ? params.mode
@@ -25,6 +30,12 @@ export default async function AdminDashboardPage({
       title="Deal Board"
       subtitle="Track every buyer from first inquiry to final payment. See what is paid, what is overdue, and what needs follow-up next."
     >
+      {!checklist.allComplete && (
+        <OnboardingChecklistCard
+          checklist={checklist}
+          workspaceSlug={tenant.companySlug ?? null}
+        />
+      )}
       <DealBoardView
         board={board}
         highlightDealId={highlightDealId}
