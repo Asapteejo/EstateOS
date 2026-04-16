@@ -374,6 +374,7 @@ model Company {
   billingSettings CompanyBillingSettings?
   subscriptions   CompanySubscription[]
   providerAccounts CompanyPaymentProviderAccount[]
+  teamInvitations TeamMemberInvitation[]
   commissionRules CommissionRule[]
   commissionRecords CommissionRecord[]
   splitSettlements SplitSettlement[]
@@ -1648,5 +1649,30 @@ model BackgroundJobLog {
   @@index([companyId, jobName, status])
 }
 
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+model TeamMemberInvitation {
+  id              String           @id @default(cuid())
+  companyId       String
+  email           String
+  fullName        String
+  role            AppRole          @default(STAFF)
+  token           String           @unique
+  status          InvitationStatus @default(PENDING)
+  invitedByUserId String?
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  company         Company          @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, status])
+  @@index([email, status])
+}
 
 

@@ -43,7 +43,7 @@ export async function getOnboardingChecklist(
     return summarise(steps);
   }
 
-  const [company, siteSettings, propertyCount, teamCount, providerCount, transactionCount] =
+  const [company, siteSettings, propertyCount, teamCount, pendingInviteCount, providerCount, transactionCount] =
     await Promise.all([
       prisma.company.findUnique({
         where: { id: context.companyId },
@@ -62,6 +62,14 @@ export async function getOnboardingChecklist(
 
       prisma.teamMember.count({ where: { companyId: context.companyId } }),
 
+      prisma.teamMemberInvitation.count({
+        where: {
+          companyId: context.companyId,
+          status: "PENDING",
+          expiresAt: { gt: new Date() },
+        },
+      }),
+
       prisma.companyPaymentProviderAccount.count({
         where: { companyId: context.companyId, subaccountCode: { not: null } },
       }),
@@ -73,7 +81,7 @@ export async function getOnboardingChecklist(
   steps[1].complete = Boolean(company?.logoUrl) && Boolean(siteSettings?.supportEmail);
   steps[2].complete = siteSettings?.publishedBrandingConfig != null;
   steps[3].complete = propertyCount > 0;
-  steps[4].complete = teamCount > 0;
+  steps[4].complete = teamCount > 0 || pendingInviteCount > 0;
   steps[5].complete = providerCount > 0;
   steps[6].complete = transactionCount > 0;
 

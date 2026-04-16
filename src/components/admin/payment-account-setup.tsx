@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { AdminLabeledField, AdminStateBanner } from "@/components/admin/admin-ui";
+import { AdminField, AdminStateBanner } from "@/components/admin/admin-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -87,7 +87,7 @@ function SubaccountForm({
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <AdminLabeledField label="Business name" htmlFor="pa-business-name">
+      <AdminField label="Business name">
         <Input
           id="pa-business-name"
           value={businessName}
@@ -95,9 +95,9 @@ function SubaccountForm({
           placeholder="e.g. Orchid Ridge Homes Ltd"
           required
         />
-      </AdminLabeledField>
+      </AdminField>
 
-      <AdminLabeledField label="Settlement bank" htmlFor="pa-bank">
+      <AdminField label="Settlement bank">
         <select
           id="pa-bank"
           value={settlementBank}
@@ -114,11 +114,10 @@ function SubaccountForm({
             </option>
           ))}
         </select>
-      </AdminLabeledField>
+      </AdminField>
 
-      <AdminLabeledField
+      <AdminField
         label="Account number"
-        htmlFor="pa-account"
         hint="Must be a valid 10-digit Nigerian bank account number."
       >
         <Input
@@ -130,11 +129,10 @@ function SubaccountForm({
           maxLength={10}
           required
         />
-      </AdminLabeledField>
+      </AdminField>
 
-      <AdminLabeledField
+      <AdminField
         label="EstateOS commission %"
-        htmlFor="pa-charge"
         hint="Percentage of each transaction EstateOS retains. Enter 0 if none."
       >
         <Input
@@ -148,7 +146,7 @@ function SubaccountForm({
           placeholder="0"
           required
         />
-      </AdminLabeledField>
+      </AdminField>
 
       <div className="flex gap-3 pt-2">
         <Button

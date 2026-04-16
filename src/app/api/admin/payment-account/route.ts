@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 
   const body = paymentAccountSchema.safeParse(json);
   if (!body.success) {
-    return fail(body.error.errors[0]?.message ?? "Invalid input.", 400);
+    return fail(body.error.issues[0]?.message ?? "Invalid input.", 400);
   }
 
   try {
@@ -132,7 +132,7 @@ export async function PATCH(request: Request) {
 
   const body = paymentAccountSchema.safeParse(json);
   if (!body.success) {
-    return fail(body.error.errors[0]?.message ?? "Invalid input.", 400);
+    return fail(body.error.issues[0]?.message ?? "Invalid input.", 400);
   }
 
   try {

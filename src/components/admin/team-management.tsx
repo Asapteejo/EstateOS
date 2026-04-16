@@ -7,12 +7,22 @@ import { toast } from "sonner";
 import { Download, Eye, EyeOff, ShieldCheck, Users } from "lucide-react";
 
 import { UploadField } from "@/components/uploads/upload-field";
+import { InviteMemberModal } from "@/components/admin/invite-member-modal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { TeamMemberManagementRecord } from "@/modules/team/queries";
+
+type PendingInvitation = {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+  status: string;
+  expiresAt: string;
+};
 
 type TeamMemberFormState = {
   fullName: string;
@@ -139,9 +149,11 @@ function StatusPills({ member }: { member: TeamMemberManagementRecord }) {
 export function TeamManagement({
   members,
   resumeDocuments,
+  pendingInvitations = [],
 }: {
   members: TeamMemberManagementRecord[];
   resumeDocuments: Array<{ id: string; fileName: string }>;
+  pendingInvitations?: PendingInvitation[];
 }) {
   const router = useRouter();
   const [createState, setCreateState] = useState<TeamMemberFormState>(emptyState());
@@ -232,6 +244,9 @@ export function TeamManagement({
               <Users className="h-3.5 w-3.5" />
               {members.length} profiles
             </Badge>
+          </div>
+          <div className="mt-4">
+            <InviteMemberModal pendingInvitations={pendingInvitations} />
           </div>
           <div className="mt-5 space-y-3">
             {members.map((member) => (
