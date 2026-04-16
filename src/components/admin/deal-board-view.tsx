@@ -133,6 +133,7 @@ function BoardCard({
   readOnly = false,
   demoCtaHref = "/app/onboarding",
   inspect = false,
+  hasPaymentAccount = true,
 }: {
   card: DealBoardCard;
   highlighted: boolean;
@@ -140,6 +141,7 @@ function BoardCard({
   readOnly?: boolean;
   demoCtaHref?: string;
   inspect?: boolean;
+  hasPaymentAccount?: boolean;
 }) {
   const tone = stageTone[card.stage];
   const isOverdue = card.stage === "OVERDUE";
@@ -289,6 +291,7 @@ function BoardCard({
             onSent={onFollowUpSaved}
             readOnly={readOnly}
             ctaHref={demoCtaHref}
+            hasPaymentAccount={hasPaymentAccount}
           />
         </div>
       ) : null}
@@ -361,6 +364,21 @@ export function DealBoardView({
           hasProperties={hasProperties}
           hasDeals={hasDeals}
         />
+      ) : null}
+
+      {!isDemo && !board.hasPaymentAccount ? (
+        <Link href="/admin/settings">
+          <div className="flex items-center gap-3 rounded-[var(--radius-lg)] border border-amber-200 bg-amber-50 px-5 py-3.5 text-sm text-amber-900 transition hover:bg-amber-100">
+            <span className="shrink-0 text-base">⚠</span>
+            <span>
+              <span className="font-semibold">Payment account not connected.</span>{" "}
+              Set up your Paystack subaccount to start collecting payments from buyers.
+            </span>
+            <span className="ml-auto shrink-0 font-semibold underline underline-offset-2">
+              Set up now →
+            </span>
+          </div>
+        </Link>
       ) : null}
 
       <DealBoardActivationCard
@@ -534,6 +552,7 @@ export function DealBoardView({
                       readOnly={isDemo}
                       demoCtaHref={demoCtaHref}
                       inspect={inspect}
+                      hasPaymentAccount={board.hasPaymentAccount}
                     />
                   ))
                 ) : (

@@ -16,6 +16,7 @@ export function QuickPaymentRequestButton({
   onSent,
   readOnly = false,
   ctaHref = "/app/onboarding",
+  hasPaymentAccount = true,
 }: {
   userId: string;
   transactionId: string;
@@ -24,6 +25,7 @@ export function QuickPaymentRequestButton({
   onSent?: () => void;
   readOnly?: boolean;
   ctaHref?: string;
+  hasPaymentAccount?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -104,6 +106,20 @@ export function QuickPaymentRequestButton({
                 tone="warning"
                 title="Payment requests are disabled in the public demo"
                 message="Start your workspace to send hosted checkout links and track real collections."
+              />
+            ) : !hasPaymentAccount ? (
+              <AdminStateBanner
+                tone="warning"
+                title="Payment account not connected"
+                message={
+                  <>
+                    Set up your Paystack subaccount in{" "}
+                    <a href="/admin/settings" className="font-semibold underline underline-offset-2">
+                      Settings
+                    </a>{" "}
+                    before sending payment requests so buyers can complete checkout.
+                  </>
+                }
               />
             ) : (
               <AdminStateBanner

@@ -63,7 +63,7 @@ export async function getOnboardingChecklist(
       prisma.teamMember.count({ where: { companyId: context.companyId } }),
 
       prisma.companyPaymentProviderAccount.count({
-        where: { companyId: context.companyId },
+        where: { companyId: context.companyId, subaccountCode: { not: null } },
       }),
 
       prisma.transaction.count({ where: { companyId: context.companyId } }),

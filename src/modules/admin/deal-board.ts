@@ -114,6 +114,7 @@ export type DealBoardData = {
     sampleWorkspaceLoaded: boolean;
   };
   recentEvents: RecentEvent[];
+  hasPaymentAccount: boolean;
 };
 
 const inquirySelect = Prisma.validator<Prisma.InquiryFindManyArgs>()({
@@ -684,6 +685,7 @@ export function getPublicDemoDealBoard(): DealBoardData {
         },
       ],
     },
+    hasPaymentAccount: false,
     recentEvents: [
       {
         id: "demo-event-1",
@@ -735,6 +737,7 @@ export async function getAdminDealBoard(context: TenantContext): Promise<DealBoa
     inspections,
     recentEvents,
     sampleWorkspaceEvent,
+    paymentAccountCount,
     transactions,
   ] = await Promise.all([
     prisma.property.count({ where: { companyId } }),
@@ -770,6 +773,9 @@ export async function getAdminDealBoard(context: TenantContext): Promise<DealBoa
     prisma.activityEvent.findFirst({
       where: { companyId, eventName: PRODUCT_EVENT_NAMES.sampleWorkspaceLoaded },
       select: { id: true },
+    }),
+    prisma.companyPaymentProviderAccount.count({
+      where: { companyId, provider: "PAYSTACK", subaccountCode: { not: null } },
     }),
     txPromise,
   ]);
@@ -1028,6 +1034,7 @@ export async function getAdminDealBoard(context: TenantContext): Promise<DealBoa
       steps: checklistSteps,
       sampleWorkspaceLoaded: Boolean(sampleWorkspaceEvent),
     },
+    hasPaymentAccount: paymentAccountCount > 0,
     recentEvents: recentEvents.map((event) => ({
       id: event.id,
       title: event.summary,
