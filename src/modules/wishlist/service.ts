@@ -572,13 +572,14 @@ export async function updateWishlistFollowUpForAdmin(
   return updated;
 }
 
-export async function getWishlistReminderCandidates(now = new Date()) {
+export async function getWishlistReminderCandidates(now = new Date(), companyId?: string) {
   if (!featureFlags.hasDatabase) {
     return [] as WishlistReminderCandidate[];
   }
 
   const rows = await prisma.savedProperty.findMany({
     where: {
+      ...(companyId ? { companyId } : {}),
       status: "ACTIVE",
       reminderSentAt: null,
       expiresAt: {
@@ -724,13 +725,14 @@ export async function sendWishlistReminder(savedPropertyId: string) {
   return { delivered: true };
 }
 
-export async function syncExpiredWishlists(now = new Date()) {
+export async function syncExpiredWishlists(now = new Date(), companyId?: string) {
   if (!featureFlags.hasDatabase) {
     return { updated: 0 };
   }
 
   const result = await prisma.savedProperty.updateMany({
     where: {
+      ...(companyId ? { companyId } : {}),
       status: "ACTIVE",
       expiresAt: {
         lt: now,
@@ -744,9 +746,9 @@ export async function syncExpiredWishlists(now = new Date()) {
   return { updated: result.count };
 }
 
-export async function runWishlistReminderSweep(now = new Date()) {
-  await syncExpiredWishlists(now);
-  const candidates = await getWishlistReminderCandidates(now);
+export async function runWishlistReminderSweep(now = new Date(), companyId?: string) {
+  await syncExpiredWishlists(now, companyId);
+  const candidates = await getWishlistReminderCandidates(now, companyId);
   const results = await Promise.all(candidates.map((candidate) => sendWishlistReminder(candidate.id)));
 
   return {

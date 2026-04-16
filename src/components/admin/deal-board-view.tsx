@@ -163,9 +163,17 @@ function BoardCard({
           <div className="text-base font-semibold text-[var(--ink-950)]">{card.buyerName}</div>
           <div className="mt-1 text-sm text-[var(--ink-600)]">{card.propertyLabel}</div>
         </div>
-        <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", tone.badgeClass)}>
-          {isOverdue ? "Overdue" : card.stageLabel}
-        </span>
+        <div className="flex flex-col items-end gap-1.5">
+          <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", tone.badgeClass)}>
+            {isOverdue ? "Overdue" : card.stageLabel}
+          </span>
+          {card.isAtRisk && !isOverdue ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              AT RISK · {card.riskScore}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">

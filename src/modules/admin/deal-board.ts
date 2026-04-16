@@ -56,6 +56,8 @@ export type DealBoardCard = {
   followUpNote: string | null;
   lastFollowedUpLabel: string | null;
   nextFollowUpLabel: string | null;
+  riskScore: number;
+  isAtRisk: boolean;
   primaryAction: { label: string; href: string };
   secondaryAction: { label: string; href: string };
 };
@@ -184,6 +186,7 @@ const transactionSelect = Prisma.validator<Prisma.TransactionFindManyArgs>()({
     followUpNote: true,
     lastFollowedUpAt: true,
     nextFollowUpAt: true,
+    // riskScore is added after prisma generate — cast via any below
     updatedAt: true,
     user: {
       select: {
@@ -443,6 +446,8 @@ export function getPublicDemoDealBoard(): DealBoardData {
             followUpNote: null,
             lastFollowedUpLabel: null,
             nextFollowUpLabel: null,
+            riskScore: 0,
+            isAtRisk: false,
             primaryAction: { label: "Open lead queue", href: "/admin/leads" },
             secondaryAction: { label: "View client profile", href: "/admin/clients" },
           },
@@ -467,6 +472,8 @@ export function getPublicDemoDealBoard(): DealBoardData {
             followUpNote: null,
             lastFollowedUpLabel: null,
             nextFollowUpLabel: null,
+            riskScore: 0,
+            isAtRisk: false,
             primaryAction: { label: "Open lead queue", href: "/admin/leads" },
             secondaryAction: { label: "View client profile", href: "/admin/clients" },
           },
@@ -499,6 +506,8 @@ export function getPublicDemoDealBoard(): DealBoardData {
             followUpNote: null,
             lastFollowedUpLabel: null,
             nextFollowUpLabel: null,
+            riskScore: 0,
+            isAtRisk: false,
             primaryAction: { label: "Open bookings", href: "/admin/bookings" },
             secondaryAction: { label: "Open clients", href: "/admin/clients" },
           },
@@ -531,6 +540,8 @@ export function getPublicDemoDealBoard(): DealBoardData {
             followUpNote: null,
             lastFollowedUpLabel: null,
             nextFollowUpLabel: null,
+            riskScore: 0,
+            isAtRisk: false,
             primaryAction: { label: "Open transaction", href: "/admin/transactions" },
             secondaryAction: { label: "Send payment request", href: "/admin/payments" },
           },
@@ -563,6 +574,8 @@ export function getPublicDemoDealBoard(): DealBoardData {
             followUpNote: "Buyer asked for the hosted payment link again on WhatsApp.",
             lastFollowedUpLabel: "Apr 7, 2026, 10:30 AM",
             nextFollowUpLabel: "Apr 10, 2026",
+            riskScore: 0,
+            isAtRisk: false,
             primaryAction: { label: "View payment history", href: "/admin/payments" },
             secondaryAction: { label: "Send payment request", href: "/admin/payments" },
           },
@@ -595,6 +608,8 @@ export function getPublicDemoDealBoard(): DealBoardData {
             followUpNote: "Receipt issued and handover preparation started.",
             lastFollowedUpLabel: "Apr 6, 2026, 2:15 PM",
             nextFollowUpLabel: null,
+            riskScore: 0,
+            isAtRisk: false,
             primaryAction: { label: "View payment history", href: "/admin/payments" },
             secondaryAction: { label: "Open client", href: "/admin/clients" },
           },
@@ -627,6 +642,8 @@ export function getPublicDemoDealBoard(): DealBoardData {
             followUpNote: "Calls have not connected since Monday. Need alternate contact path today.",
             lastFollowedUpLabel: "Apr 6, 2026, 4:20 PM",
             nextFollowUpLabel: "Apr 8, 2026",
+            riskScore: 0,
+            isAtRisk: false,
             primaryAction: { label: "View payment history", href: "/admin/payments" },
             secondaryAction: { label: "Send payment request", href: "/admin/payments" },
           },
@@ -696,6 +713,16 @@ export async function getAdminDealBoard(context: TenantContext): Promise<DealBoa
   }
 
   const companyId = context.companyId;
+
+  // riskScore is a new schema field not yet in generated Prisma types — fetch
+  // transactions separately with an `as any` cast and run both in parallel.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const txPromise = (prisma.transaction.findMany as (args: any) => Promise<any[]>)({
+    ...transactionSelect,
+    select: { ...transactionSelect.select, riskScore: true },
+    where: { companyId },
+  });
+
   const [
     propertyCount,
     teamMemberCount,
@@ -706,90 +733,54 @@ export async function getAdminDealBoard(context: TenantContext): Promise<DealBoa
     overdueAgg,
     inquiries,
     inspections,
-    transactions,
     recentEvents,
     sampleWorkspaceEvent,
-  ] = await prisma.$transaction([
+    transactions,
+  ] = await Promise.all([
     prisma.property.count({ where: { companyId } }),
     prisma.teamMember.count({ where: { companyId, isActive: true } }),
     prisma.inquiry.count({ where: { companyId } }),
     prisma.reservation.count({ where: { companyId } }),
     prisma.paymentRequest.count({ where: { companyId } }),
     prisma.payment.aggregate({
-      where: {
-        companyId,
-        status: "SUCCESS",
-      },
-      _count: {
-        _all: true,
-      },
-      _sum: {
-        amount: true,
-      },
+      where: { companyId, status: "SUCCESS" },
+      _count: { _all: true },
+      _sum: { amount: true },
     }),
     prisma.transaction.aggregate({
-      where: {
-        companyId,
-        paymentStatus: "OVERDUE",
-      },
-      _count: {
-        _all: true,
-      },
-      _sum: {
-        outstandingBalance: true,
-      },
+      where: { companyId, paymentStatus: "OVERDUE" },
+      _count: { _all: true },
+      _sum: { outstandingBalance: true },
     }),
     prisma.inquiry.findMany({
       ...inquirySelect,
-      where: {
-        companyId,
-        status: {
-          in: ["NEW", "CONTACTED", "QUALIFIED"],
-        },
-      },
+      where: { companyId, status: { in: ["NEW", "CONTACTED", "QUALIFIED"] } },
     }),
     prisma.inspectionBooking.findMany({
       ...inspectionSelect,
       where: {
         companyId,
-        status: {
-          in: ["PENDING", "REQUESTED", "CONFIRMED", "RESCHEDULED"],
-        },
-      },
-    }),
-    prisma.transaction.findMany({
-      ...transactionSelect,
-      where: {
-        companyId,
+        status: { in: ["PENDING", "REQUESTED", "CONFIRMED", "RESCHEDULED"] },
       },
     }),
     prisma.activityEvent.findMany({
       ...recentEventSelect,
-      where: {
-        companyId,
-        eventName: {
-          in: Object.values(PRODUCT_EVENT_NAMES),
-        },
-      },
+      where: { companyId, eventName: { in: Object.values(PRODUCT_EVENT_NAMES) } },
     }),
     prisma.activityEvent.findFirst({
-      where: {
-        companyId,
-        eventName: PRODUCT_EVENT_NAMES.sampleWorkspaceLoaded,
-      },
-      select: {
-        id: true,
-      },
+      where: { companyId, eventName: PRODUCT_EVENT_NAMES.sampleWorkspaceLoaded },
+      select: { id: true },
     }),
+    txPromise,
   ]);
 
   const totalDeals = transactions.length;
   const successfulPaymentCount = paymentStats._count._all;
-  const anySuccessfulPayments = transactions.filter((transaction) =>
-    transaction.payments.some((payment) => payment.status === "SUCCESS"),
+  const anySuccessfulPayments = (transactions as Prisma.TransactionGetPayload<typeof transactionSelect>[]).filter((transaction) =>
+    transaction.payments.some((payment: { status: string }) => payment.status === "SUCCESS"),
   ).length;
   const dueAgg = transactions.reduce(
-    (total, transaction) =>
+    (total: number, transaction: Prisma.TransactionGetPayload<typeof transactionSelect>) =>
       transaction.paymentStatus === "COMPLETED"
         ? total
         : total + decimalToNumber(transaction.outstandingBalance),
@@ -837,6 +828,8 @@ export async function getAdminDealBoard(context: TenantContext): Promise<DealBoa
         followUpNote: null,
         lastFollowedUpLabel: null,
         nextFollowUpLabel: null,
+        riskScore: 0,
+        isAtRisk: false,
         primaryAction: { label: "Open lead queue", href: "/admin/leads" },
         secondaryAction: { label: "Open clients", href: "/admin/clients" },
       })),
@@ -871,6 +864,8 @@ export async function getAdminDealBoard(context: TenantContext): Promise<DealBoa
         followUpNote: null,
         lastFollowedUpLabel: null,
         nextFollowUpLabel: null,
+        riskScore: 0,
+        isAtRisk: false,
         primaryAction: { label: "Open bookings", href: "/admin/bookings" },
         secondaryAction: { label: "Open clients", href: "/admin/clients" },
       })),
@@ -940,6 +935,8 @@ export async function getAdminDealBoard(context: TenantContext): Promise<DealBoa
       nextFollowUpLabel: transaction.nextFollowUpAt
         ? formatDate(transaction.nextFollowUpAt, "PPP")
         : null,
+      riskScore: transaction.riskScore,
+      isAtRisk: transaction.riskScore >= 50,
       primaryAction: {
         label: stage === "RESERVED" ? "Open transaction" : "View payment history",
         href: stage === "RESERVED" ? "/admin/transactions" : "/admin/payments",

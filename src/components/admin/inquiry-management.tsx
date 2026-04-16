@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { AdminAttentionBadge, AdminBulkActionBar, AdminEmptyState, AdminField, AdminFormSection, AdminLifecycleSteps, AdminQuickActions, AdminStateBanner } from "@/components/admin/admin-ui";
+import { InquiryDraftReply } from "@/components/admin/inquiry-draft-reply";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { compareAttentionPriority, getAttentionTone, workflowVocabulary } from "@/modules/admin/workflow-vocabulary";
@@ -28,9 +29,11 @@ const inquiryStatuses = [
 export function InquiryManagement({
   inquiries,
   staffOptions,
+  hasAiDraft = false,
 }: {
   inquiries: InquiryManagementItem[];
   staffOptions: StaffOption[];
+  hasAiDraft?: boolean;
 }) {
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -372,6 +375,16 @@ export function InquiryManagement({
                   </Button>
                 </div>
               </div>
+
+              {hasAiDraft && (
+                <div className="border-t border-[var(--line)] pt-4">
+                  <InquiryDraftReply
+                    inquiryId={inquiry.id}
+                    recipientEmail={inquiry.email}
+                    recipientName={inquiry.fullName}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </AdminFormSection>

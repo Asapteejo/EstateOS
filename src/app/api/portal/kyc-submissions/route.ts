@@ -11,17 +11,19 @@ export async function POST(request: Request) {
     return fail("Authentication and tenant context are required.", 401);
   }
 
-  const json = (await request.json()) as Record<string, unknown>;
+  let json: unknown;
+  try {
+    json = await request.json();
+  } catch {
+    return fail("Invalid request body.");
+  }
   const body = buyerKycSubmissionSchema.safeParse(json);
   if (!body.success) {
     return fail("Invalid KYC submission payload.");
   }
 
   try {
-    const created = await createBuyerKycSubmission(tenant, {
-      ...json,
-      ...body.data,
-    });
+    const created = await createBuyerKycSubmission(tenant, body.data);
     return ok(created, { status: 201 });
   } catch (error) {
     return fail(error instanceof Error ? error.message : "Unable to submit KYC.", 400);

@@ -1,5 +1,6 @@
 import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { requireAdminSession } from "@/lib/auth/guards";
+import { featureFlags } from "@/lib/env";
 import { InquiryManagement } from "@/components/admin/inquiry-management";
 import { getAssignableStaffOptions, getInquiryManagementList } from "@/modules/inquiries/service";
 
@@ -14,6 +15,7 @@ export default async function AdminLeadsPage() {
     <DashboardShell area="admin" title="Leads & Inquiries" subtitle="Lead source, owner assignment, and pipeline qualification view.">
       <InquiryManagement
         inquiries={inquiries}
+        hasAiDraft={featureFlags.hasAnthropicAi}
         staffOptions={staff.map((member) => ({
           id: member.id,
           label:

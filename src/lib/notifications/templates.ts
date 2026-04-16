@@ -486,6 +486,7 @@ export function renderOwnerEscalationEmail(data: {
 interface BriefingOverdueRow  { reservationRef: string; buyerName: string; outstandingBalance: string; daysOverdue: number }
 interface BriefingInspection  { fullName: string; propertyTitle: string; scheduledAt: string }
 interface BriefingStalledRow  { reservationRef: string; buyerName: string; currentStage: string; daysSinceActivity: number }
+interface BriefingAtRiskRow   { reservationRef: string; buyerName: string; riskScore: number; topSignal: string }
 
 function sectionHeading(text: string): string {
   return `<p style="margin:28px 0 8px;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.08em;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">${esc(text)}</p>`;
@@ -556,14 +557,18 @@ export function renderMorningBriefingEmail(data: {
   // alerts
   hiddenProperties: number;
   pendingKyc: number;
+  // at-risk deals
+  atRiskCount: number;
+  atRiskRows: BriefingAtRiskRow[];
 }): { subject: string; html: string } {
-  const hasUrgent = data.overdueCount > 0 || data.stalledCount > 0 || data.hiddenProperties > 0;
+  const hasUrgent = data.overdueCount > 0 || data.stalledCount > 0 || data.hiddenProperties > 0 || data.atRiskCount > 0;
   const subject = hasUrgent
-    ? `Morning briefing — ${data.overdueCount} overdue, ${data.stalledCount} stalled — ${data.date}`
+    ? `Morning briefing — ${data.overdueCount} overdue, ${data.atRiskCount} at risk — ${data.date}`
     : `Morning briefing — ${data.date}`;
 
   const alertRows: string[][] = [];
   if (data.overdueCount > 0) alertRows.push([`${data.overdueCount} overdue payment${data.overdueCount === 1 ? "" : "s"}`, `${data.overdueTotalAtRisk} at risk`]);
+  if (data.atRiskCount > 0) alertRows.push([`${data.atRiskCount} deal${data.atRiskCount === 1 ? "" : "s"} flagged AT_RISK`, "Risk score ≥ 50"]);
   if (data.stalledCount > 0) alertRows.push([`${data.stalledCount} deal${data.stalledCount === 1 ? "" : "s"} stalled 7+ days`, "Needs follow-up"]);
   if (data.hiddenProperties > 0) alertRows.push([`${data.hiddenProperties} hidden or unverified propert${data.hiddenProperties === 1 ? "y" : "ies"}`, "Review listings"]);
   if (data.pendingKyc > 0) alertRows.push([`${data.pendingKyc} KYC submission${data.pendingKyc === 1 ? "" : "s"} pending review`, "Action required"]);
@@ -577,7 +582,7 @@ export function renderMorningBriefingEmail(data: {
       [String(data.overdueCount),      "Overdue payments",    data.overdueCount > 0 ? "red" : "neutral"],
       [data.overdueTotalAtRisk,         "Total at risk",       data.overdueCount > 0 ? "amber" : "neutral"],
       [String(data.inspectionCount),    "Today's inspections", data.inspectionCount > 0 ? "blue" : "neutral"],
-      [String(data.stalledCount),       "Stalled deals",       data.stalledCount > 0 ? "amber" : "neutral"],
+      [String(data.atRiskCount),        "At-risk deals",       data.atRiskCount > 0 ? "amber" : "neutral"],
     ]),
 
     // Urgent alerts section
@@ -618,6 +623,22 @@ export function renderMorningBriefingEmail(data: {
         `${r.daysSinceActivity}d`,
       ]),
     ),
+
+    // At-risk deals
+    data.atRiskCount > 0
+      ? [
+          sectionHeading("At-risk deals (top 5)"),
+          briefingTable(
+            ["Reference", "Buyer", "Risk score", "Signal"],
+            data.atRiskRows.map((r) => [
+              r.reservationRef,
+              r.buyerName,
+              String(r.riskScore),
+              r.topSignal,
+            ]),
+          ),
+        ].join("")
+      : "",
 
     divider(),
     cta("Open admin dashboard", "/admin"),

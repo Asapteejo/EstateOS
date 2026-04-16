@@ -14,6 +14,7 @@ import { syncPaymentRequestStatuses } from "@/modules/payment-requests/service";
 import { syncPropertyVerificationStates } from "@/modules/properties/verification";
 import { syncMarketerRankingSnapshots } from "@/modules/team/performance";
 import { syncTransactionPaymentState } from "@/modules/transactions/mutations";
+import { runDealRiskSweep } from "@/modules/transactions/risk-scoring";
 import { runWishlistReminderSweep } from "@/modules/wishlist/service";
 
 type Decimalish = { toNumber?: () => number } | number | null | undefined;
@@ -371,6 +372,7 @@ export async function runScheduledOperationalJobs(input?: {
       verification: { updated: 0, hidden: 0, warned: 0 },
       paymentRequests: { expired: 0 },
       marketerSnapshots: { companies: 0, snapshots: 0, snapshotDate: buildSnapshotDateString(now) },
+      dealRisk: { scored: 0, atRiskCount: 0, firstAlerts: 0 },
     };
   }
 
@@ -402,6 +404,7 @@ export async function runScheduledOperationalJobs(input?: {
       verification: { updated: 0, hidden: 0, warned: 0 },
       paymentRequests: { expired: 0 },
       marketerSnapshots: { companies: 0, snapshots: 0, snapshotDate: buildSnapshotDateString(now) },
+      dealRisk: { scored: 0, atRiskCount: 0, firstAlerts: 0 },
     };
   }
 
@@ -419,12 +422,13 @@ export async function runScheduledOperationalJobs(input?: {
   });
 
   try {
-    const [automation, verification, paymentRequests, marketerSnapshots, analyticsSnapshots] = await Promise.all([
+    const [automation, verification, paymentRequests, marketerSnapshots, analyticsSnapshots, dealRisk] = await Promise.all([
       runOperationalAutomationSweep({ companyId: input?.companyId }),
       syncPropertyVerificationStates({ companyId: input?.companyId, now }),
       syncPaymentRequestStatuses(prisma, { companyId: input?.companyId, now }),
       syncMarketerRankingSnapshots({ companyId: input?.companyId, now }),
       syncAnalyticsSnapshots({ companyId: input?.companyId, now }),
+      runDealRiskSweep({ companyId: input?.companyId, now }),
     ]);
 
     await prisma.backgroundJobLog.update({
@@ -438,6 +442,7 @@ export async function runScheduledOperationalJobs(input?: {
           paymentRequests,
           marketerSnapshots,
           analyticsSnapshots,
+          dealRisk,
         } as Prisma.InputJsonValue,
       },
     });
@@ -450,6 +455,7 @@ export async function runScheduledOperationalJobs(input?: {
       paymentRequests,
       marketerSnapshots,
       analyticsSnapshots,
+      dealRisk,
     };
   } catch (error) {
     await prisma.backgroundJobLog.update({

@@ -434,5 +434,18 @@ export async function updateInquiryForAdmin(
     } as Prisma.InputJsonValue,
   });
 
+  // Propagate follow-up timestamp to any active transaction for this buyer so
+  // the risk scoring engine does not incorrectly flag deals as un-followed-up.
+  if (inquiry.userId) {
+    await prisma.transaction.updateMany({
+      where: {
+        companyId: context.companyId,
+        userId: inquiry.userId,
+        currentStage: { notIn: ["FINAL_PAYMENT_COMPLETED", "HANDOVER_COMPLETED"] },
+      },
+      data: { lastFollowedUpAt: new Date() },
+    });
+  }
+
   return updated;
 }

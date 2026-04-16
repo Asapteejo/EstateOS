@@ -71,6 +71,7 @@ const serverEnvSchema = z
     TWILIO_ACCOUNT_SID: optionalString,
     TWILIO_AUTH_TOKEN: optionalString,
     TWILIO_WHATSAPP_FROM: optionalString, // e.g. "whatsapp:+14155238886"
+    ANTHROPIC_API_KEY: optionalString,
     SENTRY_DSN: optionalUrl,
   })
   .superRefine((value, ctx) => {
@@ -242,6 +243,7 @@ export function buildFeatureFlags(env: ServerEnv) {
       Boolean(env.UPSTASH_REDIS_REST_URL) &&
       Boolean(env.UPSTASH_REDIS_REST_TOKEN),
     hasResend: Boolean(env.RESEND_API_KEY),
+    hasAnthropicAi: Boolean(env.ANTHROPIC_API_KEY),
     hasSentry: Boolean(env.SENTRY_DSN),
     hasInngest:
       Boolean(env.INNGEST_EVENT_KEY) &&

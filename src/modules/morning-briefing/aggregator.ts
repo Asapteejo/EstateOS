@@ -43,6 +43,13 @@ export interface StalledDealRow {
   daysSinceActivity: number;
 }
 
+export interface AtRiskDealRow {
+  reservationRef: string;
+  buyerName: string;
+  riskScore: number;
+  topSignal: string;
+}
+
 export interface MorningBriefingData {
   companyId: string;
   companyName: string;
@@ -64,6 +71,10 @@ export interface MorningBriefingData {
   // Section 4 — urgent alerts (scalar counts only — no detail rows needed)
   hiddenProperties: number;
   pendingKyc: number;
+
+  // Section 5 — at-risk deals (top 5 by score)
+  atRiskCount: number;
+  atRiskRows: AtRiskDealRow[];
 }
 
 const STALE_DEAL_DAYS = 7;
@@ -84,7 +95,7 @@ export async function getMorningBriefingData(
   const dayEnd = endOfDay(now);
   const staleThreshold = subDays(now, STALE_DEAL_DAYS);
 
-  const [company, overdueAgg, overdueRows, inspectionRows, stalledRows, hiddenProps, pendingKyc] =
+  const [company, overdueAgg, overdueRows, inspectionRows, stalledRows, hiddenProps, pendingKyc, atRiskRows] =
     await Promise.all([
       // Company name
       prisma.company.findUnique({
@@ -160,6 +171,23 @@ export async function getMorningBriefingData(
       prisma.kYCSubmission.count({
         where: { companyId, status: "SUBMITTED" },
       }),
+
+      // Top 5 at-risk deals (riskScore >= 50), highest score first
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (prisma.transaction.findMany as (args: any) => Promise<any[]>)({
+        where: {
+          companyId,
+          riskScore: { gte: 50 },
+          currentStage: { notIn: ["FINAL_PAYMENT_COMPLETED", "HANDOVER_COMPLETED"] },
+        },
+        orderBy: { riskScore: "desc" },
+        take: 5,
+        select: {
+          riskScore: true,
+          reservation: { select: { reference: true } },
+          user: { select: { firstName: true, lastName: true } },
+        },
+      }),
     ]);
 
   const companyName = company?.name ?? "EstateOS";
@@ -202,6 +230,19 @@ export async function getMorningBriefingData(
     daysSinceActivity: differenceInDays(now, row.updatedAt),
   }));
 
+  type AtRiskRaw = {
+    riskScore: number;
+    reservation: { reference: string } | null;
+    user: { firstName: string | null; lastName: string | null };
+  };
+
+  const formattedAtRiskRows: AtRiskDealRow[] = (atRiskRows as AtRiskRaw[]).map((row) => ({
+    reservationRef: row.reservation?.reference ?? "—",
+    buyerName: `${row.user.firstName ?? ""} ${row.user.lastName ?? ""}`.trim() || "Buyer",
+    riskScore: row.riskScore,
+    topSignal: row.riskScore >= 80 ? "High risk" : row.riskScore >= 65 ? "Elevated risk" : "At risk",
+  }));
+
   return {
     companyId,
     companyName,
@@ -215,5 +256,7 @@ export async function getMorningBriefingData(
     stalledRows: formattedStalledRows,
     hiddenProperties: hiddenProps,
     pendingKyc,
+    atRiskCount: formattedAtRiskRows.length,
+    atRiskRows: formattedAtRiskRows,
   };
 }
