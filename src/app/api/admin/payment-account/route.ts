@@ -9,6 +9,7 @@ import {
   updatePaystackSubaccount,
 } from "@/lib/payments/paystack";
 import { paymentAccountSchema } from "@/lib/validations/payment-account";
+export const runtime = "nodejs";
 
 // ─── GET — fetch existing account ────────────────────────────────────────────
 

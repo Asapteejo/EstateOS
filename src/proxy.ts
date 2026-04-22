@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-import { buildAuthRedirect, buildServerDomainConfig, isKnownCentralHost, sanitizeReturnPath } from "@/lib/domains";
+import {
+  buildAuthRedirect,
+  buildServerDomainConfig,
+  isKnownCentralHost,
+  sanitizeReturnPath,
+} from "@/lib/domains";
 import { env, featureFlags } from "@/lib/env";
 
 const isPortalRoute = createRouteMatcher(["/portal(.*)"]);
@@ -10,7 +15,7 @@ const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 const isSuperadminRoute = createRouteMatcher(["/superadmin(.*)"]);
 const isSignInRoute = createRouteMatcher(["/sign-in(.*)"]);
 
-export default clerkMiddleware(async (auth, req) => {
+const proxy = clerkMiddleware(async (auth, req) => {
   const runtimeConfig = buildServerDomainConfig(env);
   const isAuthSurface =
     isPortalRoute(req) ||
@@ -61,6 +66,8 @@ export default clerkMiddleware(async (auth, req) => {
 
   return NextResponse.next();
 });
+
+export default proxy;
 
 export const config = {
   matcher: ["/((?!_next|.*\\..*).*)", "/"],

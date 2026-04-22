@@ -7,6 +7,7 @@ import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import { completeUploadSchema } from "@/lib/validations/storage";
 import { featureFlags } from "@/lib/env";
 import { getUploadPurposeConfig } from "@/modules/uploads/config";
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   const json = (await request.json()) as Record<string, unknown>;

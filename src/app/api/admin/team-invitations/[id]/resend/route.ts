@@ -8,6 +8,7 @@ import { sendTransactionalEmail } from "@/lib/notifications/email";
 import { buildTeamInvitationEmail } from "@/lib/notifications/templates/team-invitation";
 
 const INVITE_TTL_MS = 48 * 60 * 60 * 1000;
+export const runtime = "nodejs";
 
 export async function POST(
   _request: Request,

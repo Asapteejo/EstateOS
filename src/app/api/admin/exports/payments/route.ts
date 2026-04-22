@@ -5,6 +5,7 @@ import { findManyForTenant } from "@/lib/tenancy/db";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 type ScopedFindManyDelegate = { findMany: (args?: unknown) => Promise<unknown> };
+export const runtime = "nodejs";
 
 export async function GET() {
   const tenant = await requireAdminSession(["ADMIN"]);

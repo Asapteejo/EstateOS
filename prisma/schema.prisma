@@ -1690,4 +1690,3 @@ model TeamMemberInvitation {
   @@index([email, status])
 }
 
-

@@ -5,6 +5,7 @@ import { featureFlags } from "@/lib/env";
 import { getPrivateDownloadUrl } from "@/lib/storage/r2";
 import { isTenantStorageKey } from "@/lib/storage/paths";
 import { requireTenantContext } from "@/lib/tenancy/context";
+export const runtime = "nodejs";
 
 export async function GET(
   _request: Request,

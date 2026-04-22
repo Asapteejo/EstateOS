@@ -13,6 +13,7 @@ import {
 } from "@/lib/domains";
 import { env, featureFlags } from "@/lib/env";
 import { resolveCompanyForTenantHint } from "@/lib/tenancy/context";
+export const runtime = "nodejs";
 
 function buildTenantHintCookieOptions() {
   return {
@@ -65,7 +66,7 @@ export async function GET(request: Request) {
 
   if (!resolvedTenantSlug && featureFlags.hasDatabase && session?.userId) {
     const user = await prisma.user.findUnique({
-      where: { id: session.userId },
+      where: { clerkUserId: session.userId },
       select: {
         company: {
           select: {

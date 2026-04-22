@@ -68,6 +68,7 @@ const serverEnvSchema = z
     UPSTASH_REDIS_REST_TOKEN: optionalString,
     RESEND_API_KEY: optionalString,
     EMAIL_FROM: z.string().trim().min(3).default("Acme Realty <no-reply@example.com>"),
+    TWILIO_ENABLED: optionalBoolean,
     TWILIO_ACCOUNT_SID: optionalString,
     TWILIO_AUTH_TOKEN: optionalString,
     TWILIO_WHATSAPP_FROM: optionalString, // e.g. "whatsapp:+14155238886"
@@ -112,11 +113,13 @@ const serverEnvSchema = z
       "INNGEST_EVENT_KEY",
       "INNGEST_SIGNING_KEY",
     ]);
-    requireGroup("Twilio", [
-      "TWILIO_ACCOUNT_SID",
-      "TWILIO_AUTH_TOKEN",
-      "TWILIO_WHATSAPP_FROM",
-    ]);
+    if (value.TWILIO_ENABLED) {
+      requireGroup("Twilio", [
+        "TWILIO_ACCOUNT_SID",
+        "TWILIO_AUTH_TOKEN",
+        "TWILIO_WHATSAPP_FROM",
+      ]);
+    }
 
     if (
       Boolean(value.MAPBOX_ACCESS_TOKEN) !== Boolean(value.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN)
@@ -139,12 +142,18 @@ const publicEnvSchema = z.object({
   NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: optionalString,
 });
 
+const instrumentationEnvSchema = z.object({
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  SENTRY_DSN: optionalUrl,
+});
+
 export type ServerEnv = z.infer<typeof serverEnvSchema> & {
   APP_BASE_URL: string;
   PLATFORM_BASE_URL: string;
   PORTAL_BASE_URL: string;
 };
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
+export type InstrumentationEnv = z.infer<typeof instrumentationEnvSchema>;
 export type FeatureFlags = ReturnType<typeof buildFeatureFlags>;
 
 const productionRequiredKeys = [
@@ -215,6 +224,10 @@ export function parsePublicEnv(raw: NodeJS.ProcessEnv): PublicEnv {
   return publicEnvSchema.parse(raw);
 }
 
+export function parseInstrumentationEnv(raw: NodeJS.ProcessEnv): InstrumentationEnv {
+  return instrumentationEnvSchema.parse(raw);
+}
+
 export function buildFeatureFlags(env: ServerEnv) {
   return {
     isProduction: env.NODE_ENV === "production",
@@ -249,6 +262,7 @@ export function buildFeatureFlags(env: ServerEnv) {
       Boolean(env.INNGEST_EVENT_KEY) &&
       Boolean(env.INNGEST_SIGNING_KEY),
     hasTwilio:
+      env.TWILIO_ENABLED === true &&
       Boolean(env.TWILIO_ACCOUNT_SID) &&
       Boolean(env.TWILIO_AUTH_TOKEN) &&
       Boolean(env.TWILIO_WHATSAPP_FROM),
@@ -283,6 +297,15 @@ export function getProductionReadinessIssues(env: ServerEnv) {
         `${rule.service} is not production-ready. Missing: ${missing.join(", ")}`,
       );
     }
+  }
+
+  if (
+    env.TWILIO_ENABLED === true &&
+    (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN || !env.TWILIO_WHATSAPP_FROM)
+  ) {
+    issues.push(
+      "twilio is enabled but not production-ready. Missing: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, or TWILIO_WHATSAPP_FROM",
+    );
   }
 
   return issues;

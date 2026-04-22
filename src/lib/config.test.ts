@@ -21,6 +21,31 @@ test("server env requires complete grouped service config", () => {
   );
 });
 
+test("partial Twilio config does not fail parse unless Twilio is explicitly enabled", () => {
+  const env = parseServerEnv({
+    NODE_ENV: "development",
+    NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+    TWILIO_WHATSAPP_FROM: "whatsapp:+14155238886",
+  });
+
+  const flags = buildFeatureFlags(env);
+
+  assert.equal(flags.hasTwilio, false);
+});
+
+test("Twilio requires a complete config group when explicitly enabled", () => {
+  assert.throws(
+    () =>
+      parseServerEnv({
+        NODE_ENV: "development",
+        NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+        TWILIO_ENABLED: "true",
+        TWILIO_WHATSAPP_FROM: "whatsapp:+14155238886",
+      }),
+    /Twilio configuration is incomplete/,
+  );
+});
+
 test("production env parse allows build-time config inspection", () => {
   const env = parseServerEnv({
     NODE_ENV: "production",

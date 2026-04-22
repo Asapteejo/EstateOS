@@ -5,6 +5,7 @@ import { getAppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { fail, ok } from "@/lib/http";
+export const runtime = "nodejs";
 
 export async function POST() {
   if (featureFlags.isProduction) {

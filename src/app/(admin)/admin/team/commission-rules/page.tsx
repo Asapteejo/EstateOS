@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { requireAdminSession } from "@/lib/auth/guards";
 import { formatCurrency } from "@/lib/utils";
 import { listCommissionRules } from "@/modules/commission/rules";
+
 import {
   createCommissionRuleAction,
   deactivateCommissionRuleAction,
@@ -21,28 +22,6 @@ const PROPERTY_TYPE_OPTIONS = [
   ["COMMERCIAL", "Commercial"],
 ] as const;
 
-function ruleDescription(rule: {
-  feeType: "FLAT" | "PERCENTAGE";
-  flatAmount: number | null;
-  percentageRate: number | null;
-  currency: string;
-  propertyType: string | null;
-  propertyId: string | null;
-}): string {
-  const amount =
-    rule.feeType === "FLAT"
-      ? formatCurrency(rule.flatAmount ?? 0, rule.currency)
-      : `${(rule.percentageRate ?? 0).toFixed(2)}%`;
-
-  const scope = rule.propertyId
-    ? "specific property"
-    : rule.propertyType
-      ? rule.propertyType.toLowerCase().replace("_", " ")
-      : "all property types";
-
-  return `${amount} per confirmed payment · ${scope}`;
-}
-
 export default async function CommissionRulesPage() {
   const tenant = await requireAdminSession(["ADMIN"]);
   const rules = await listCommissionRules(tenant.companyId!);
@@ -51,9 +30,8 @@ export default async function CommissionRulesPage() {
     <DashboardShell
       area="admin"
       title="Commission rules"
-      subtitle="Define how much each marketer earns when a payment on their attributed deal is confirmed. Rules are matched by specificity — property-specific beats property-type, which beats company-wide."
+      subtitle="Define how much each marketer earns when a payment on their attributed deal is confirmed. Rules are matched by specificity - property-specific beats property-type, which beats company-wide."
     >
-      {/* ── Create rule form ───────────────────────────────────────────── */}
       <AdminPanel title="Add a rule" description="Set a flat fee or percentage earned per confirmed payment.">
         <form action={createCommissionRuleAction} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div className="flex flex-col gap-1.5">
@@ -112,7 +90,7 @@ export default async function CommissionRulesPage() {
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-500)]">
-              Scope — property type
+              Scope - property type
             </label>
             <select
               name="propertyType"
@@ -124,12 +102,12 @@ export default async function CommissionRulesPage() {
                 </option>
               ))}
             </select>
-            <p className="text-xs text-[var(--ink-400)]">Leave as "All" for a company-wide default.</p>
+            <p className="text-xs text-[var(--ink-400)]">Leave as &quot;All&quot; for a company-wide default.</p>
           </div>
 
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-500)]">
-              Scope — specific property ID
+              Scope - specific property ID
             </label>
             <Input name="propertyId" placeholder="Leave blank for type/global scope" />
             <p className="text-xs text-[var(--ink-400)]">Property-specific rules override all others.</p>
@@ -141,7 +119,6 @@ export default async function CommissionRulesPage() {
         </form>
       </AdminPanel>
 
-      {/* ── Existing rules ─────────────────────────────────────────────── */}
       <AdminPanel
         title="Active rules"
         description={`${rules.length} rule${rules.length === 1 ? "" : "s"} configured for this workspace.`}
@@ -173,7 +150,7 @@ export default async function CommissionRulesPage() {
                     </td>
                     <td className="text-[var(--ink-600)]">
                       {rule.propertyId
-                        ? `Property ${rule.propertyId.slice(0, 8)}…`
+                        ? `Property ${rule.propertyId.slice(0, 8)}...`
                         : rule.propertyType
                           ? rule.propertyType.toLowerCase().replace("_", " ")
                           : "All property types"}
@@ -204,11 +181,10 @@ export default async function CommissionRulesPage() {
         )}
       </AdminPanel>
 
-      {/* ── Help note ──────────────────────────────────────────────────── */}
       <AdminToolbar>
         <p className="text-sm text-[var(--ink-500)]">
           Commission amounts are calculated automatically when a payment is confirmed via webhook and recorded against the attributed marketer.
-          View each marketer&rsquo;s running total in{" "}
+          View each marketer&apos;s running total in{" "}
           <a href="/admin/marketers" className="underline underline-offset-2">
             Marketer performance
           </a>

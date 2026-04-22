@@ -1,20 +1,24 @@
 import * as Sentry from "@sentry/nextjs";
 
-import { env, featureFlags } from "@/lib/env";
+import { parseInstrumentationEnv } from "@/lib/config";
+
+const instrumentationEnv = parseInstrumentationEnv(process.env);
+const hasSentry = Boolean(instrumentationEnv.SENTRY_DSN);
+const isProduction = instrumentationEnv.NODE_ENV === "production";
 
 export function initializeSentry() {
-  if (!featureFlags.hasSentry) {
+  if (!hasSentry) {
     return;
   }
 
   Sentry.init({
-    dsn: env.SENTRY_DSN,
-    tracesSampleRate: featureFlags.isProduction ? 0.1 : 1,
+    dsn: instrumentationEnv.SENTRY_DSN,
+    tracesSampleRate: isProduction ? 0.1 : 1,
   });
 }
 
 export function captureException(error: unknown) {
-  if (!featureFlags.hasSentry) {
+  if (!hasSentry) {
     console.error(error);
     return;
   }

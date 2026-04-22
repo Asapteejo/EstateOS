@@ -10,6 +10,7 @@ import { sendTransactionalEmail } from "@/lib/notifications/email";
 import { buildTeamInvitationEmail } from "@/lib/notifications/templates/team-invitation";
 
 const INVITE_TTL_MS = 48 * 60 * 60 * 1000; // 48 hours
+export const runtime = "nodejs";
 
 const inviteSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters."),

@@ -6,6 +6,7 @@ import { assertPaymentReferenceBelongsToTenant } from "@/lib/payments/references
 import { requireTenantContext } from "@/lib/tenancy/context";
 import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import { paymentVerifySchema } from "@/lib/validations/payments";
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   let tenant: Awaited<ReturnType<typeof requireTenantContext>>;

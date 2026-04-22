@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { verifyDomainCname } from "@/lib/domains/verify";
 import { featureFlags } from "@/lib/env";
 import { fail, ok } from "@/lib/http";
+export const runtime = "nodejs";
 
 export async function POST() {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;

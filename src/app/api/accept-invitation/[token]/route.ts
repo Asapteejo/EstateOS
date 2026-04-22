@@ -3,6 +3,7 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { fail, ok } from "@/lib/http";
+export const runtime = "nodejs";
 
 // ─── GET — validate token and return invitation info ─────────────────────────
 

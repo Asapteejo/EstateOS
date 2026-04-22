@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { requireAdminSession } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
+export const runtime = "nodejs";
 
 export async function POST(
   _request: Request,

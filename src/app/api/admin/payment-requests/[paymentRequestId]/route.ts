@@ -3,6 +3,7 @@ import { writeAuditLog } from "@/lib/audit/service";
 import { prisma } from "@/lib/db/prisma";
 import { fail, ok } from "@/lib/http";
 import { paymentRequestStatusUpdateSchema } from "@/lib/validations/payments";
+export const runtime = "nodejs";
 
 export async function PATCH(
   request: Request,

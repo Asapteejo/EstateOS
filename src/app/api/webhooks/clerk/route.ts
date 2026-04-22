@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
 import { logError, logWarn } from "@/lib/ops/logger";
 import { captureException } from "@/lib/sentry";
+export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   if (!featureFlags.hasDatabase || !env.CLERK_WEBHOOK_SECRET) {

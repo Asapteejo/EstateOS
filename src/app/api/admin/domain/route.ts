@@ -4,6 +4,7 @@ import { requireAdminSession } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { fail, ok } from "@/lib/http";
+export const runtime = "nodejs";
 
 const schema = z.object({
   customDomain: z
