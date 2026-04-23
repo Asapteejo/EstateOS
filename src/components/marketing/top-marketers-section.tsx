@@ -1,7 +1,7 @@
 import Link from "next/link";
 
-import { OptimizedImage } from "@/components/media/optimized-image";
 import { SectionHeading } from "@/components/shared/section-heading";
+import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -71,21 +71,12 @@ export function TopMarketersSection({
               </div>
             </div>
             <div className="mt-4 flex items-center gap-4">
-              <div className="relative h-16 w-16 overflow-hidden rounded-2xl bg-white shadow-sm">
-                {member.avatarUrl ? (
-                  <OptimizedImage
-                    src={member.avatarUrl}
-                    alt={member.fullName}
-                    fill
-                    preset="profile"
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-xl font-semibold text-[var(--ink-400)]">
-                    {member.fullName.charAt(0)}
-                  </div>
-                )}
-              </div>
+              <Avatar
+                name={member.fullName}
+                imageUrl={member.avatarUrl}
+                size="lg"
+                className="rounded-2xl bg-white shadow-sm"
+              />
               <div className="min-w-0">
                 <div className="truncate text-lg font-semibold text-[var(--ink-950)]">{member.fullName}</div>
                 <div className="text-sm text-[var(--ink-500)]">{member.title}</div>

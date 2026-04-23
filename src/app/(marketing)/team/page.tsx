@@ -1,9 +1,9 @@
 import Link from "next/link";
 
-import { OptimizedImage } from "@/components/media/optimized-image";
 import { Container } from "@/components/shared/container";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { TopMarketersSection } from "@/components/marketing/top-marketers-section";
+import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -65,14 +65,13 @@ export default async function TeamDirectoryPage({
 
             return (
               <Card key={member.id} className="overflow-hidden rounded-[30px] border-[var(--line)] bg-white">
-                <div className="relative h-80 bg-[linear-gradient(140deg,#f7f1e7,#edf5f0)]">
-                  {member.avatarUrl ? (
-                    <OptimizedImage src={member.avatarUrl} alt={member.fullName} fill preset="profile" className="object-cover" />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-5xl font-semibold text-[var(--ink-300)]">
-                      {member.fullName.charAt(0)}
-                    </div>
-                  )}
+                <div className="flex h-80 items-center justify-center bg-[linear-gradient(140deg,#f7f1e7,#edf5f0)] p-8">
+                  <Avatar
+                    name={member.fullName}
+                    imageUrl={member.avatarUrl}
+                    size="lg"
+                    className="h-full w-full max-w-[18rem] rounded-[28px] border-white/80 bg-white/70"
+                  />
                 </div>
                 <div className="space-y-4 p-6">
                   <div className="space-y-2">

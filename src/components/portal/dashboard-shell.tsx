@@ -1,9 +1,9 @@
 import Link from "next/link";
 
-import { OptimizedImage } from "@/components/media/optimized-image";
 import { Container } from "@/components/shared/container";
 import { Logo } from "@/components/shared/logo";
 import { LiveSurfaceSync } from "@/components/realtime/live-surface-sync";
+import { Avatar } from "@/components/ui/avatar";
 import { requireAdminSession, requirePortalSession } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
@@ -94,21 +94,7 @@ export async function DashboardShell({
           <Logo href={`/${area}`} name={presentation.companyName} tagline={area === "portal" ? "Buyer workspace" : "Company workspace"} logoUrl={branding.logoUrl} />
           {area === "portal" ? (
             <div className="mt-4 flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--tenant-nav-border)]/60 bg-white/60 px-3 py-3">
-              <div className="relative h-12 w-12 overflow-hidden rounded-full border border-[var(--tenant-nav-border)] bg-[var(--sand-100)]">
-                {portalUser?.profileImageUrl ? (
-                  <OptimizedImage
-                    src={portalUser.profileImageUrl}
-                    alt={portalUserName}
-                    fill
-                    preset="thumbnail"
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xs font-semibold uppercase tracking-[0.14em] text-[var(--ink-500)]">
-                    {portalUserName.slice(0, 2)}
-                  </div>
-                )}
-              </div>
+              <Avatar name={portalUserName} imageUrl={portalUser?.profileImageUrl} size="md" />
               <div className="min-w-0">
                 <div className="truncate text-sm font-medium text-[var(--ink-900)]">{portalUserName}</div>
                 <div className="text-xs text-[var(--ink-500)]">Buyer profile</div>

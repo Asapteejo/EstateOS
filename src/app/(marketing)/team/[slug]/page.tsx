@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { OptimizedImage } from "@/components/media/optimized-image";
 import { Container } from "@/components/shared/container";
+import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -36,14 +36,13 @@ export default async function TeamProfilePage({
   return (
     <Container className="grid gap-8 py-16 lg:grid-cols-[0.42fr_0.58fr]">
       <Card className="overflow-hidden rounded-[32px] border-[var(--line)] bg-white">
-        <div className="relative h-[420px] bg-[linear-gradient(140deg,#f7f1e7,#edf5f0)]">
-          {member.avatarUrl ? (
-            <OptimizedImage src={member.avatarUrl} alt={member.fullName} fill preset="profile" className="object-cover" />
-          ) : (
-            <div className="flex h-full items-center justify-center text-7xl font-semibold text-[var(--ink-300)]">
-              {member.fullName.charAt(0)}
-            </div>
-          )}
+        <div className="flex h-[420px] items-center justify-center bg-[linear-gradient(140deg,#f7f1e7,#edf5f0)] p-8">
+          <Avatar
+            name={member.fullName}
+            imageUrl={member.avatarUrl}
+            size="lg"
+            className="h-full w-full rounded-[28px] border-white/80 bg-white/70"
+          />
         </div>
       </Card>
 

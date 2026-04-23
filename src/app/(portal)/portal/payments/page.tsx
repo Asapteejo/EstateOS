@@ -2,10 +2,10 @@ import { DashboardShell } from "@/components/portal/dashboard-shell";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Avatar } from "@/components/ui/avatar";
 import { requirePortalSession } from "@/lib/auth/guards";
 import { formatCurrency } from "@/lib/utils";
 import { getBuyerPaymentExperience } from "@/modules/portal/queries";
-import { OptimizedImage } from "@/components/media/optimized-image";
 
 export default async function PortalPaymentsPage() {
   const tenant = await requirePortalSession();
@@ -42,21 +42,12 @@ export default async function PortalPaymentsPage() {
           <div className="text-sm text-[var(--ink-500)]">Selected marketer</div>
           {paymentExperience.selectedMarketer ? (
             <div className="mt-3 flex items-center gap-3">
-              <div className="relative h-12 w-12 overflow-hidden rounded-2xl bg-[var(--sand-100)]">
-                {paymentExperience.selectedMarketer.avatarUrl ? (
-                  <OptimizedImage
-                    src={paymentExperience.selectedMarketer.avatarUrl}
-                    alt={paymentExperience.selectedMarketer.fullName}
-                    fill
-                    preset="profile"
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-lg font-semibold text-[var(--ink-400)]">
-                    {paymentExperience.selectedMarketer.fullName.charAt(0)}
-                  </div>
-                )}
-              </div>
+              <Avatar
+                name={paymentExperience.selectedMarketer.fullName}
+                imageUrl={paymentExperience.selectedMarketer.avatarUrl}
+                size="md"
+                className="rounded-2xl"
+              />
               <div>
                 <div className="text-lg font-semibold text-[var(--ink-950)]">
                   {paymentExperience.selectedMarketer.fullName}

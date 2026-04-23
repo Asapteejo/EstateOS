@@ -1,8 +1,8 @@
 import Link from "next/link";
 
 import { AdminEmptyState, AdminMetricCard, AdminMetricGrid, AdminPanel, AdminToolbar } from "@/components/admin/admin-ui";
-import { OptimizedImage } from "@/components/media/optimized-image";
 import { DashboardShell } from "@/components/portal/dashboard-shell";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { requireAdminSession } from "@/lib/auth/guards";
@@ -149,21 +149,12 @@ export default async function AdminMarketersPage({
         >
           {dashboard.topPerformer ? (
             <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-              <div className="relative h-18 w-18 overflow-hidden rounded-[20px] bg-[var(--sand-50)] sm:h-20 sm:w-20">
-                {dashboard.topPerformer.avatarUrl ? (
-                  <OptimizedImage
-                    src={dashboard.topPerformer.avatarUrl}
-                    alt={dashboard.topPerformer.fullName}
-                    fill
-                    preset="profile"
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-2xl font-semibold text-[var(--ink-400)]">
-                    {dashboard.topPerformer.fullName.charAt(0)}
-                  </div>
-                )}
-              </div>
+              <Avatar
+                name={dashboard.topPerformer.fullName}
+                imageUrl={dashboard.topPerformer.avatarUrl}
+                size="lg"
+                className="h-20 w-20 rounded-[20px] bg-[var(--sand-50)]"
+              />
               <div className="min-w-0 flex-1">
                 <h2 className="text-xl font-semibold tracking-[-0.02em] text-[var(--ink-950)]">
                   {dashboard.topPerformer.fullName}
@@ -240,15 +231,12 @@ export default async function AdminMarketersPage({
                     <td className="font-semibold text-[var(--ink-950)]">#{row.rank}</td>
                     <td>
                       <div className="flex min-w-[220px] items-center gap-3">
-                        <div className="relative h-12 w-12 overflow-hidden rounded-[16px] bg-[var(--sand-50)]">
-                          {row.avatarUrl ? (
-                            <OptimizedImage src={row.avatarUrl} alt={row.fullName} fill preset="profile" className="object-cover" />
-                          ) : (
-                            <div className="flex h-full items-center justify-center text-lg font-semibold text-[var(--ink-400)]">
-                              {row.fullName.charAt(0)}
-                            </div>
-                          )}
-                        </div>
+                        <Avatar
+                          name={row.fullName}
+                          imageUrl={row.avatarUrl}
+                          size="md"
+                          className="rounded-[16px] bg-[var(--sand-50)]"
+                        />
                         <div>
                           <div className="font-semibold text-[var(--ink-950)]">{row.fullName}</div>
                           <div className="text-[var(--ink-500)]">{row.title}</div>
