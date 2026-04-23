@@ -849,6 +849,7 @@ model User {
   firstName       String?
   lastName        String?
   phone           String?
+  profileImageUrl String?
   isActive        Boolean             @default(true)
   company         Company?            @relation(fields: [companyId], references: [id])
   branch          Branch?             @relation(fields: [branchId], references: [id])

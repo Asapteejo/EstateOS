@@ -1,9 +1,12 @@
 import Link from "next/link";
 
+import { OptimizedImage } from "@/components/media/optimized-image";
 import { Container } from "@/components/shared/container";
 import { Logo } from "@/components/shared/logo";
 import { LiveSurfaceSync } from "@/components/realtime/live-surface-sync";
 import { requireAdminSession, requirePortalSession } from "@/lib/auth/guards";
+import { prisma } from "@/lib/db/prisma";
+import { featureFlags } from "@/lib/env";
 import { getTenantPresentation } from "@/modules/branding/service";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +65,26 @@ export async function DashboardShell({
     : await requireAdminSession(["ADMIN"], { redirectOnMissingAuth: false });
   const presentation = await getTenantPresentation(tenant);
   const branding = presentation.branding;
+  const portalUserRows =
+    area === "portal" && featureFlags.hasDatabase && tenant.userId && tenant.companyId
+      ? await prisma.$queryRaw<Array<{
+          firstName: string | null;
+          lastName: string | null;
+          email: string;
+          profileImageUrl: string | null;
+        }>>`
+          SELECT "firstName", "lastName", "email", "profileImageUrl"
+          FROM "User"
+          WHERE "id" = ${tenant.userId}
+            AND "companyId" = ${tenant.companyId}
+          LIMIT 1
+        `
+      : [];
+  const portalUser = portalUserRows[0] ?? null;
+  const portalUserName =
+    [portalUser?.firstName, portalUser?.lastName].filter(Boolean).join(" ") ||
+    portalUser?.email ||
+    "Buyer";
 
   return (
     <Container className="grid gap-6 py-5 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8 lg:py-8">
@@ -69,6 +92,29 @@ export async function DashboardShell({
       <aside className="rounded-[var(--radius-xl)] border border-[var(--tenant-nav-border)] bg-[var(--tenant-nav-surface)] p-4 shadow-[var(--tenant-nav-shadow)] lg:sticky lg:top-6 lg:self-start lg:p-5">
         <div className="rounded-[var(--radius-lg)] border border-[var(--tenant-nav-border)]/60 bg-white/40 p-4">
           <Logo href={`/${area}`} name={presentation.companyName} tagline={area === "portal" ? "Buyer workspace" : "Company workspace"} logoUrl={branding.logoUrl} />
+          {area === "portal" ? (
+            <div className="mt-4 flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--tenant-nav-border)]/60 bg-white/60 px-3 py-3">
+              <div className="relative h-12 w-12 overflow-hidden rounded-full border border-[var(--tenant-nav-border)] bg-[var(--sand-100)]">
+                {portalUser?.profileImageUrl ? (
+                  <OptimizedImage
+                    src={portalUser.profileImageUrl}
+                    alt={portalUserName}
+                    fill
+                    preset="thumbnail"
+                    className="object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-xs font-semibold uppercase tracking-[0.14em] text-[var(--ink-500)]">
+                    {portalUserName.slice(0, 2)}
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-medium text-[var(--ink-900)]">{portalUserName}</div>
+                <div className="text-xs text-[var(--ink-500)]">Buyer profile</div>
+              </div>
+            </div>
+          ) : null}
           <div className="mt-4 flex flex-wrap gap-2">
             <span className="admin-chip border-[var(--tenant-nav-border)] bg-white/60 text-[var(--ink-600)]">
               {area === "portal" ? "Buyer surface" : "Operator surface"}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+import { UploadField } from "@/components/uploads/upload-field";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +14,7 @@ type BuyerProfileRecord = {
   lastName: string;
   email: string;
   phone: string;
+  profileImageUrl: string;
   dateOfBirth: string;
   nationality: string;
   addressLine1: string;
@@ -61,6 +63,18 @@ export function ProfileForm({ initialValue }: { initialValue: BuyerProfileRecord
 
   return (
     <Card className="grid gap-4 p-8 md:grid-cols-2">
+      <div className="md:col-span-2">
+        <UploadField
+          label="Profile picture"
+          purpose="BUYER_PROFILE_PHOTO"
+          surface="portal"
+          mode="publicAsset"
+          allowExternalUrl
+          helperText="Shown across your buyer workspace so sales and operations can identify your profile consistently."
+          value={{ url: form.profileImageUrl }}
+          onChange={(uploaded) => update("profileImageUrl", uploaded.url ?? "")}
+        />
+      </div>
       <Input placeholder="First name" value={form.firstName} onChange={(event) => update("firstName", event.target.value)} />
       <Input placeholder="Last name" value={form.lastName} onChange={(event) => update("lastName", event.target.value)} />
       <Input placeholder="Email address" value={form.email} onChange={(event) => update("email", event.target.value)} />

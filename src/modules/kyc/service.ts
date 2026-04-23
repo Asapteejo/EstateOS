@@ -21,6 +21,7 @@ export type BuyerProfileRecord = {
   lastName: string;
   email: string;
   phone: string;
+  profileImageUrl: string;
   dateOfBirth: string;
   nationality: string;
   addressLine1: string;
@@ -51,6 +52,7 @@ export async function getBuyerProfileRecord(context: TenantContext): Promise<Buy
       lastName: "Okafor",
       email: "buyer@acmerealty.dev",
       phone: "+2348010001111",
+      profileImageUrl: "",
       dateOfBirth: "",
       nationality: "Nigerian",
       addressLine1: "12 Admiralty Way",
@@ -114,6 +116,14 @@ export async function getBuyerProfileRecord(context: TenantContext): Promise<Buy
     } | null;
   } | null;
 
+  const imageRows = await prisma.$queryRaw<Array<{ profileImageUrl: string | null }>>(Prisma.sql`
+    SELECT "profileImageUrl"
+    FROM "User"
+    WHERE "id" = ${context.userId}
+      AND "companyId" = ${context.companyId}
+    LIMIT 1
+  `);
+
   if (!user) {
     return null;
   }
@@ -123,6 +133,7 @@ export async function getBuyerProfileRecord(context: TenantContext): Promise<Buy
     lastName: user.lastName ?? "",
     email: user.email,
     phone: user.phone ?? "",
+    profileImageUrl: imageRows[0]?.profileImageUrl ?? "",
     dateOfBirth: user.profile?.dateOfBirth?.toISOString().slice(0, 10) ?? "",
     nationality: user.profile?.nationality ?? "",
     addressLine1: user.profile?.addressLine1 ?? "",
@@ -144,6 +155,7 @@ export async function saveBuyerProfileRecord(
     lastName: string;
     email: string;
     phone: string;
+    profileImageUrl?: string;
     dateOfBirth?: string;
     nationality: string;
     addressLine1: string;
@@ -212,6 +224,15 @@ export async function saveBuyerProfileRecord(
       },
     },
   });
+
+  await prisma.$executeRaw(Prisma.sql`
+    UPDATE "User"
+    SET
+      "profileImageUrl" = ${input.profileImageUrl ?? null},
+      "updatedAt" = NOW()
+    WHERE "id" = ${context.userId}
+      AND "companyId" = ${context.companyId}
+  `);
 
   await writeAuditLog({
     companyId: context.companyId,

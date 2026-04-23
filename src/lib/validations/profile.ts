@@ -7,6 +7,7 @@ export const buyerProfileSchema = z.object({
   lastName: z.string().trim().min(2),
   email: z.email(),
   phone: z.string().trim().min(7),
+  profileImageUrl: optionalTrimmedString,
   dateOfBirth: z.string().date().optional(),
   nationality: z.string().trim().min(2),
   addressLine1: z.string().trim().min(5),

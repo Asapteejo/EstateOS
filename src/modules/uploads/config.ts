@@ -4,6 +4,7 @@ export type UploadPurpose =
   | "BRAND_LOGO"
   | "BRAND_FAVICON"
   | "BRAND_HERO"
+  | "BUYER_PROFILE_PHOTO"
   | "STAFF_PHOTO"
   | "RESUME"
   | "PROPERTY_MEDIA"
@@ -41,6 +42,13 @@ const uploadPurposeConfig: Record<UploadPurpose, UploadPurposeConfig> = {
     isPublicAsset: true,
     accept: "image/*",
     label: "Hero image",
+  },
+  BUYER_PROFILE_PHOTO: {
+    domain: "buyer-profile",
+    visibility: "PUBLIC",
+    isPublicAsset: true,
+    accept: "image/*",
+    label: "Buyer profile photo",
   },
   STAFF_PHOTO: {
     domain: "staff-media",

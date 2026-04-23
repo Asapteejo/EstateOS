@@ -5,6 +5,7 @@ export const uploadPurposeSchema = z.enum([
   "BRAND_LOGO",
   "BRAND_FAVICON",
   "BRAND_HERO",
+  "BUYER_PROFILE_PHOTO",
   "STAFF_PHOTO",
   "RESUME",
   "PROPERTY_MEDIA",
