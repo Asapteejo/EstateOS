@@ -3,6 +3,7 @@ import { Webhook } from "svix";
 import { ok, fail } from "@/lib/http";
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
+import { captureServerException } from "@/lib/integrations/posthog";
 import { logError, logWarn } from "@/lib/ops/logger";
 import { captureException } from "@/lib/sentry";
 export const runtime = "nodejs";
@@ -96,6 +97,16 @@ export async function POST(request: Request) {
         },
       });
     } catch (error) {
+      await captureServerException(error, {
+        source: "webhook",
+        route: "/api/webhooks/clerk",
+        method: "POST",
+        area: "api",
+        requestId: request.headers.get("x-vercel-id"),
+        statusCode: 500,
+      }, {
+        severity: "HIGH",
+      });
       captureException(error);
       logError("Failed to persist Clerk webhook user sync.", {
         clerkUserId: event.data.id,

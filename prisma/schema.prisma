@@ -263,6 +263,45 @@ enum NotificationChannel {
   WHATSAPP
 }
 
+enum SupportRequestCategory {
+  BUG
+  FEATURE_REQUEST
+  QUESTION
+  BILLING
+  ONBOARDING
+  OTHER
+}
+
+enum IntegrationSyncStatus {
+  PENDING
+  SYNCED
+  FAILED
+  SKIPPED
+  MAX_RETRIES_EXCEEDED
+}
+
+enum SupportPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum SupportRevenueTier {
+  NONE
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum IncidentEscalationStatus {
+  PENDING
+  ESCALATED
+  SUPPRESSED
+  IGNORED
+  RESOLVED
+  REOPENED
+}
+
 enum WishlistStatus {
   ACTIVE
   EXPIRED
@@ -371,6 +410,8 @@ model Company {
   faqItems        FAQItem[]
   siteSetting     SiteSettings?
   notifications   Notification[]
+  observedIncidentCompanies ObservedIncidentCompany[]
+  observedIncidentOccurrences ObservedIncidentOccurrence[]
   auditLogs       AuditLog[]
   activityEvents  ActivityEvent[]
   webhookEvents   WebhookEvent[]
@@ -1592,6 +1633,111 @@ model Notification {
   @@index([companyId, userId, readAt])
 }
 
+model SupportRequest {
+  id                  String                @id
+  companyId           String
+  userId              String?
+  category            SupportRequestCategory
+  supportPriority     SupportPriority       @default(LOW)
+  subject             String
+  message             String
+  reporterName        String?
+  reporterEmail       String?
+  pageUrl             String?
+  browserInfo         String?
+  companyPlanLabel    String?
+  revenueSnapshotAmount Decimal?            @db.Decimal(14, 2)
+  revenueSnapshotCurrency String?
+  revenueTier         SupportRevenueTier    @default(NONE)
+  lastPaymentAt       DateTime?
+  syncStatus          IntegrationSyncStatus @default(PENDING)
+  linearIssueId       String?
+  linearIssueIdentifier String?
+  linearIssueUrl      String?
+  lastSyncError       String?
+  retryCount          Int                   @default(0)
+  lastRetryAt         DateTime?
+  nextRetryAt         DateTime?
+  syncedAt            DateTime?
+  metadata            Json?
+  company             Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user                User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+
+  @@index([companyId, createdAt])
+  @@index([companyId, category, createdAt])
+  @@index([syncStatus, createdAt])
+  @@index([companyId, syncStatus, nextRetryAt])
+  @@index([userId, createdAt])
+}
+
+model ObservedIncident {
+  id                    String                   @id @default(cuid())
+  fingerprint           String
+  fingerprintType       String
+  eventGroup            String
+  source                String
+  severity              String
+  environment           String
+  eventVersion          String
+  title                 String
+  firstSeenAt           DateTime
+  lastSeenAt            DateTime
+  occurrenceCount       Int                      @default(1)
+  affectedCompanyCount  Int                      @default(0)
+  recentWindowOccurrenceCount Int                @default(0)
+  recentWindowCompanyCount Int                   @default(0)
+  recentWindowCalculatedAt DateTime?
+  lastCompanyId         String?
+  lastUserId            String?
+  lastRoute             String?
+  supportRequestId      String?
+  linearIssueId         String?
+  linearIssueIdentifier String?
+  linearIssueUrl        String?
+  lastLinearSyncSummaryHash String?
+  lastLinearSeveritySynced String?
+  lastLinearAffectedCompanyCountSynced Int?
+  lastLinearUpdateAt    DateTime?
+  escalationStatus      IncidentEscalationStatus @default(PENDING)
+  escalatedAt           DateTime?
+  nextEligibleEscalationAt DateTime?
+  lastEscalationReason  String?
+  companies             ObservedIncidentCompany[]
+  occurrences           ObservedIncidentOccurrence[]
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@unique([fingerprint, environment])
+  @@index([escalationStatus, lastSeenAt])
+  @@index([severity, source, lastSeenAt])
+  @@index([lastSeenAt])
+}
+
+model ObservedIncidentCompany {
+  incidentId   String
+  companyId    String
+  firstSeenAt  DateTime         @default(now())
+  incident     ObservedIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  company      Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@id([incidentId, companyId])
+  @@index([companyId, firstSeenAt])
+}
+
+model ObservedIncidentOccurrence {
+  id         String           @id @default(cuid())
+  incidentId String
+  companyId  String?
+  seenAt     DateTime         @default(now())
+  incident   ObservedIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  company    Company?         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId, seenAt])
+  @@index([companyId, seenAt])
+}
+
 model AuditLog {
   id          String      @id @default(cuid())
   companyId   String?
@@ -1689,4 +1835,3 @@ model TeamMemberInvitation {
   @@index([companyId, status])
   @@index([email, status])
 }
-

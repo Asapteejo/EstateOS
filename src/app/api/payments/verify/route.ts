@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { ok, fail } from "@/lib/http";
+import { captureServerException } from "@/lib/integrations/posthog";
 import { verifyPayment } from "@/lib/payments/paystack";
 import { assertPaymentReferenceBelongsToTenant } from "@/lib/payments/references";
 import { requireTenantContext } from "@/lib/tenancy/context";
@@ -81,6 +82,19 @@ export async function POST(request: Request) {
           : "Verification completed.",
     });
   } catch (error) {
+    await captureServerException(error, {
+      source: "payment",
+      route: "/api/payments/verify",
+      method: "POST",
+      companyId: tenant.companyId,
+      companySlug: tenant.companySlug,
+      userId: tenant.userId,
+      area: "portal",
+      requestId: request.headers.get("x-vercel-id"),
+      statusCode: 500,
+    }, {
+      severity: "HIGH",
+    });
     return fail(error instanceof Error ? error.message : "Unable to verify payment.", 400);
   }
 }

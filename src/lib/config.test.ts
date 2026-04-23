@@ -46,6 +46,116 @@ test("Twilio requires a complete config group when explicitly enabled", () => {
   );
 });
 
+test("Linear requires api key and team id together", () => {
+  assert.throws(
+    () =>
+      parseServerEnv({
+        NODE_ENV: "development",
+        NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+        LINEAR_API_KEY: "lin_api_test",
+      }),
+    /Linear configuration is incomplete/,
+  );
+});
+
+test("feature flags only enable Linear when the full config is present", () => {
+  const env = parseServerEnv({
+    NODE_ENV: "development",
+    NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+    LINEAR_API_KEY: "lin_api_test",
+    LINEAR_TEAM_ID: "team_123",
+  });
+
+  const flags = buildFeatureFlags(env);
+
+  assert.equal(flags.hasLinear, true);
+});
+
+test("PostHog requires public key and host together", () => {
+  assert.throws(
+    () =>
+      parseServerEnv({
+        NODE_ENV: "development",
+        NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+        NEXT_PUBLIC_POSTHOG_KEY: "phc_test",
+      }),
+    /PostHog configuration should provide both public key and host together/,
+  );
+});
+
+test("feature flags only enable PostHog when complete and not disabled", () => {
+  const enabled = buildFeatureFlags(
+    parseServerEnv({
+      NODE_ENV: "development",
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+      NEXT_PUBLIC_POSTHOG_KEY: "phc_test",
+      NEXT_PUBLIC_POSTHOG_HOST: "https://eu.i.posthog.com",
+    }),
+  );
+  const disabled = buildFeatureFlags(
+    parseServerEnv({
+      NODE_ENV: "development",
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+      NEXT_PUBLIC_POSTHOG_KEY: "phc_test",
+      NEXT_PUBLIC_POSTHOG_HOST: "https://eu.i.posthog.com",
+      POSTHOG_DISABLED: "true",
+    }),
+  );
+
+  assert.equal(enabled.hasPostHog, true);
+  assert.equal(disabled.hasPostHog, false);
+});
+
+test("PostHog debug flag parses safely", () => {
+  const env = parseServerEnv({
+    NODE_ENV: "development",
+    NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+    POSTHOG_DEBUG: "true",
+  });
+  const publicEnv = parsePublicEnv({
+    NODE_ENV: "development",
+    NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+    POSTHOG_DEBUG: "true",
+  });
+
+  assert.equal(env.POSTHOG_DEBUG, true);
+  assert.equal(publicEnv.POSTHOG_DEBUG, true);
+});
+
+test("PostHog sample rates parse when valid", () => {
+  const env = parseServerEnv({
+    NODE_ENV: "development",
+    NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+    NEXT_PUBLIC_POSTHOG_KEY: "phc_test",
+    NEXT_PUBLIC_POSTHOG_HOST: "https://eu.i.posthog.com",
+    NEXT_PUBLIC_POSTHOG_CLIENT_EXCEPTION_SAMPLE_RATE: "0.5",
+    POSTHOG_SERVER_EXCEPTION_SAMPLE_RATE: "0.75",
+  });
+  const publicEnv = parsePublicEnv({
+    NODE_ENV: "development",
+    NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+    NEXT_PUBLIC_POSTHOG_KEY: "phc_test",
+    NEXT_PUBLIC_POSTHOG_HOST: "https://eu.i.posthog.com",
+    NEXT_PUBLIC_POSTHOG_CLIENT_EXCEPTION_SAMPLE_RATE: "0.5",
+  });
+
+  assert.equal(env.NEXT_PUBLIC_POSTHOG_CLIENT_EXCEPTION_SAMPLE_RATE, 0.5);
+  assert.equal(env.POSTHOG_SERVER_EXCEPTION_SAMPLE_RATE, 0.75);
+  assert.equal(publicEnv.NEXT_PUBLIC_POSTHOG_CLIENT_EXCEPTION_SAMPLE_RATE, 0.5);
+});
+
+test("PostHog sample rates reject invalid values", () => {
+  assert.throws(
+    () =>
+      parseServerEnv({
+        NODE_ENV: "development",
+        NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+        NEXT_PUBLIC_POSTHOG_CLIENT_EXCEPTION_SAMPLE_RATE: "1.5",
+      }),
+    /Number must be less than or equal to 1/,
+  );
+});
+
 test("production env parse allows build-time config inspection", () => {
   const env = parseServerEnv({
     NODE_ENV: "production",

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
+import { captureClientException } from "@/lib/integrations/posthog-client";
 import { captureException } from "@/lib/sentry";
 
 export default function GlobalError({
@@ -14,6 +15,12 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     captureException(error);
+    void captureClientException(error, {
+      source: "global-error-boundary",
+    }, {
+      severity: "HIGH",
+      source: "client",
+    });
   }, [error]);
 
   return (

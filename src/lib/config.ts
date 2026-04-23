@@ -34,6 +34,26 @@ const optionalBoolean = z.preprocess((value) => {
   return value;
 }, z.boolean().optional());
 
+const optionalSampleRate = z.preprocess((value) => {
+  if (typeof value === "number") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim();
+    if (normalized === "") {
+      return undefined;
+    }
+
+    const parsed = Number(normalized);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+
+  return value;
+}, z.number().min(0).max(1).optional());
+
 const serverEnvSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -68,6 +88,25 @@ const serverEnvSchema = z
     UPSTASH_REDIS_REST_TOKEN: optionalString,
     RESEND_API_KEY: optionalString,
     EMAIL_FROM: z.string().trim().min(3).default("Acme Realty <no-reply@example.com>"),
+    LINEAR_API_KEY: optionalString,
+    LINEAR_TEAM_ID: optionalString,
+    LINEAR_SUPPORT_STATE_ID: optionalString,
+    LINEAR_BUG_LABEL_ID: optionalString,
+    LINEAR_FEATURE_REQUEST_LABEL_ID: optionalString,
+    LINEAR_QUESTION_LABEL_ID: optionalString,
+    LINEAR_BILLING_LABEL_ID: optionalString,
+    LINEAR_ONBOARDING_LABEL_ID: optionalString,
+    LINEAR_OTHER_LABEL_ID: optionalString,
+    LINEAR_HIGH_PRIORITY_LABEL_ID: optionalString,
+    LINEAR_MEDIUM_PRIORITY_LABEL_ID: optionalString,
+    LINEAR_LOW_PRIORITY_LABEL_ID: optionalString,
+    NEXT_PUBLIC_POSTHOG_KEY: optionalString,
+    NEXT_PUBLIC_POSTHOG_HOST: optionalUrl,
+    POSTHOG_PROJECT_API_KEY: optionalString,
+    POSTHOG_DISABLED: optionalBoolean,
+    POSTHOG_DEBUG: optionalBoolean,
+    NEXT_PUBLIC_POSTHOG_CLIENT_EXCEPTION_SAMPLE_RATE: optionalSampleRate,
+    POSTHOG_SERVER_EXCEPTION_SAMPLE_RATE: optionalSampleRate,
     TWILIO_ENABLED: optionalBoolean,
     TWILIO_ACCOUNT_SID: optionalString,
     TWILIO_AUTH_TOKEN: optionalString,
@@ -113,6 +152,17 @@ const serverEnvSchema = z
       "INNGEST_EVENT_KEY",
       "INNGEST_SIGNING_KEY",
     ]);
+    requireGroup("Linear", [
+      "LINEAR_API_KEY",
+      "LINEAR_TEAM_ID",
+    ]);
+    if (Boolean(value.NEXT_PUBLIC_POSTHOG_KEY) !== Boolean(value.NEXT_PUBLIC_POSTHOG_HOST)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "PostHog configuration should provide both public key and host together.",
+        path: ["NEXT_PUBLIC_POSTHOG_KEY"],
+      });
+    }
     if (value.TWILIO_ENABLED) {
       requireGroup("Twilio", [
         "TWILIO_ACCOUNT_SID",
@@ -140,6 +190,11 @@ const publicEnvSchema = z.object({
   NEXT_PUBLIC_PORTAL_BASE_URL: optionalUrl,
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: optionalString,
   NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: optionalString,
+  NEXT_PUBLIC_POSTHOG_KEY: optionalString,
+  NEXT_PUBLIC_POSTHOG_HOST: optionalUrl,
+  POSTHOG_DISABLED: optionalBoolean,
+  POSTHOG_DEBUG: optionalBoolean,
+  NEXT_PUBLIC_POSTHOG_CLIENT_EXCEPTION_SAMPLE_RATE: optionalSampleRate,
 });
 
 const instrumentationEnvSchema = z.object({
@@ -256,6 +311,13 @@ export function buildFeatureFlags(env: ServerEnv) {
       Boolean(env.UPSTASH_REDIS_REST_URL) &&
       Boolean(env.UPSTASH_REDIS_REST_TOKEN),
     hasResend: Boolean(env.RESEND_API_KEY),
+    hasLinear:
+      Boolean(env.LINEAR_API_KEY) &&
+      Boolean(env.LINEAR_TEAM_ID),
+    hasPostHog:
+      env.POSTHOG_DISABLED !== true &&
+      Boolean(env.NEXT_PUBLIC_POSTHOG_KEY) &&
+      Boolean(env.NEXT_PUBLIC_POSTHOG_HOST),
     hasGeminiAi: Boolean(env.GEMINI_API_KEY),
     hasSentry: Boolean(env.SENTRY_DSN),
     hasInngest:
@@ -274,6 +336,10 @@ export function buildClientFlags(env: PublicEnv) {
     isProduction: env.NODE_ENV === "production",
     hasClerk: Boolean(env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY),
     hasMapbox: Boolean(env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN),
+    hasPostHog:
+      env.POSTHOG_DISABLED !== true &&
+      Boolean(env.NEXT_PUBLIC_POSTHOG_KEY) &&
+      Boolean(env.NEXT_PUBLIC_POSTHOG_HOST),
   };
 }
 

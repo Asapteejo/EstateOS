@@ -19,3 +19,12 @@ export const inspectionRateLimit = redis
       prefix: "ratelimit:inspection",
     })
   : null;
+
+export const supportRateLimit = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(5, "15 m"),
+      analytics: true,
+      prefix: "ratelimit:support",
+    })
+  : null;
