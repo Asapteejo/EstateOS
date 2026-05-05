@@ -33,6 +33,7 @@ export async function uploadTenantFile(input: {
       purpose: input.purpose,
       fileName: input.file.name,
       contentType: input.file.type || "application/octet-stream",
+      sizeBytes: input.file.size,
     }),
   });
 

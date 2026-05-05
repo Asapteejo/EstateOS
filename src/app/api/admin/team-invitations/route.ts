@@ -97,7 +97,7 @@ export async function POST(request: Request) {
       companyId: tenant.companyId,
       email: body.data.email.toLowerCase(),
       fullName: body.data.fullName,
-      role: body.data.role as AppRole,
+      role: body.data.role,
       token,
       expiresAt,
       invitedByUserId: tenant.userId ?? undefined,

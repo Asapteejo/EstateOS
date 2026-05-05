@@ -17,6 +17,7 @@ import {
   buildTenantThemeStyles,
   getBrandingPublishIssues,
 } from "@/modules/branding/theme";
+import { formatStableDate } from "@/lib/utils";
 
 function buildPreviewName(companyName?: string) {
   return companyName?.trim() || "Acme Realty";
@@ -120,7 +121,7 @@ export function BrandingManagement({
               />
               <StudioStat
                 label="Last published"
-                value={state.publishedAt ? new Date(state.publishedAt).toLocaleDateString() : "Never"}
+                value={state.publishedAt ? formatStableDate(state.publishedAt) : "Never"}
                 tone="neutral"
               />
             </div>

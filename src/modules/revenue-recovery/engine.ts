@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Revenue recovery engine.
  *
@@ -65,8 +64,6 @@ export async function runRevenueRecoverySweep(input?: {
   const portalBaseUrl = process.env.NEXT_PUBLIC_PORTAL_BASE_URL ?? "";
 
   // Fetch overdue transactions that haven't reached the final stage yet.
-  // Cast as `any` because `overdueReminderStage` is a new schema field that
-  // won't appear in the generated Prisma types until `prisma generate` is run.
   type TxRow = {
     id: string;
     companyId: string;
@@ -79,8 +76,7 @@ export async function runRevenueRecoverySweep(input?: {
     marketer: { id: string; fullName: string; email: string | null; whatsappNumber: string | null } | null;
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const transactions = (await (prisma.transaction.findMany as (args: any) => Promise<any[]>)({
+  const transactions = (await prisma.transaction.findMany({
     where: {
       ...(input?.companyId ? { companyId: input.companyId } : {}),
       paymentStatus: "OVERDUE",
@@ -205,8 +201,15 @@ export async function runRevenueRecoverySweep(input?: {
         [STAGE_DAY_7]: `Hi ${tx.user.firstName ?? "there"}, this is an urgent notice. Your payment of ${outstandingBalance} for ${reservationRef} at ${companyName} is 7 days overdue. Your assigned agent has been notified. Please resolve this immediately: ${portalUrl}`,
       };
       await sendWhatsAppMessage({
+        companyId: tx.companyId,
+        trigger: `revenue_recovery.stage_${targetStage}`,
         to: tx.user.phone,
         body: stageMessages[targetStage] ?? stageMessages[STAGE_DAY_1],
+        metadata: {
+          transactionId: tx.id,
+          stage: targetStage,
+          reservationRef,
+        } as Prisma.InputJsonValue,
       });
     }
 
@@ -278,10 +281,9 @@ export async function runRevenueRecoverySweep(input?: {
     }
 
     // ── Advance stage + track event ───────────────────────────────────────
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await prisma.transaction.update({
       where: { id: tx.id },
-      data: { overdueReminderStage: targetStage } as any, // new field — re-type after `prisma generate`
+      data: { overdueReminderStage: targetStage },
     });
 
     escalated += 1;

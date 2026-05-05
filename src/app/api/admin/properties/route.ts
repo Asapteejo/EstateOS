@@ -1,5 +1,5 @@
 import { requireAdminSession } from "@/lib/auth/guards";
-import { ok, fail } from "@/lib/http";
+import { ok, fail, safeValidationIssues, validationFail } from "@/lib/http";
 import { propertyCreateSchema } from "@/lib/validations/properties";
 import { getAdminPropertyManagementList } from "@/modules/properties/admin-queries";
 import { createPropertyForAdmin } from "@/modules/properties/mutations";
@@ -31,7 +31,13 @@ export async function POST(request: Request) {
   const json = (await request.json()) as Record<string, unknown>;
   const body = propertyCreateSchema.safeParse(json);
   if (!body.success) {
-    return fail("Invalid property payload.");
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("Property creation validation failed.", {
+        issues: safeValidationIssues(body.error),
+      });
+    }
+
+    return validationFail(body.error);
   }
 
   try {

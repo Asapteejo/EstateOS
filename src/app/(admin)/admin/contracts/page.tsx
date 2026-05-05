@@ -2,7 +2,6 @@ import { requireAdminSession } from "@/lib/auth/guards";
 import { featureFlags } from "@/lib/env";
 import { formatDate } from "@/lib/utils";
 import { AdminMetricCard, AdminMetricGrid, AdminToolbar } from "@/components/admin/admin-ui";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DashboardShell } from "@/components/portal/dashboard-shell";
 import {

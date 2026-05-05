@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
-import { getProductionReadinessIssues } from "@/lib/config";
+import {
+  getProductionReadinessIssues,
+  sanitizeDatabaseEndpointForReadiness,
+} from "@/lib/config";
 
 export function buildHealthSnapshot() {
   return {
@@ -34,11 +37,19 @@ export function buildRuntimeReadinessSummary() {
   };
 }
 
+export function buildDatabaseReadinessMetadata() {
+  return {
+    runtime: sanitizeDatabaseEndpointForReadiness(env.DATABASE_URL),
+    direct: sanitizeDatabaseEndpointForReadiness(env.DIRECT_URL),
+  };
+}
+
 export async function checkDatabaseReadiness() {
   if (!featureFlags.hasDatabase) {
     return {
       configured: false,
       ok: true,
+      endpoints: buildDatabaseReadinessMetadata(),
     };
   }
 
@@ -47,11 +58,13 @@ export async function checkDatabaseReadiness() {
     return {
       configured: true,
       ok: true,
+      endpoints: buildDatabaseReadinessMetadata(),
     };
   } catch {
     return {
       configured: true,
       ok: false,
+      endpoints: buildDatabaseReadinessMetadata(),
     };
   }
 }

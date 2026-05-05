@@ -7,6 +7,8 @@ import {
   buildPublicPropertyFilterWhere,
   buildPublicPropertyWhere,
   parsePropertySearchParams,
+  normalizePlotOptions,
+  resolvePublicPropertyVideoUrl,
 } from "@/modules/properties/queries";
 
 const marketingTenant = {
@@ -56,6 +58,52 @@ test("public property where clause filters out draft and archived rows", () => {
     },
     companyId: "company_1",
   });
+});
+
+test("public active property query requires tenant, visible status, and public verification", () => {
+  assert.deepEqual(buildPublicPropertyWhere(marketingTenant, { slug: "blueprint-urban-residences" }, now), {
+    AND: [
+      { slug: "blueprint-urban-residences" },
+      {
+        isPubliclyVisible: true,
+        verificationStatus: {
+          in: ["VERIFIED", "STALE"],
+        },
+      },
+    ],
+    status: {
+      in: ["AVAILABLE", "RESERVED", "SOLD"],
+    },
+    companyId: "company_1",
+  });
+});
+
+test("public property filter supports land listings without bedroom filters", () => {
+  assert.deepEqual(
+    buildPublicPropertyFilterWhere(marketingTenant, {
+      propertyType: "LAND",
+      page: 1,
+    }, now),
+    {
+      companyId: "company_1",
+      AND: [
+        {
+          AND: [
+            { propertyType: "LAND" },
+          ],
+        },
+        {
+          isPubliclyVisible: true,
+          verificationStatus: {
+            in: ["VERIFIED", "STALE"],
+          },
+        },
+      ],
+      status: {
+        in: ["AVAILABLE", "RESERVED", "SOLD"],
+      },
+    },
+  );
 });
 
 test("public property filter where includes URL-backed filters", () => {
@@ -143,4 +191,28 @@ test("invalid property search params fall back to defaults", () => {
 
 test("brochure href uses the public brochure route", () => {
   assert.equal(buildPropertyBrochureHref("eko-atrium-residences"), "/brochures/eko-atrium-residences");
+});
+
+test("public property video url is exposed safely when present", () => {
+  assert.equal(
+    resolvePublicPropertyVideoUrl(" https://cdn.example.com/walkthrough.mp4 "),
+    "https://cdn.example.com/walkthrough.mp4",
+  );
+  assert.equal(resolvePublicPropertyVideoUrl(" "), undefined);
+  assert.equal(resolvePublicPropertyVideoUrl(null), undefined);
+});
+
+test("public property query exposes multiple SQM land options safely", () => {
+  assert.deepEqual(
+    normalizePlotOptions([
+      { unit: "SQM", label: "350 sqm", sizeSqm: 350, price: 18000000, currency: "NGN", status: "AVAILABLE" },
+      { unit: "SQM", label: "400 sqm", sizeSqm: 400, currency: "NGN", status: "AVAILABLE" },
+      { unit: "SQM", label: "600 sqm", sizeSqm: 600, price: null },
+    ]),
+    [
+      { unit: "SQM", label: "350 sqm", sizeSqm: 350, price: 18000000, currency: "NGN", status: "AVAILABLE" },
+      { unit: "SQM", label: "400 sqm", sizeSqm: 400, currency: "NGN", status: "AVAILABLE" },
+      { unit: "SQM", label: "600 sqm", sizeSqm: 600 },
+    ],
+  );
 });

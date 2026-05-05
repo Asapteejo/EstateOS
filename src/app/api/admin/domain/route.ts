@@ -63,7 +63,7 @@ export async function PATCH(request: Request) {
     data: {
       customDomain: newDomain,
       // Reset verification whenever the domain changes
-      customDomainStatus: newDomain ? "PENDING" : null,
+      customDomainStatus: "PENDING",
       customDomainVerifiedAt: null,
     },
     select: {

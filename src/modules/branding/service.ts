@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
+import { buildPublicAssetUrl } from "@/lib/uploads/assets";
 import type { BrandingConfigInput } from "@/lib/validations/branding";
 import {
   defaultTenantBranding,
@@ -14,18 +15,40 @@ import {
   type TenantBrandingConfig,
 } from "@/modules/branding/theme";
 
+export function resolveTenantBrandAssetUrl(value?: string | null) {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (/^(https?:|data:|blob:)/i.test(trimmed) || trimmed.startsWith("/")) {
+    return trimmed;
+  }
+
+  return buildPublicAssetUrl(trimmed.replace(/^\/+/, ""));
+}
+
+export function resolveTenantBrandingAssetUrls(config: TenantBrandingConfig): TenantBrandingConfig {
+  return {
+    ...config,
+    logoUrl: resolveTenantBrandAssetUrl(config.logoUrl),
+    faviconUrl: resolveTenantBrandAssetUrl(config.faviconUrl),
+    heroImageUrl: resolveTenantBrandAssetUrl(config.heroImageUrl),
+  };
+}
+
 function buildFallbackBranding(input?: {
   logoUrl?: string | null;
   primaryColor?: string | null;
   accentColor?: string | null;
 }) {
-  return normalizeTenantBrandingConfig({
+  return resolveTenantBrandingAssetUrls(normalizeTenantBrandingConfig({
     ...defaultTenantBranding,
     logoUrl: input?.logoUrl ?? defaultTenantBranding.logoUrl,
     primaryColor: input?.primaryColor ?? defaultTenantBranding.primaryColor,
     secondaryColor: input?.primaryColor ?? defaultTenantBranding.secondaryColor,
     accentColor: input?.accentColor ?? defaultTenantBranding.accentColor,
-  });
+  }));
 }
 
 export async function getTenantBrandingState(context: TenantContext) {
@@ -59,12 +82,18 @@ export async function getTenantBrandingState(context: TenantContext) {
     accentColor: company?.accentColor,
   });
 
-  return resolveBrandingState({
+  const state = resolveBrandingState({
     draft: company?.siteSetting?.draftBrandingConfig as Partial<TenantBrandingConfig> | null | undefined,
     published: company?.siteSetting?.publishedBrandingConfig as Partial<TenantBrandingConfig> | null | undefined,
     fallback,
     publishedAt: company?.siteSetting?.brandingPublishedAt ?? null,
   });
+
+  return {
+    ...state,
+    draft: resolveTenantBrandingAssetUrls(state.draft),
+    published: resolveTenantBrandingAssetUrls(state.published),
+  };
 }
 
 export async function getPublishedTenantBranding(context: TenantContext) {

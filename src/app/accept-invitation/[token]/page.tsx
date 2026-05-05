@@ -1,11 +1,10 @@
 import { notFound } from "next/navigation";
-import type { AppRole } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { AcceptInvitationClient } from "./accept-invitation-client";
 
-const ROLE_LABELS: Record<AppRole, string> = {
+const ROLE_LABELS: Record<string, string> = {
   BUYER: "Buyer",
   STAFF: "Staff",
   ADMIN: "Admin",

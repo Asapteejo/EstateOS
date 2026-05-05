@@ -8,6 +8,25 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import { getMarketplacePropertyDetail } from "@/modules/properties/marketplace";
 
+function formatLandOption(option: {
+  label?: string;
+  sizeSqm?: number;
+  numberOfPlots?: number;
+  hectares?: number;
+  acres?: number;
+  price?: number;
+  currency?: string;
+}, propertyCurrency: string) {
+  const label = option.label
+    ?? (option.sizeSqm ? `${option.sizeSqm} sqm` : null)
+    ?? (option.numberOfPlots ? `${option.numberOfPlots} plot${option.numberOfPlots === 1 ? "" : "s"}` : null)
+    ?? (option.hectares ? `${option.hectares} ha` : null)
+    ?? (option.acres ? `${option.acres} acres` : null)
+    ?? "Custom option";
+
+  return `${label} - ${option.price ? formatCurrency(option.price, option.currency ?? propertyCurrency) : "Price on request"}`;
+}
+
 export default async function MarketplacePropertyDetailPage({
   params,
 }: {
@@ -19,6 +38,7 @@ export default async function MarketplacePropertyDetailPage({
   if (!property) {
     notFound();
   }
+  const isLand = property.type.toUpperCase() === "LAND";
 
   const primaryImage = property.images[0];
   const galleryImages = property.images.slice(1, 5);
@@ -104,14 +124,31 @@ export default async function MarketplacePropertyDetailPage({
             </p>
           </div>
 
+          {isLand && property.plotOptions.length > 0 ? (
+            <div className="rounded-3xl border border-[var(--line)] bg-white p-5">
+              <h2 className="font-semibold text-[var(--ink-950)]">Available sizes</h2>
+              <div className="mt-3 flex flex-wrap gap-2 text-sm text-[var(--ink-700)]">
+                {property.plotOptions.map((option, index) => (
+                  <span key={`${option.label ?? "plot"}-${index}`} className="rounded-full bg-[var(--sand-100)] px-3 py-2">
+                    {formatLandOption(option, property.currency)}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           {/* Specs grid */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
               { label: "Type", value: property.type },
-              ...(property.bedrooms > 0 ? [{ label: "Bedrooms", value: property.bedrooms }] : []),
-              ...(property.bathrooms > 0 ? [{ label: "Bathrooms", value: property.bathrooms }] : []),
-              ...(property.sizeSqm > 0 ? [{ label: "Size", value: `${property.sizeSqm} sqm` }] : []),
-              ...(property.parkingSpaces > 0
+              ...(isLand && property.landSizeSqm ? [{ label: "Land size", value: `${property.landSizeSqm} sqm` }] : []),
+              ...(isLand && property.numberOfPlots ? [{ label: "Plots", value: property.numberOfPlots }] : []),
+              ...(isLand && property.hectares ? [{ label: "Hectares", value: property.hectares }] : []),
+              ...(isLand && property.acres ? [{ label: "Acres", value: property.acres }] : []),
+              ...(!isLand && property.bedrooms > 0 ? [{ label: "Bedrooms", value: property.bedrooms }] : []),
+              ...(!isLand && property.bathrooms > 0 ? [{ label: "Bathrooms", value: property.bathrooms }] : []),
+              ...(!isLand && property.sizeSqm > 0 ? [{ label: "Size", value: `${property.sizeSqm} sqm` }] : []),
+              ...(!isLand && property.parkingSpaces > 0
                 ? [{ label: "Parking", value: property.parkingSpaces }]
                 : []),
             ].map((spec) => (
@@ -173,6 +210,12 @@ export default async function MarketplacePropertyDetailPage({
               <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ink-500)]">
                 Video tour
               </h2>
+              <video
+                src={property.videoUrl}
+                controls
+                preload="metadata"
+                className="aspect-video w-full rounded-3xl bg-black"
+              />
               <a
                 href={property.videoUrl}
                 target="_blank"
@@ -193,11 +236,11 @@ export default async function MarketplacePropertyDetailPage({
               Starting from
             </div>
             <div className="mt-1 font-serif text-3xl font-semibold text-[var(--ink-950)]">
-              {formatCurrency(property.priceFrom)}
+              {formatCurrency(property.priceFrom, property.currency)}
             </div>
             {property.priceTo && property.priceTo > property.priceFrom && (
               <div className="mt-0.5 text-sm text-[var(--ink-500)]">
-                Up to {formatCurrency(property.priceTo)}
+                Up to {formatCurrency(property.priceTo, property.currency)}
               </div>
             )}
             {property.paymentPlan.durationMonths > 0 && (

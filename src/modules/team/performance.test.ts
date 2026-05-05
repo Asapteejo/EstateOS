@@ -131,7 +131,7 @@ test("performance summary surfaces the strongest real signals first", () => {
       successfulPayments: 2,
       completedDeals: 1,
     }),
-    "1 closed deal • 2 successful payments • 3 linked reservations",
+    "1 closed deal - 2 successful payments - 3 linked reservations",
   );
 });
 

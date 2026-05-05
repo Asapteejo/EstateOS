@@ -12,19 +12,6 @@ import type { ApplicableRule } from "./rules";
 
 // ─── Delegate pattern ─────────────────────────────────────────────────────
 
-type CommissionRow = {
-  id: string;
-  companyId: string;
-  marketerId: string;
-  paymentId: string;
-  transactionId: string | null;
-  ruleId: string | null;
-  amount: { toNumber: () => number } | number;
-  currency: string;
-  status: string;
-  createdAt: Date;
-};
-
 type CommissionDelegate = {
   create: (args?: unknown) => Promise<unknown>;
   findMany: (args?: unknown) => Promise<unknown>;
@@ -81,7 +68,7 @@ export async function recordMarketerCommission(input: {
     await delegate.create({
       data: {
         companyId: input.companyId,
-        marketerId: input.marketerId,
+        teamMemberId: input.marketerId,
         paymentId: input.paymentId,
         transactionId: input.transactionId ?? null,
         ruleId: input.ruleId ?? null,
@@ -126,24 +113,25 @@ export async function getMarketerCommissionTotals(
   const rows = (await delegate.findMany({
     where: { companyId },
     select: {
-      marketerId: true,
+      teamMemberId: true,
       amount: true,
       status: true,
     },
-  })) as Array<{ marketerId: string; amount: { toNumber: () => number } | number; status: string }>;
+  })) as Array<{ teamMemberId: string; amount: { toNumber: () => number } | number; status: string }>;
 
   const result = new Map<string, MarketerCommissionTotals>();
 
   for (const row of rows) {
     const amount =
       typeof row.amount === "number" ? row.amount : row.amount.toNumber();
-    const existing = result.get(row.marketerId) ?? { pending: 0, paid: 0, lifetime: 0 };
+    const marketerId = row.teamMemberId;
+    const existing = result.get(marketerId) ?? { pending: 0, paid: 0, lifetime: 0 };
 
     existing.lifetime += amount;
     if (row.status === "PENDING") existing.pending += amount;
     if (row.status === "PAID") existing.paid += amount;
 
-    result.set(row.marketerId, existing);
+    result.set(marketerId, existing);
   }
 
   return result;

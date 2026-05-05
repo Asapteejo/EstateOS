@@ -7,12 +7,16 @@ test("branding presets and public marketing assets resolve to public storage dom
   const logo = getUploadPurposeConfig("BRAND_LOGO");
   const hero = getUploadPurposeConfig("BRAND_HERO");
   const propertyMedia = getUploadPurposeConfig("PROPERTY_MEDIA");
+  const walkthroughVideo = getUploadPurposeConfig("PROPERTY_WALKTHROUGH_VIDEO");
 
   assert.equal(logo.isPublicAsset, true);
   assert.equal(hero.isPublicAsset, true);
   assert.equal(propertyMedia.visibility, "PUBLIC");
+  assert.equal(walkthroughVideo.visibility, "PUBLIC");
+  assert.equal(walkthroughVideo.accept.includes("video/mp4"), true);
   assert.equal(isPublicStorageDomain(logo.domain), true);
   assert.equal(isPublicStorageDomain(propertyMedia.domain), true);
+  assert.equal(isPublicStorageDomain(walkthroughVideo.domain), true);
 });
 
 test("private upload purposes stay private and document-backed where required", () => {

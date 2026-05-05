@@ -9,6 +9,7 @@ import {
   updatePaystackSubaccount,
 } from "@/lib/payments/paystack";
 import { paymentAccountSchema } from "@/lib/validations/payment-account";
+import { buildTenantPaymentProviderAccountWhere } from "@/modules/settings/payment-account";
 export const runtime = "nodejs";
 
 // ─── GET — fetch existing account ────────────────────────────────────────────
@@ -22,15 +23,15 @@ export async function GET() {
   }
 
   if (!featureFlags.hasDatabase || !tenant.companyId) {
-    return ok({ account: null });
+    return ok({ account: null, paystackConfigured: featureFlags.hasPaystack });
   }
 
   const account = await prisma.companyPaymentProviderAccount.findFirst({
-    where: { companyId: tenant.companyId, provider: "PAYSTACK" },
+    where: buildTenantPaymentProviderAccountWhere(tenant.companyId),
     orderBy: { createdAt: "desc" },
   });
 
-  return ok({ account });
+  return ok({ account, paystackConfigured: featureFlags.hasPaystack });
 }
 
 // ─── POST — create subaccount ─────────────────────────────────────────────────
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
   }
 
   const existing = await prisma.companyPaymentProviderAccount.findFirst({
-    where: { companyId: tenant.companyId, provider: "PAYSTACK" },
+    where: buildTenantPaymentProviderAccountWhere(tenant.companyId),
     select: { id: true },
   });
   if (existing) {
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
       businessName: body.data.businessName,
       settlementBank: body.data.settlementBank,
       accountNumber: body.data.accountNumber,
-      percentageCharge: body.data.percentageCharge,
+      percentageCharge: 0,
     });
 
     const account = await prisma.companyPaymentProviderAccount.create({
@@ -91,7 +92,7 @@ export async function POST(request: Request) {
           bankName: result.bankName,
           businessName: result.businessName,
           accountNumber: result.accountNumber,
-          percentageCharge: result.percentageCharge,
+          platformCommissionControlledBy: "SUPER_ADMIN",
           isVerified: result.isVerified,
         } as Prisma.InputJsonValue,
       },
@@ -118,7 +119,7 @@ export async function PATCH(request: Request) {
   }
 
   const existing = await prisma.companyPaymentProviderAccount.findFirst({
-    where: { companyId: tenant.companyId, provider: "PAYSTACK" },
+    where: buildTenantPaymentProviderAccountWhere(tenant.companyId),
   });
   if (!existing?.subaccountCode) {
     return fail("No Paystack subaccount found. Use POST to create one.", 404);
@@ -141,7 +142,7 @@ export async function PATCH(request: Request) {
       businessName: body.data.businessName,
       settlementBank: body.data.settlementBank,
       accountNumber: body.data.accountNumber,
-      percentageCharge: body.data.percentageCharge,
+      percentageCharge: 0,
     });
 
     const account = await prisma.companyPaymentProviderAccount.update({
@@ -155,7 +156,7 @@ export async function PATCH(request: Request) {
           bankName: result.bankName,
           businessName: result.businessName,
           accountNumber: result.accountNumber,
-          percentageCharge: result.percentageCharge,
+          platformCommissionControlledBy: "SUPER_ADMIN",
           isVerified: result.isVerified,
         } as Prisma.InputJsonValue,
       },

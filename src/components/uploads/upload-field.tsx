@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { OptimizedImage } from "@/components/media/optimized-image";
@@ -19,6 +19,7 @@ type UploadFieldValue = {
 };
 
 export function UploadField({
+  inputId,
   label,
   purpose,
   surface,
@@ -29,6 +30,7 @@ export function UploadField({
   allowExternalUrl = false,
   externalUrlLabel = "Or paste an external URL",
 }: {
+  inputId?: string;
   label: string;
   purpose: UploadPurpose;
   surface: "admin" | "portal";
@@ -39,7 +41,6 @@ export function UploadField({
   allowExternalUrl?: boolean;
   externalUrlLabel?: string;
 }) {
-  const inputId = useId();
   const config = getUploadPurposeConfig(purpose);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [pending, setPending] = useState(false);

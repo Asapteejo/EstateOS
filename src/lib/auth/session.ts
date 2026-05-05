@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
+import { logWarn } from "@/lib/ops/logger";
 
 export type AppSession = {
   userId: string;
@@ -63,17 +64,19 @@ const demoSuperAdmin: AppSession = {
   mode: "demo",
 };
 
+type DemoCompanyContext = {
+  companyId: string | null;
+  companySlug: string | null;
+  branchId: string | null;
+};
+
 function isDemoSessionRole(value: string | undefined | null): value is DemoSessionRole {
   return value === "buyer" || value === "admin" || value === "superadmin";
 }
 
 export function buildDemoSession(
   role: DemoSessionRole,
-  company: {
-    companyId: string | null;
-    companySlug: string | null;
-    branchId: string | null;
-  } = demoCompany,
+  company: DemoCompanyContext = demoCompany,
 ): AppSession {
   if (role === "superadmin") {
     return {
@@ -99,6 +102,52 @@ export function buildDemoSession(
     companySlug: company.companySlug,
     branchId: company.branchId,
   };
+}
+
+export function buildFallbackDemoCompanyContext(
+  cookies: Partial<DemoCompanyContext> = {},
+): DemoCompanyContext {
+  return {
+    companyId: cookies.companyId ?? demoCompany.companyId,
+    companySlug: cookies.companySlug ?? demoCompany.companySlug,
+    branchId: cookies.branchId ?? demoCompany.branchId,
+  };
+}
+
+export function resolveDemoCompanyContextAfterDbError({
+  error,
+  isProduction,
+  cookieCompanyId,
+  cookieCompanySlug,
+  cookieBranchId,
+}: {
+  error: unknown;
+  isProduction: boolean;
+  cookieCompanyId: string | null;
+  cookieCompanySlug: string | null;
+  cookieBranchId: string | null;
+}): DemoCompanyContext {
+  if (isProduction) {
+    throw error;
+  }
+
+  const errorName = error instanceof Error ? error.name : typeof error;
+  const errorCode =
+    error && typeof error === "object" && "code" in error
+      ? String((error as { code?: unknown }).code)
+      : null;
+
+  logWarn("Demo company context database lookup failed; using local fallback.", {
+    area: "dev-session",
+    errorName,
+    errorCode,
+  });
+
+  return buildFallbackDemoCompanyContext({
+    companyId: cookieCompanyId,
+    companySlug: cookieCompanySlug,
+    branchId: cookieBranchId,
+  });
 }
 
 export function getDefaultDemoSessionRole(
@@ -157,86 +206,99 @@ async function resolveDemoCompanyContext() {
   const cookieBranchId = cookieStore.get(DEV_SESSION_BRANCH_ID_COOKIE)?.value ?? null;
 
   if (!featureFlags.hasDatabase) {
-    return {
-      companyId: cookieCompanyId ?? demoCompany.companyId,
-      companySlug: cookieCompanySlug ?? demoCompany.companySlug,
-      branchId: cookieBranchId ?? demoCompany.branchId,
-    };
+    return buildFallbackDemoCompanyContext({
+      companyId: cookieCompanyId,
+      companySlug: cookieCompanySlug,
+      branchId: cookieBranchId,
+    });
   }
 
-  const company =
-    (cookieCompanyId
-      ? await prisma.company.findUnique({
-          where: { id: cookieCompanyId },
-          select: {
-            id: true,
-            slug: true,
-            branches: {
-              select: { id: true },
-              take: 1,
-              orderBy: { createdAt: "asc" },
+  try {
+    const company =
+      (cookieCompanyId
+        ? await prisma.company.findUnique({
+            where: { id: cookieCompanyId },
+            select: {
+              id: true,
+              slug: true,
+              branches: {
+                select: { id: true },
+                take: 1,
+                orderBy: { createdAt: "asc" },
+              },
             },
-          },
-        })
-      : null) ??
-    (cookieCompanySlug
-      ? await prisma.company.findFirst({
-          where: {
-            OR: [{ slug: cookieCompanySlug }, { subdomain: cookieCompanySlug }],
-          },
-          select: {
-            id: true,
-            slug: true,
-            branches: {
-              select: { id: true },
-              take: 1,
-              orderBy: { createdAt: "asc" },
+          })
+        : null) ??
+      (cookieCompanySlug
+        ? await prisma.company.findFirst({
+            where: {
+              OR: [{ slug: cookieCompanySlug }, { subdomain: cookieCompanySlug }],
             },
-          },
-        })
-      : null) ??
-    (env.DEFAULT_COMPANY_SLUG
-      ? await prisma.company.findFirst({
-          where: {
-            OR: [{ slug: env.DEFAULT_COMPANY_SLUG }, { subdomain: env.DEFAULT_COMPANY_SLUG }],
-          },
-          select: {
-            id: true,
-            slug: true,
-            branches: {
-              select: { id: true },
-              take: 1,
-              orderBy: { createdAt: "asc" },
+            select: {
+              id: true,
+              slug: true,
+              branches: {
+                select: { id: true },
+                take: 1,
+                orderBy: { createdAt: "asc" },
+              },
             },
+          })
+        : null) ??
+      (env.DEFAULT_COMPANY_SLUG
+        ? await prisma.company.findFirst({
+            where: {
+              OR: [
+                { slug: env.DEFAULT_COMPANY_SLUG },
+                { subdomain: env.DEFAULT_COMPANY_SLUG },
+              ],
+            },
+            select: {
+              id: true,
+              slug: true,
+              branches: {
+                select: { id: true },
+                take: 1,
+                orderBy: { createdAt: "asc" },
+              },
+            },
+          })
+        : null) ??
+      (await prisma.company.findFirst({
+        orderBy: { createdAt: "asc" },
+        select: {
+          id: true,
+          slug: true,
+          branches: {
+            select: { id: true },
+            take: 1,
+            orderBy: { createdAt: "asc" },
           },
-        })
-      : null) ??
-    (await prisma.company.findFirst({
-      orderBy: { createdAt: "asc" },
-      select: {
-        id: true,
-        slug: true,
-        branches: {
-          select: { id: true },
-          take: 1,
-          orderBy: { createdAt: "asc" },
         },
-      },
-    }));
+      }));
 
-  if (company) {
-    return {
-      companyId: company.id,
-      companySlug: company.slug,
-      branchId: cookieBranchId ?? company.branches[0]?.id ?? null,
-    };
+    if (company) {
+      return {
+        companyId: company.id,
+        companySlug: company.slug,
+        branchId: cookieBranchId ?? company.branches[0]?.id ?? null,
+      };
+    }
+
+    return buildFallbackDemoCompanyContext({
+      companyId: cookieCompanyId,
+      companySlug: cookieCompanySlug,
+      branchId: cookieBranchId,
+    });
+  } catch (error) {
+    return resolveDemoCompanyContextAfterDbError({
+      error,
+      isProduction: featureFlags.isProduction,
+      cookieCompanyId,
+      cookieCompanySlug,
+      cookieBranchId,
+    });
   }
-
-  return {
-    companyId: cookieCompanyId ?? demoCompany.companyId,
-    companySlug: cookieCompanySlug ?? demoCompany.companySlug,
-    branchId: cookieBranchId ?? demoCompany.branchId,
-  };
 }
 
 export async function getPreferredTenantSiteCompanySlug() {

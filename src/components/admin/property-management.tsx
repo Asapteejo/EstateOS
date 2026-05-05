@@ -12,6 +12,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { parseFlexibleNumber } from "@/lib/number";
+import { SUPPORTED_CURRENCIES } from "@/lib/utils";
 
 type PropertyFormState = {
   title: string;
@@ -27,8 +29,28 @@ type PropertyFormState = {
   bathrooms: string;
   parkingSpaces: string;
   sizeSqm: string;
+  landSizeSqm: string;
+  numberOfPlots: string;
+  landSaleUnit: string;
+  hectares: string;
+  acres: string;
+  plotOptions: Array<{
+    label: string;
+    unit: string;
+    sizeSqm: string;
+    numberOfPlots: string;
+    hectares: string;
+    acres: string;
+    price: string;
+    currency: string;
+    status: string;
+    note: string;
+  }>;
   brochureDocumentId: string;
   videoUrl: string;
+  offerEndsAt: string;
+  countdownLabel: string;
+  countdownEnabled: boolean;
   locationSummary: string;
   landmarks: string;
   hasPaymentPlan: boolean;
@@ -89,6 +111,148 @@ type PropertyFormState = {
   }>;
 };
 
+type ValidationIssue = {
+  path: string;
+  message: string;
+  code?: string;
+};
+
+type ApiErrorResponse = {
+  error?: string;
+  issues?: ValidationIssue[];
+};
+
+const LAND_OPTION_LABELS: Record<string, { button: string; empty: string }> = {
+  SQM: {
+    button: "Add SQM option",
+    empty: "Optional. Add multiple SQM options like 350 sqm, 400 sqm, or 600 sqm.",
+  },
+  PLOT: {
+    button: "Add plot option",
+    empty: "Optional. Add plot options like 1 plot, 2 plots, or corner plots.",
+  },
+  HECTARE: {
+    button: "Add hectare option",
+    empty: "Optional. Add hectare options like 1 hectare or 2 hectares.",
+  },
+  ACRE: {
+    button: "Add acre option",
+    empty: "Optional. Add acre options like 1 acre or 5 acres.",
+  },
+  CUSTOM: {
+    button: "Add custom option",
+    empty: "Optional. Add custom options like corner piece or waterfront allocation.",
+  },
+};
+
+function defaultLandOptionLabel(option: PropertyFormState["plotOptions"][number]) {
+  if (option.label.trim()) {
+    return option.label.trim();
+  }
+
+  if (option.unit === "SQM" && option.sizeSqm.trim()) {
+    return `${option.sizeSqm.trim()} sqm`;
+  }
+
+  if (option.unit === "PLOT" && option.numberOfPlots.trim()) {
+    const plots = option.numberOfPlots.trim();
+    return `${plots} plot${plots === "1" ? "" : "s"}`;
+  }
+
+  if (option.unit === "HECTARE" && option.hectares.trim()) {
+    const hectares = option.hectares.trim();
+    return `${hectares} hectare${hectares === "1" ? "" : "s"}`;
+  }
+
+  if (option.unit === "ACRE" && option.acres.trim()) {
+    const acres = option.acres.trim();
+    return `${acres} acre${acres === "1" ? "" : "s"}`;
+  }
+
+  return undefined;
+}
+
+function newLandOption(unit: string, currency: string): PropertyFormState["plotOptions"][number] {
+  return {
+    label: "",
+    unit,
+    sizeSqm: "",
+    numberOfPlots: "",
+    hectares: "",
+    acres: "",
+    price: "",
+    currency,
+    status: "AVAILABLE",
+    note: "",
+  };
+}
+
+const PROPERTY_FIELD_LABELS: Record<string, string> = {
+  title: "Title",
+  shortDescription: "Short description",
+  description: "Description",
+  propertyType: "Property type",
+  status: "Status",
+  priceFrom: "Price from",
+  priceTo: "Price to",
+  bedrooms: "Bedrooms",
+  bathrooms: "Bathrooms",
+  parkingSpaces: "Parking spaces",
+  sizeSqm: "Size",
+  landSizeSqm: "Land size",
+  numberOfPlots: "Number of plots",
+  landSaleUnit: "Primary land sale unit",
+  hectares: "Hectares",
+  acres: "Acres",
+  plotOptions: "Plot options",
+  offerEndsAt: "Offer end date",
+  countdownLabel: "Countdown label",
+  "location.addressLine1": "Address line 1",
+  "location.city": "City",
+  "location.state": "State",
+  "location.country": "Country",
+  "location.latitude": "Latitude",
+  "location.longitude": "Longitude",
+  media: "Media",
+  units: "Units",
+  paymentPlans: "Payment plans",
+};
+
+function formatFieldLabel(path: string) {
+  if (!path) {
+    return "Property";
+  }
+
+  return PROPERTY_FIELD_LABELS[path] ?? path
+    .replace(/\.(\d+)(?=\.|$)/g, " $1")
+    .split(".")
+    .map((part) => part.replace(/([A-Z])/g, " $1").replace(/^./, (char) => char.toUpperCase()))
+    .join(" ");
+}
+
+function formatValidationMessage(message: string) {
+  const minStringMatch = message.match(/^Too small: expected string to have >=(\d+) characters$/);
+  if (minStringMatch) {
+    return `must be at least ${minStringMatch[1]} characters`;
+  }
+
+  const positiveNumberMatch = message.match(/^Too small: expected number to be >0$/);
+  if (positiveNumberMatch) {
+    return "must be greater than 0";
+  }
+
+  return message;
+}
+
+function formatApiError(json: ApiErrorResponse | null, fallback: string) {
+  if (json?.issues?.length) {
+    const firstIssue = json.issues[0];
+    return `${formatFieldLabel(firstIssue.path)}: ${formatValidationMessage(firstIssue.message)}`;
+  }
+
+  return json?.error ?? fallback;
+}
+
 function emptyFormState(): PropertyFormState {
   return {
     title: "",
@@ -104,8 +268,17 @@ function emptyFormState(): PropertyFormState {
     bathrooms: "",
     parkingSpaces: "",
     sizeSqm: "",
+    landSizeSqm: "",
+    numberOfPlots: "",
+    landSaleUnit: "CUSTOM",
+    hectares: "",
+    acres: "",
+    plotOptions: [],
     brochureDocumentId: "",
     videoUrl: "",
+    offerEndsAt: "",
+    countdownLabel: "Introductory price ends in",
+    countdownEnabled: false,
     locationSummary: "",
     landmarks: "",
     hasPaymentPlan: false,
@@ -143,8 +316,28 @@ function toFormState(property: AdminPropertyManagementRecord): PropertyFormState
     bathrooms: property.bathrooms == null ? "" : String(property.bathrooms),
     parkingSpaces: property.parkingSpaces == null ? "" : String(property.parkingSpaces),
     sizeSqm: property.sizeSqm == null ? "" : String(property.sizeSqm),
+    landSizeSqm: property.landSizeSqm == null ? "" : String(property.landSizeSqm),
+    numberOfPlots: property.numberOfPlots == null ? "" : String(property.numberOfPlots),
+    landSaleUnit: property.landSaleUnit ?? "CUSTOM",
+    hectares: property.hectares == null ? "" : String(property.hectares),
+    acres: property.acres == null ? "" : String(property.acres),
+    plotOptions: property.plotOptions.map((option) => ({
+      label: option.label ?? "",
+      unit: option.unit ?? "SQM",
+      sizeSqm: option.sizeSqm == null ? "" : String(option.sizeSqm),
+      numberOfPlots: option.numberOfPlots == null ? "" : String(option.numberOfPlots),
+      hectares: option.hectares == null ? "" : String(option.hectares),
+      acres: option.acres == null ? "" : String(option.acres),
+      price: option.price == null ? "" : String(option.price),
+      currency: option.currency ?? property.currency,
+      status: option.status ?? "AVAILABLE",
+      note: option.note ?? "",
+    })),
     brochureDocumentId: property.brochureDocumentId ?? "",
     videoUrl: property.videoUrl ?? "",
+    offerEndsAt: property.offerEndsAt ? property.offerEndsAt.slice(0, 16) : "",
+    countdownLabel: property.countdownLabel ?? "Introductory price ends in",
+    countdownEnabled: property.countdownEnabled,
     locationSummary: property.locationSummary ?? "",
     landmarks: property.landmarks.join(", "),
     hasPaymentPlan: property.hasPaymentPlan,
@@ -219,7 +412,17 @@ function toFormState(property: AdminPropertyManagementRecord): PropertyFormState
   };
 }
 
+function requiredNumber(value: string) {
+  return parseFlexibleNumber(value);
+}
+
+function optionalNumber(value: string) {
+  return parseFlexibleNumber(value);
+}
+
 function serializeForm(state: PropertyFormState) {
+  const isLand = state.propertyType === "LAND";
+
   return {
     title: state.title,
     shortDescription: state.shortDescription,
@@ -227,30 +430,62 @@ function serializeForm(state: PropertyFormState) {
     propertyType: state.propertyType,
     status: state.status,
     isFeatured: state.isFeatured,
-    priceFrom: Number(state.priceFrom),
-    priceTo: state.priceTo ? Number(state.priceTo) : undefined,
+    priceFrom: requiredNumber(state.priceFrom),
+    priceTo: optionalNumber(state.priceTo),
     currency: state.currency,
-    bedrooms: state.bedrooms ? Number(state.bedrooms) : undefined,
-    bathrooms: state.bathrooms ? Number(state.bathrooms) : undefined,
-    parkingSpaces: state.parkingSpaces ? Number(state.parkingSpaces) : undefined,
-    sizeSqm: state.sizeSqm ? Number(state.sizeSqm) : undefined,
+    bedrooms: isLand ? undefined : optionalNumber(state.bedrooms),
+    bathrooms: isLand ? undefined : optionalNumber(state.bathrooms),
+    parkingSpaces: isLand ? undefined : optionalNumber(state.parkingSpaces),
+    sizeSqm: isLand ? undefined : optionalNumber(state.sizeSqm),
+    landSizeSqm: isLand ? optionalNumber(state.landSizeSqm) : undefined,
+    numberOfPlots: isLand ? optionalNumber(state.numberOfPlots) : undefined,
+    landSaleUnit: isLand ? state.landSaleUnit : undefined,
+    hectares: isLand ? optionalNumber(state.hectares) : undefined,
+    acres: isLand ? optionalNumber(state.acres) : undefined,
+    plotOptions: isLand
+      ? state.plotOptions
+          .filter((option) =>
+            option.label.trim() ||
+            option.sizeSqm.trim() ||
+            option.numberOfPlots.trim() ||
+            option.hectares.trim() ||
+            option.acres.trim() ||
+            option.price.trim() ||
+            option.note.trim()
+          )
+          .map((option) => ({
+            label: defaultLandOptionLabel(option),
+            unit: option.unit,
+            sizeSqm: optionalNumber(option.sizeSqm),
+            numberOfPlots: optionalNumber(option.numberOfPlots),
+            hectares: optionalNumber(option.hectares),
+            acres: optionalNumber(option.acres),
+            price: optionalNumber(option.price),
+            currency: option.currency || state.currency,
+            status: option.status,
+            note: option.note || undefined,
+          }))
+      : [],
     brochureDocumentId: state.brochureDocumentId || undefined,
     videoUrl: state.videoUrl || undefined,
+    offerEndsAt: state.offerEndsAt ? new Date(state.offerEndsAt).toISOString() : undefined,
+    countdownLabel: state.countdownLabel || undefined,
+    countdownEnabled: state.countdownEnabled,
     locationSummary: state.locationSummary || undefined,
     landmarks: state.landmarks
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean),
     hasPaymentPlan: state.hasPaymentPlan,
-    wishlistDurationDays: state.wishlistDurationDays ? Number(state.wishlistDurationDays) : undefined,
+    wishlistDurationDays: optionalNumber(state.wishlistDurationDays),
     wishlistReminderEnabled: state.wishlistReminderEnabled,
     location: {
       addressLine1: state.location.addressLine1 || undefined,
       city: state.location.city,
       state: state.location.state,
       country: state.location.country,
-      latitude: state.location.latitude ? Number(state.location.latitude) : undefined,
-      longitude: state.location.longitude ? Number(state.location.longitude) : undefined,
+      latitude: optionalNumber(state.location.latitude),
+      longitude: optionalNumber(state.location.longitude),
       neighborhood: state.location.neighborhood || undefined,
       postalCode: state.location.postalCode || undefined,
     },
@@ -267,24 +502,26 @@ function serializeForm(state: PropertyFormState) {
         title: item.title || undefined,
         url: item.url,
         mimeType: item.mimeType || undefined,
-        sortOrder: Number(item.sortOrder || index),
+        sortOrder: requiredNumber(item.sortOrder || String(index)),
         isPrimary: item.isPrimary,
         visibility: item.visibility,
       })),
-    units: state.units
-      .filter((unit) => unit.unitCode.trim() && unit.title.trim() && unit.price.trim())
-      .map((unit) => ({
-        id: unit.id,
-        unitCode: unit.unitCode,
-        title: unit.title,
-        status: unit.status,
-        price: Number(unit.price),
-        bedrooms: unit.bedrooms ? Number(unit.bedrooms) : undefined,
-        bathrooms: unit.bathrooms ? Number(unit.bathrooms) : undefined,
-        sizeSqm: unit.sizeSqm ? Number(unit.sizeSqm) : undefined,
-        floor: unit.floor ? Number(unit.floor) : undefined,
-        block: unit.block || undefined,
-      })),
+    units: isLand
+      ? []
+      : state.units
+          .filter((unit) => unit.unitCode.trim() && unit.title.trim() && unit.price.trim())
+          .map((unit) => ({
+            id: unit.id,
+            unitCode: unit.unitCode,
+            title: unit.title,
+            status: unit.status,
+            price: requiredNumber(unit.price),
+            bedrooms: optionalNumber(unit.bedrooms),
+            bathrooms: optionalNumber(unit.bathrooms),
+            sizeSqm: optionalNumber(unit.sizeSqm),
+            floor: optionalNumber(unit.floor),
+            block: unit.block || undefined,
+          })),
     paymentPlans: state.paymentPlans
       .filter((plan) => plan.title.trim())
       .map((plan) => ({
@@ -294,20 +531,20 @@ function serializeForm(state: PropertyFormState) {
         kind: plan.kind,
         description: plan.description || undefined,
         scheduleDescription: plan.scheduleDescription || undefined,
-        durationMonths: Number(plan.durationMonths || 0),
-        installmentCount: plan.installmentCount ? Number(plan.installmentCount) : undefined,
-        depositPercent: plan.depositPercent ? Number(plan.depositPercent) : undefined,
-        downPaymentAmount: plan.downPaymentAmount ? Number(plan.downPaymentAmount) : undefined,
+        durationMonths: requiredNumber(plan.durationMonths || "0"),
+        installmentCount: optionalNumber(plan.installmentCount),
+        depositPercent: optionalNumber(plan.depositPercent),
+        downPaymentAmount: optionalNumber(plan.downPaymentAmount),
         isActive: plan.isActive,
         installments: plan.installments
           .filter((installment) => installment.title.trim() && installment.amount.trim())
           .map((installment, index) => ({
             id: installment.id,
             title: installment.title,
-            amount: Number(installment.amount),
-            dueInDays: Number(installment.dueInDays || 0),
+            amount: requiredNumber(installment.amount),
+            dueInDays: requiredNumber(installment.dueInDays || "0"),
             scheduleLabel: installment.scheduleLabel || undefined,
-            sortOrder: Number(installment.sortOrder || index),
+            sortOrder: requiredNumber(installment.sortOrder || String(index)),
           })),
       })),
   };
@@ -376,8 +613,8 @@ export function PropertyManagement({
     setPending(null);
 
     if (!response.ok) {
-      const json = (await response.json().catch(() => null)) as { error?: string } | null;
-      toast.error(json?.error ?? "Unable to create property.");
+      const json = (await response.json().catch(() => null)) as ApiErrorResponse | null;
+      toast.error(formatApiError(json, "Unable to create property."));
       return;
     }
 
@@ -398,8 +635,8 @@ export function PropertyManagement({
     setPending(null);
 
     if (!response.ok) {
-      const json = (await response.json().catch(() => null)) as { error?: string } | null;
-      toast.error(json?.error ?? "Unable to update property.");
+      const json = (await response.json().catch(() => null)) as ApiErrorResponse | null;
+      toast.error(formatApiError(json, "Unable to update property."));
       return;
     }
 
@@ -489,6 +726,7 @@ export function PropertyManagement({
           </div>
         </div>
         <PropertyEditor
+          idPrefix="create"
           value={createState}
           brochures={brochures}
           onChange={setCreateState}
@@ -585,6 +823,7 @@ export function PropertyManagement({
                 </div>
               </div>
               <PropertyEditor
+                idPrefix={editingId}
                 value={drafts[editingId] ?? toFormState(editingProperty)}
                 brochures={brochures}
                 onChange={(next) => updateDraft(editingId, () => next)}
@@ -639,6 +878,7 @@ export function PropertyManagement({
 }
 
 function PropertyEditor({
+  idPrefix,
   value,
   brochures,
   onChange,
@@ -646,6 +886,7 @@ function PropertyEditor({
   submitLabel,
   disabled,
 }: {
+  idPrefix: string;
   value: PropertyFormState;
   brochures: Array<{ id: string; fileName: string }>;
   onChange: (next: PropertyFormState) => void;
@@ -653,6 +894,9 @@ function PropertyEditor({
   submitLabel: string;
   disabled?: boolean;
 }) {
+  const isLand = value.propertyType === "LAND";
+  const landOptionCopy = LAND_OPTION_LABELS[value.landSaleUnit] ?? LAND_OPTION_LABELS.CUSTOM;
+
   function update<K extends keyof PropertyFormState>(key: K, nextValue: PropertyFormState[K]) {
     onChange({
       ...value,
@@ -696,18 +940,185 @@ function PropertyEditor({
       />
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Input placeholder="Price from" value={value.priceFrom} onChange={(event) => update("priceFrom", event.target.value)} />
-        <Input placeholder="Price to" value={value.priceTo} onChange={(event) => update("priceTo", event.target.value)} />
-        <Input placeholder="Bedrooms" value={value.bedrooms} onChange={(event) => update("bedrooms", event.target.value)} />
-        <Input placeholder="Bathrooms" value={value.bathrooms} onChange={(event) => update("bathrooms", event.target.value)} />
-        <Input placeholder="Parking spaces" value={value.parkingSpaces} onChange={(event) => update("parkingSpaces", event.target.value)} />
-        <Input placeholder="Size (sqm)" value={value.sizeSqm} onChange={(event) => update("sizeSqm", event.target.value)} />
+        <Input placeholder="Starting price (required)" value={value.priceFrom} onChange={(event) => update("priceFrom", event.target.value)} />
+        <Input placeholder="Maximum price / range end (optional)" value={value.priceTo} onChange={(event) => update("priceTo", event.target.value)} />
+        <select
+          className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+          value={value.currency}
+          onChange={(event) => update("currency", event.target.value)}
+        >
+          {SUPPORTED_CURRENCIES.map((currency) => (
+            <option key={currency} value={currency}>
+              {currency}
+            </option>
+          ))}
+        </select>
+        {isLand ? (
+          <>
+            <select
+              className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+              value={value.landSaleUnit}
+              onChange={(event) => update("landSaleUnit", event.target.value)}
+            >
+              <option value="PLOT">Sell by plot</option>
+              <option value="SQM">Sell by sqm</option>
+              <option value="HECTARE">Sell by hectare</option>
+              <option value="ACRE">Sell by acre</option>
+              <option value="CUSTOM">Custom</option>
+            </select>
+            {value.landSaleUnit === "SQM" || value.landSaleUnit === "PLOT" ? (
+              <Input
+                placeholder={value.landSaleUnit === "PLOT" ? "Plot size (sqm, optional)" : "Land size (sqm)"}
+                value={value.landSizeSqm}
+                onChange={(event) => update("landSizeSqm", event.target.value)}
+              />
+            ) : null}
+            {value.landSaleUnit === "PLOT" ? (
+              <Input placeholder="Number of plots" value={value.numberOfPlots} onChange={(event) => update("numberOfPlots", event.target.value)} />
+            ) : null}
+            {value.landSaleUnit === "HECTARE" ? (
+              <Input placeholder="Hectares" value={value.hectares} onChange={(event) => update("hectares", event.target.value)} />
+            ) : null}
+            {value.landSaleUnit === "ACRE" ? (
+              <Input placeholder="Acres" value={value.acres} onChange={(event) => update("acres", event.target.value)} />
+            ) : null}
+          </>
+        ) : (
+          <>
+            <Input placeholder="Bedrooms" value={value.bedrooms} onChange={(event) => update("bedrooms", event.target.value)} />
+            <Input placeholder="Bathrooms" value={value.bathrooms} onChange={(event) => update("bathrooms", event.target.value)} />
+            <Input placeholder="Parking spaces" value={value.parkingSpaces} onChange={(event) => update("parkingSpaces", event.target.value)} />
+            <Input placeholder="Size (sqm)" value={value.sizeSqm} onChange={(event) => update("sizeSqm", event.target.value)} />
+          </>
+        )}
         <Input placeholder="Wishlist duration (days)" value={value.wishlistDurationDays} onChange={(event) => update("wishlistDurationDays", event.target.value)} />
-        <Input placeholder="Video walkthrough URL" value={value.videoUrl} onChange={(event) => update("videoUrl", event.target.value)} />
       </div>
+
+      {isLand ? (
+        <ArraySection
+          title="Land size and plot options"
+          onAdd={() =>
+            update("plotOptions", [
+              ...value.plotOptions,
+              newLandOption(value.landSaleUnit, value.currency),
+            ])
+          }
+          addLabel={landOptionCopy.button}
+        >
+          {value.plotOptions.length === 0 ? (
+            <p className="text-sm text-[var(--ink-500)]">{landOptionCopy.empty}</p>
+          ) : null}
+          {value.plotOptions.map((option, index) => (
+            <div key={`plot-option-${index}`} className="grid gap-3 rounded-3xl border border-[var(--line)] p-4 md:grid-cols-3">
+              <Input
+                placeholder="Label e.g. 350 sqm"
+                value={option.label}
+                onChange={(event) =>
+                  update("plotOptions", value.plotOptions.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item))
+                }
+              />
+              <select
+                className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+                value={option.unit}
+                onChange={(event) =>
+                  update("plotOptions", value.plotOptions.map((item, itemIndex) => itemIndex === index ? { ...item, unit: event.target.value } : item))
+                }
+              >
+                <option value="SQM">SQM</option>
+                <option value="PLOT">Plot</option>
+                <option value="HECTARE">Hectare</option>
+                <option value="ACRE">Acre</option>
+                <option value="CUSTOM">Custom</option>
+              </select>
+              {option.unit === "SQM" ? (
+                <Input
+                  placeholder="Size (sqm)"
+                  value={option.sizeSqm}
+                  onChange={(event) =>
+                    update("plotOptions", value.plotOptions.map((item, itemIndex) => itemIndex === index ? { ...item, sizeSqm: event.target.value } : item))
+                  }
+                />
+              ) : null}
+              {option.unit === "PLOT" ? (
+                <Input
+                  placeholder="Number of plots"
+                  value={option.numberOfPlots}
+                  onChange={(event) =>
+                    update("plotOptions", value.plotOptions.map((item, itemIndex) => itemIndex === index ? { ...item, numberOfPlots: event.target.value } : item))
+                  }
+                />
+              ) : null}
+              {option.unit === "HECTARE" ? (
+                <Input
+                  placeholder="Hectares"
+                  value={option.hectares}
+                  onChange={(event) =>
+                    update("plotOptions", value.plotOptions.map((item, itemIndex) => itemIndex === index ? { ...item, hectares: event.target.value } : item))
+                  }
+                />
+              ) : null}
+              {option.unit === "ACRE" ? (
+                <Input
+                  placeholder="Acres"
+                  value={option.acres}
+                  onChange={(event) =>
+                    update("plotOptions", value.plotOptions.map((item, itemIndex) => itemIndex === index ? { ...item, acres: event.target.value } : item))
+                  }
+                />
+              ) : null}
+              <Input
+                placeholder="Price"
+                value={option.price}
+                onChange={(event) =>
+                  update("plotOptions", value.plotOptions.map((item, itemIndex) => itemIndex === index ? { ...item, price: event.target.value } : item))
+                }
+              />
+              <select
+                className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+                value={option.currency}
+                onChange={(event) =>
+                  update("plotOptions", value.plotOptions.map((item, itemIndex) => itemIndex === index ? { ...item, currency: event.target.value } : item))
+                }
+              >
+                {SUPPORTED_CURRENCIES.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+                value={option.status}
+                onChange={(event) =>
+                  update("plotOptions", value.plotOptions.map((item, itemIndex) => itemIndex === index ? { ...item, status: event.target.value } : item))
+                }
+              >
+                <option value="AVAILABLE">Available</option>
+                <option value="RESERVED">Reserved</option>
+                <option value="SOLD">Sold</option>
+              </select>
+              <Input
+                placeholder="Optional note"
+                value={option.note}
+                onChange={(event) =>
+                  update("plotOptions", value.plotOptions.map((item, itemIndex) => itemIndex === index ? { ...item, note: event.target.value } : item))
+                }
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => update("plotOptions", value.plotOptions.filter((_, itemIndex) => itemIndex !== index))}
+              >
+                Remove option
+              </Button>
+            </div>
+          ))}
+        </ArraySection>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <UploadField
+          inputId={`brochure-upload-${idPrefix}`}
           label="Brochure"
           purpose="BROCHURE"
           surface="admin"
@@ -725,7 +1136,7 @@ function PropertyEditor({
           <select
             className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
             value={value.brochureDocumentId}
-            onChange={(event) => update("brochureDocumentId", event.target.value)}
+          onChange={(event) => update("brochureDocumentId", event.target.value)}
           >
             <option value="">No brochure linked</option>
             {brochures.map((brochure) => (
@@ -735,6 +1146,20 @@ function PropertyEditor({
             ))}
           </select>
         </label>
+        <UploadField
+          inputId={`walkthrough-video-upload-${idPrefix}`}
+          label="Walkthrough video"
+          purpose="PROPERTY_WALKTHROUGH_VIDEO"
+          surface="admin"
+          mode="publicAsset"
+          helperText="Upload MP4, WebM, or MOV walkthroughs up to 100MB, or keep using an external video URL."
+          allowExternalUrl
+          externalUrlLabel="Or paste walkthrough video URL"
+          value={{
+            url: value.videoUrl || null,
+          }}
+          onChange={(uploaded) => update("videoUrl", uploaded.url ?? "")}
+        />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -771,6 +1196,27 @@ function PropertyEditor({
           />
           Wishlist reminder email enabled
         </label>
+      </div>
+
+      <div className="grid gap-4 rounded-3xl border border-[var(--line)] bg-white p-4 md:grid-cols-[auto_1fr_1fr]">
+        <label className="flex items-center gap-2 text-sm text-[var(--ink-700)]">
+          <input
+            type="checkbox"
+            checked={value.countdownEnabled}
+            onChange={(event) => update("countdownEnabled", event.target.checked)}
+          />
+          Show countdown
+        </label>
+        <Input
+          placeholder="Countdown label"
+          value={value.countdownLabel}
+          onChange={(event) => update("countdownLabel", event.target.value)}
+        />
+        <Input
+          type="datetime-local"
+          value={value.offerEndsAt}
+          onChange={(event) => update("offerEndsAt", event.target.value)}
+        />
       </div>
 
       <ArraySection title="Features" onAdd={() => update("features", [...value.features, { label: "", value: "" }])}>
@@ -853,6 +1299,7 @@ function PropertyEditor({
               />
             </div>
             <UploadField
+              inputId={`media-upload-${idPrefix}-${index}`}
               label={`Media file ${index + 1}`}
               purpose="PROPERTY_MEDIA"
               surface="admin"
@@ -944,8 +1391,9 @@ function PropertyEditor({
         ))}
       </ArraySection>
 
-      <ArraySection title="Units" onAdd={() => update("units", [...value.units, { unitCode: "", title: "", status: "AVAILABLE", price: "", bedrooms: "", bathrooms: "", sizeSqm: "", floor: "", block: "" }])}>
-        {value.units.map((unit, index) => (
+      {!isLand ? (
+        <ArraySection title="Units" onAdd={() => update("units", [...value.units, { unitCode: "", title: "", status: "AVAILABLE", price: "", bedrooms: "", bathrooms: "", sizeSqm: "", floor: "", block: "" }])}>
+          {value.units.map((unit, index) => (
           <div key={`unit-${index}`} className="grid gap-3 rounded-3xl border border-[var(--line)] p-4">
             <div className="grid gap-3 md:grid-cols-3">
               <Input placeholder="Unit code" value={unit.unitCode} onChange={(event) => update("units", value.units.map((item, itemIndex) => itemIndex === index ? { ...item, unitCode: event.target.value } : item))} />
@@ -970,8 +1418,9 @@ function PropertyEditor({
               </Button>
             </div>
           </div>
-        ))}
-      </ArraySection>
+          ))}
+        </ArraySection>
+      ) : null}
 
       <ArraySection
         title="Payment plans"
@@ -1333,10 +1782,12 @@ function PropertyEditor({
 function ArraySection({
   title,
   onAdd,
+  addLabel = "Add",
   children,
 }: {
   title: string;
   onAdd: () => void;
+  addLabel?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -1344,7 +1795,7 @@ function ArraySection({
       <div className="flex items-center justify-between gap-4">
         <SectionTitle title={title} description={`Manage ${title.toLowerCase()} for this listing.`} />
         <Button type="button" variant="outline" onClick={onAdd}>
-          Add
+          {addLabel}
         </Button>
       </div>
       <div className="space-y-3">{children}</div>

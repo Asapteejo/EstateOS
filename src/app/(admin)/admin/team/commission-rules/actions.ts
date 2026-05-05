@@ -17,7 +17,6 @@ export async function createCommissionRuleAction(formData: FormData) {
   const feeType = formData.get("feeType") as "FLAT" | "PERCENTAGE" | null;
   const rawFlat = formData.get("flatAmount") as string | null;
   const rawRate = formData.get("percentageRate") as string | null;
-  const currency = (formData.get("currency") as string | null)?.trim() || "NGN";
   const propertyType = (formData.get("propertyType") as string | null) || null;
   const propertyId = (formData.get("propertyId") as string | null)?.trim() || null;
 
@@ -36,7 +35,6 @@ export async function createCommissionRuleAction(formData: FormData) {
     feeType,
     flatAmount,
     percentageRate,
-    currency,
     propertyType,
     propertyId,
   });

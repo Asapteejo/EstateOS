@@ -7,18 +7,32 @@ import {
   getProductionReadinessIssues,
   parsePublicEnv,
   parseServerEnv,
+  sanitizeDatabaseEndpointForReadiness,
 } from "@/lib/config";
 
-test("server env requires complete grouped service config", () => {
+test("server env requires complete grouped service config for storage", () => {
   assert.throws(
     () =>
       parseServerEnv({
         NODE_ENV: "development",
         NEXT_PUBLIC_APP_URL: "http://localhost:3000",
-        PAYSTACK_SECRET_KEY: "secret-only",
+        R2_ACCOUNT_ID: "account-only",
       }),
-    /Paystack configuration is incomplete/,
+    /Cloudflare R2 configuration is incomplete/,
   );
+});
+
+test("partial Paystack config does not fail parse and disables Paystack features", () => {
+  const env = parseServerEnv({
+    NODE_ENV: "development",
+    NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+    PAYSTACK_SECRET_KEY: "sk_test",
+    PAYSTACK_PUBLIC_KEY: "pk_test",
+  });
+
+  const flags = buildFeatureFlags(env);
+
+  assert.equal(flags.hasPaystack, false);
 });
 
 test("partial Twilio config does not fail parse unless Twilio is explicitly enabled", () => {
@@ -152,7 +166,7 @@ test("PostHog sample rates reject invalid values", () => {
         NEXT_PUBLIC_APP_URL: "http://localhost:3000",
         NEXT_PUBLIC_POSTHOG_CLIENT_EXCEPTION_SAMPLE_RATE: "1.5",
       }),
-    /Number must be less than or equal to 1/,
+    /Too big: expected number to be <=1|Number must be less than or equal to 1/,
   );
 });
 
@@ -241,6 +255,44 @@ test("server env accepts separate pooled and direct database urls", () => {
 
   assert.equal(env.DATABASE_URL?.includes("pgbouncer=true"), true);
   assert.equal(env.DIRECT_URL?.includes("sslmode=require"), true);
+});
+
+test("database readiness endpoint sanitization never exposes credentials", () => {
+  const pooled = sanitizeDatabaseEndpointForReadiness(
+    "postgresql://postgres:secret@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1&sslmode=require",
+  );
+  const direct = sanitizeDatabaseEndpointForReadiness(
+    "postgresql://postgres:secret@db.project.supabase.co:5432/postgres?sslmode=require",
+  );
+
+  assert.deepEqual(pooled, {
+    configured: true,
+    host: "aws-0-us-east-1.pooler.supabase.com",
+    port: "6543",
+    usesPooler: true,
+    validUrl: true,
+  });
+  assert.deepEqual(direct, {
+    configured: true,
+    host: "db.project.supabase.co",
+    port: "5432",
+    usesPooler: false,
+    validUrl: true,
+  });
+  assert.equal(JSON.stringify({ pooled, direct }).includes("secret"), false);
+  assert.equal(JSON.stringify({ pooled, direct }).includes("postgres:"), false);
+});
+
+test("database readiness endpoint sanitization reports invalid urls safely", () => {
+  const endpoint = sanitizeDatabaseEndpointForReadiness("not a database url");
+
+  assert.deepEqual(endpoint, {
+    configured: true,
+    host: null,
+    port: null,
+    usesPooler: false,
+    validUrl: false,
+  });
 });
 
 test("dev bypass stays opt-in in development and disabled in production", () => {

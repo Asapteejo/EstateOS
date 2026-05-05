@@ -8,6 +8,7 @@ export type UploadPurpose =
   | "STAFF_PHOTO"
   | "RESUME"
   | "PROPERTY_MEDIA"
+  | "PROPERTY_WALKTHROUGH_VIDEO"
   | "BROCHURE"
   | "KYC_DOCUMENT"
   | "CONTRACT_DOCUMENT";
@@ -71,6 +72,13 @@ const uploadPurposeConfig: Record<UploadPurpose, UploadPurposeConfig> = {
     isPublicAsset: true,
     accept: "image/*,video/*",
     label: "Property media",
+  },
+  PROPERTY_WALKTHROUGH_VIDEO: {
+    domain: "properties/temp/videos",
+    visibility: "PUBLIC",
+    isPublicAsset: true,
+    accept: ".mp4,.webm,.mov,video/mp4,video/webm,video/quicktime",
+    label: "Walkthrough video",
   },
   BROCHURE: {
     domain: "brochures",

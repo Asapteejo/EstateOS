@@ -5,6 +5,7 @@ import { InquiryForm } from "@/components/marketing/inquiry-form";
 import { InspectionForm } from "@/components/marketing/inspection-form";
 import { MapSection } from "@/components/marketing/map-section";
 import { PropertyActions } from "@/components/marketing/property-actions";
+import { PropertyCountdown } from "@/components/marketing/property-countdown";
 import { Container } from "@/components/shared/container";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +18,31 @@ import {
 } from "@/modules/properties/queries";
 import { getVisibleTeamMembers } from "@/modules/team/queries";
 
+function formatLandOptionLabel(option: {
+  label?: string;
+  unit?: string;
+  sizeSqm?: number;
+  numberOfPlots?: number;
+  hectares?: number;
+  acres?: number;
+  price?: number;
+  currency?: string;
+}, propertyCurrency: string) {
+  const parts = [
+    option.label,
+    option.sizeSqm ? `${option.sizeSqm}sqm` : null,
+    option.numberOfPlots ? `${option.numberOfPlots} plot${option.numberOfPlots === 1 ? "" : "s"}` : null,
+    option.hectares ? `${option.hectares} ha` : null,
+    option.acres ? `${option.acres} acres` : null,
+    option.unit === "CUSTOM" && option.label ? "Custom" : null,
+  ].filter(Boolean);
+
+  const label = parts.length > 0 ? parts.join(" - ") : "Custom option";
+  return option.price
+    ? `${label} (${formatCurrency(option.price, option.currency ?? propertyCurrency)})`
+    : `${label} (Price on request)`;
+}
+
 export default async function PropertyDetailPage({
   params,
 }: {
@@ -28,6 +54,7 @@ export default async function PropertyDetailPage({
     getPublicPropertyDetailBySlug(slug, tenant),
     getVisibleTeamMembers(tenant),
   ]);
+  const isLand = property.type.toUpperCase() === "LAND";
 
   return (
     <div className="space-y-14 py-12">
@@ -105,15 +132,44 @@ export default async function PropertyDetailPage({
               </div>
               <div className="mt-6 text-sm uppercase tracking-[0.18em] text-[var(--ink-500)]">Price</div>
               <div className="mt-2 text-4xl font-semibold text-[var(--ink-950)]">
-                {formatCurrency(property.priceFrom)}
-                {property.priceTo ? ` - ${formatCurrency(property.priceTo)}` : ""}
+                {formatCurrency(property.priceFrom, property.currency)}
+                {property.priceTo ? ` - ${formatCurrency(property.priceTo, property.currency)}` : ""}
               </div>
+              {property.countdown ? (
+                <div className="mt-5">
+                  <PropertyCountdown label={property.countdown.label} offerEndsAt={property.countdown.offerEndsAt} />
+                </div>
+              ) : null}
               <div className="mt-5 grid grid-cols-2 gap-4 text-sm text-[var(--ink-700)]">
-                <div>{property.bedrooms} bedrooms</div>
-                <div>{property.bathrooms} bathrooms</div>
-                <div>{property.parkingSpaces} parking</div>
-                <div>{property.sizeSqm} sqm</div>
+                {isLand ? (
+                  <>
+                    {property.landSizeSqm ? <div>{property.landSizeSqm} sqm</div> : null}
+                    {property.numberOfPlots ? <div>{property.numberOfPlots} plot{property.numberOfPlots === 1 ? "" : "s"}</div> : null}
+                    {property.hectares ? <div>{property.hectares} ha</div> : null}
+                    {property.acres ? <div>{property.acres} acres</div> : null}
+                    {property.plotOptions.length > 0 ? <div>{property.plotOptions.length} plot option(s)</div> : null}
+                  </>
+                ) : (
+                  <>
+                    <div>{property.bedrooms} bedrooms</div>
+                    <div>{property.bathrooms} bathrooms</div>
+                    <div>{property.parkingSpaces} parking</div>
+                    <div>{property.sizeSqm} sqm</div>
+                  </>
+                )}
               </div>
+              {isLand && property.plotOptions.length > 0 ? (
+                <div className="mt-5 rounded-3xl bg-[var(--sand-100)] p-4 text-sm text-[var(--ink-700)]">
+                  <div className="font-semibold text-[var(--ink-950)]">Available sizes</div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {property.plotOptions.map((option, index) => (
+                      <span key={`${option.label ?? "plot"}-${index}`} className="rounded-full bg-white px-3 py-2">
+                        {formatLandOptionLabel(option, property.currency)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="mt-6 space-y-3">
                 <PropertyActions
                   propertyId={property.id}
@@ -188,6 +244,7 @@ export default async function PropertyDetailPage({
                 </div>
               </Card>
             ) : null}
+            {!isLand ? (
             <Card className="p-8">
               <h2 className="text-xl font-semibold text-[var(--ink-950)]">Available units</h2>
               <div className="mt-5 space-y-3">
@@ -219,19 +276,24 @@ export default async function PropertyDetailPage({
                 )}
               </div>
             </Card>
+            ) : null}
             {property.videoUrl ? (
               <Card className="p-8">
                 <h2 className="text-xl font-semibold text-[var(--ink-950)]">Video walkthrough</h2>
                 <p className="mt-2 text-sm text-[var(--ink-600)]">
-                  Preview the walkthrough or handoff this URL to a richer media viewer in phase 2.
+                  Watch the walkthrough with controls. Playback does not autoplay.
                 </p>
-                <div className="mt-5">
-                  <Link href={property.videoUrl} target="_blank" rel="noreferrer">
-                    <Button variant="outline" className="w-full">
-                      Open video walkthrough
-                    </Button>
-                  </Link>
-                </div>
+                <video
+                  src={property.videoUrl}
+                  controls
+                  preload="metadata"
+                  className="mt-5 aspect-video w-full rounded-3xl bg-black"
+                />
+                <Link href={property.videoUrl} target="_blank" rel="noreferrer" className="mt-4 block">
+                  <Button variant="outline" className="w-full">
+                    Open video walkthrough
+                  </Button>
+                </Link>
               </Card>
             ) : null}
             <Card className="p-8">

@@ -391,6 +391,8 @@ export function buildTenantThemeStyles(
     "--line": line,
     "--tenant-background": surface === "public" ? normalized.backgroundColor : mixHexColors(normalized.backgroundColor, "#F7F5EE", 0.42),
     "--tenant-surface": normalized.surfaceColor,
+    "--tenant-foreground": headingColor,
+    "--tenant-muted": mutedColor,
     "--tenant-accent": normalized.accentColor,
     "--tenant-primary": normalized.primaryColor,
     "--tenant-secondary": normalized.secondaryColor,

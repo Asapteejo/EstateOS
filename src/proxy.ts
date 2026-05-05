@@ -57,6 +57,19 @@ const proxy = clerkMiddleware(async (auth, req) => {
   }
 
   if (!featureFlags.hasClerk || !featureFlags.isProduction) {
+    if (
+      featureFlags.isProduction &&
+      !featureFlags.hasClerk &&
+      (isPortalRoute(req) || isAdminRoute(req) || isSuperadminRoute(req))
+    ) {
+      return new NextResponse("Authentication is not configured for this deployment.", {
+        status: 503,
+        headers: {
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+
     return NextResponse.next();
   }
 

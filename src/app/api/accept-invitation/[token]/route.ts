@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import type { AppRole } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
@@ -128,14 +129,14 @@ export async function POST(
 
   // Find or create the Role record for this company + role name
   let role = await prisma.role.findFirst({
-    where: { companyId: invitation.companyId, name: invitation.role },
+    where: { companyId: invitation.companyId, name: invitation.role as AppRole },
   });
 
   if (!role) {
     role = await prisma.role.create({
       data: {
         companyId: invitation.companyId,
-        name: invitation.role,
+        name: invitation.role as AppRole,
         label: invitation.role.charAt(0) + invitation.role.slice(1).toLowerCase(),
       },
     });

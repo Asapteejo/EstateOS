@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { AdminField, AdminStateBanner } from "@/components/admin/admin-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { getPaymentSetupState, unwrapApiData, type ApiEnvelope } from "@/modules/settings/payment-account-ui";
 
 type Bank = { name: string; code: string };
 
@@ -44,41 +45,37 @@ function SubaccountForm({
   onSave,
   onCancel,
   isUpdate,
+  disabled = false,
 }: {
   banks: Bank[];
   initial?: Partial<{
     businessName: string;
     settlementBank: string;
     accountNumber: string;
-    percentageCharge: number;
   }>;
   onSave: (data: {
     businessName: string;
     settlementBank: string;
     accountNumber: string;
-    percentageCharge: number;
   }) => Promise<void>;
   onCancel?: () => void;
   isUpdate: boolean;
+  disabled?: boolean;
 }) {
   const [businessName, setBusinessName] = useState(initial?.businessName ?? "");
   const [settlementBank, setSettlementBank] = useState(initial?.settlementBank ?? "");
   const [accountNumber, setAccountNumber] = useState(initial?.accountNumber ?? "");
-  const [percentageCharge, setPercentageCharge] = useState(
-    String(initial?.percentageCharge ?? 0),
-  );
   const [pending, setPending] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!businessName.trim() || !settlementBank || !/^\d{10}$/.test(accountNumber)) return;
+    if (disabled || !businessName.trim() || !settlementBank || !/^\d{10}$/.test(accountNumber)) return;
     setPending(true);
     try {
       await onSave({
         businessName: businessName.trim(),
         settlementBank,
         accountNumber,
-        percentageCharge: Number(percentageCharge),
       });
     } finally {
       setPending(false);
@@ -94,6 +91,7 @@ function SubaccountForm({
           onChange={(e) => setBusinessName(e.target.value)}
           placeholder="e.g. Orchid Ridge Homes Ltd"
           required
+          disabled={disabled}
         />
       </AdminField>
 
@@ -103,6 +101,7 @@ function SubaccountForm({
           value={settlementBank}
           onChange={(e) => setSettlementBank(e.target.value)}
           required
+          disabled={disabled}
           className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 text-sm text-[var(--ink-900)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-500)]"
         >
           <option value="" disabled>
@@ -128,30 +127,14 @@ function SubaccountForm({
           inputMode="numeric"
           maxLength={10}
           required
-        />
-      </AdminField>
-
-      <AdminField
-        label="EstateOS commission %"
-        hint="Percentage of each transaction EstateOS retains. Enter 0 if none."
-      >
-        <Input
-          id="pa-charge"
-          type="number"
-          min={0}
-          max={100}
-          step={0.1}
-          value={percentageCharge}
-          onChange={(e) => setPercentageCharge(e.target.value)}
-          placeholder="0"
-          required
+          disabled={disabled}
         />
       </AdminField>
 
       <div className="flex gap-3 pt-2">
         <Button
           type="submit"
-          disabled={pending || !businessName || !settlementBank || accountNumber.length !== 10}
+          disabled={disabled || pending || !businessName || !settlementBank || accountNumber.length !== 10}
         >
           {pending ? "Saving…" : isUpdate ? "Update account" : "Connect account"}
         </Button>
@@ -171,17 +154,21 @@ export function PaymentAccountSetup() {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [banksError, setBanksError] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [paystackConfigured, setPaystackConfigured] = useState(true);
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/admin/payment-account").then((r) => r.json() as Promise<{ account: ProviderAccount | null }>),
+      fetch("/api/admin/payment-account").then((r) => r.json() as Promise<ApiEnvelope<{ account: ProviderAccount | null; paystackConfigured: boolean }>>),
       fetch("/api/admin/payment-account/banks").then((r) =>
-        r.json() as Promise<{ banks: Bank[] }>
+        r.json() as Promise<ApiEnvelope<{ banks: Bank[]; paystackConfigured: boolean }>>
       ),
     ])
       .then(([accountData, banksData]) => {
-        setAccount(accountData.account);
-        setBanks(banksData.banks ?? []);
+        const accountPayload = unwrapApiData(accountData);
+        const banksPayload = unwrapApiData(banksData);
+        setAccount(accountPayload.account);
+        setPaystackConfigured(accountPayload.paystackConfigured && banksPayload.paystackConfigured);
+        setBanks(banksPayload.banks ?? []);
       })
       .catch(() => {
         setAccount(null);
@@ -193,7 +180,6 @@ export function PaymentAccountSetup() {
     businessName: string;
     settlementBank: string;
     accountNumber: string;
-    percentageCharge: number;
   }) {
     const method = account ? "PATCH" : "POST";
     const response = await fetch("/api/admin/payment-account", {
@@ -255,8 +241,8 @@ export function PaymentAccountSetup() {
               value: maskAccount(account.accountReference),
             },
             {
-              label: "Commission %",
-              value: `${meta?.["percentageCharge"] ?? 0}%`,
+              label: "Platform commission",
+              value: "Controlled by EstateOS superadmin",
             },
             {
               label: "Subaccount code",
@@ -294,11 +280,18 @@ export function PaymentAccountSetup() {
   // ── Form (create or edit) ─────────────────────────────────────────────────
   return (
     <div className="space-y-5">
-      {!account && (
+      {!account && paystackConfigured && (
         <AdminStateBanner
-          tone="warning"
-          title="Payment account not connected"
-          message="Connect your Paystack subaccount so buyers can pay directly to your settlement bank."
+          tone={getPaymentSetupState({ hasAccount: false, paystackConfigured }).tone}
+          title={getPaymentSetupState({ hasAccount: false, paystackConfigured }).title}
+          message="This is required to receive buyer payments into your settlement bank."
+        />
+      )}
+      {!paystackConfigured && (
+        <AdminStateBanner
+          tone="danger"
+          title="Payment setup requires Paystack configuration"
+          message="Ask the platform operator to configure Paystack secret, public, and webhook keys before creating or updating a live subaccount."
         />
       )}
       {banksError && (
@@ -316,13 +309,13 @@ export function PaymentAccountSetup() {
                 businessName: account.displayName,
                 settlementBank: String(meta?.["bankCode"] ?? ""),
                 accountNumber: account.accountReference,
-                percentageCharge: Number(meta?.["percentageCharge"] ?? 0),
               }
             : undefined
         }
         onSave={handleSave}
         onCancel={account ? () => setEditing(false) : undefined}
         isUpdate={Boolean(account)}
+        disabled={!paystackConfigured}
       />
     </div>
   );

@@ -1,4 +1,5 @@
 import { requireAdminSession } from "@/lib/auth/guards";
+import { featureFlags } from "@/lib/env";
 import { fail, ok } from "@/lib/http";
 import { fetchPaystackBanks } from "@/lib/payments/paystack";
 
@@ -11,7 +12,7 @@ export async function GET() {
 
   try {
     const banks = await fetchPaystackBanks();
-    return ok({ banks });
+    return ok({ banks, paystackConfigured: featureFlags.hasPaystack });
   } catch (error) {
     return fail(error instanceof Error ? error.message : "Failed to fetch banks.", 502);
   }

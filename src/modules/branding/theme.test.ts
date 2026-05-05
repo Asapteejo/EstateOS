@@ -71,6 +71,9 @@ test("theme styles keep app surfaces restrained and expose navigation variables"
   const appStyle = appTheme.style as Record<string, unknown>;
 
   assert.equal(typeof publicStyle["--tenant-nav-surface"], "string");
+  assert.equal(publicStyle["--tenant-primary"], "#1E6D9E");
+  assert.equal(publicStyle["--tenant-foreground"], publicTheme.meta.headingColor);
+  assert.equal(publicStyle["--tenant-muted"], publicTheme.meta.mutedColor);
   assert.equal(typeof appStyle["--tenant-nav-border"], "string");
   assert.equal(typeof appStyle["--tenant-nav-shadow"], "string");
   assert.equal(publicTheme.classes.includes("min-h-screen"), true);

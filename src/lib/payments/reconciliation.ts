@@ -29,6 +29,10 @@ import { buildSettlementQuote, getCompanyPlanStatus, recordBillingEvent } from "
 import { reconcilePaymentRequestFromPayment } from "@/modules/payment-requests/service";
 import { calculateCommissionAmount, recordMarketerCommission } from "@/modules/commission/calculator";
 import { getApplicableCommissionRule } from "@/modules/commission/rules";
+import {
+  isCommunicationTopUpMetadata,
+  reconcileCommunicationTopUpWebhook,
+} from "@/modules/communication/topups";
 
 type PaystackWebhookPayload = {
   event: string;
@@ -271,6 +275,72 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
   }
 
   const status = normalizePaystackStatus(rawPayload.data?.status);
+  const isCommunicationTopUp = isCommunicationTopUpMetadata(rawPayload.data?.metadata);
+
+  if (isCommunicationTopUp) {
+    let topUpResult:
+      | Awaited<ReturnType<typeof reconcileCommunicationTopUpWebhook>>
+      | null = null;
+
+    if (status === "SUCCESS") {
+      topUpResult = await reconcileCommunicationTopUpWebhook({
+        reference,
+        companyId: company.id,
+        rawAmountKobo: rawPayload.data?.amount,
+        metadata: rawPayload.data?.metadata,
+        payload: rawPayload as unknown as Prisma.InputJsonValue,
+      });
+    }
+
+    const payment = featureFlags.hasDatabase
+      ? await prisma.payment.upsert({
+          where: {
+            companyId_providerReference: {
+              companyId: company.id,
+              providerReference: reference,
+            },
+          },
+          update: {
+            status,
+            paidAt: rawPayload.data?.paid_at ? new Date(rawPayload.data.paid_at) : null,
+            metadata: rawPayload as unknown as Prisma.InputJsonValue,
+          },
+          create: {
+            companyId: company.id,
+            providerReference: reference,
+            amount: (rawPayload.data?.amount ?? 0) / 100,
+            status,
+            method: "PAYSTACK",
+            paidAt: rawPayload.data?.paid_at ? new Date(rawPayload.data.paid_at) : null,
+            metadata: rawPayload as unknown as Prisma.InputJsonValue,
+          },
+        })
+      : null;
+
+    if (featureFlags.hasDatabase) {
+      await prisma.webhookEvent.create({
+        data: {
+          companyId: company.id,
+          provider: "PAYSTACK",
+          eventType: rawPayload.event,
+          providerEventId,
+          paymentId: payment?.id ?? null,
+          signatureVerified: true,
+          payload: rawPayload as unknown as Prisma.InputJsonValue,
+        },
+      });
+    }
+
+    return {
+      duplicate: false,
+      companyId: company.id,
+      providerEventId,
+      communicationTopUp: true,
+      credited: Boolean(topUpResult && "duplicate" in topUpResult && !topUpResult.duplicate),
+      status,
+    };
+  }
+
   const transactionIdFromMetadata =
     typeof rawPayload.data?.metadata?.transactionId === "string"
       ? rawPayload.data.metadata.transactionId

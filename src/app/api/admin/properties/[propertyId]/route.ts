@@ -1,5 +1,5 @@
 import { requireAdminSession } from "@/lib/auth/guards";
-import { ok, fail } from "@/lib/http";
+import { ok, fail, safeValidationIssues, validationFail } from "@/lib/http";
 import { propertyCreateSchema } from "@/lib/validations/properties";
 import { updatePropertyForAdmin } from "@/modules/properties/mutations";
 
@@ -19,7 +19,14 @@ export async function PATCH(
   const body = propertyCreateSchema.safeParse(json);
 
   if (!body.success) {
-    return fail("Invalid property update payload.");
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("Property update validation failed.", {
+        propertyId,
+        issues: safeValidationIssues(body.error),
+      });
+    }
+
+    return validationFail(body.error);
   }
 
   try {

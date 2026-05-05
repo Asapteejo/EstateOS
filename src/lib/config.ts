@@ -133,11 +133,6 @@ const serverEnvSchema = z
       "CLERK_SECRET_KEY",
       "CLERK_WEBHOOK_SECRET",
     ]);
-    requireGroup("Paystack", [
-      "PAYSTACK_SECRET_KEY",
-      "PAYSTACK_PUBLIC_KEY",
-      "PAYSTACK_WEBHOOK_SECRET",
-    ]);
     requireGroup("Cloudflare R2", [
       "R2_ACCOUNT_ID",
       "R2_ACCESS_KEY_ID",
@@ -329,6 +324,53 @@ export function buildFeatureFlags(env: ServerEnv) {
       Boolean(env.TWILIO_AUTH_TOKEN) &&
       Boolean(env.TWILIO_WHATSAPP_FROM),
   };
+}
+
+export type SanitizedDatabaseEndpoint = {
+  configured: boolean;
+  host: string | null;
+  port: string | null;
+  usesPooler: boolean;
+  validUrl: boolean;
+};
+
+export function sanitizeDatabaseEndpointForReadiness(
+  value: string | undefined | null,
+): SanitizedDatabaseEndpoint {
+  if (!value) {
+    return {
+      configured: false,
+      host: null,
+      port: null,
+      usesPooler: false,
+      validUrl: true,
+    };
+  }
+
+  try {
+    const url = new URL(value);
+    const host = url.hostname || null;
+    const port = url.port || null;
+    const usesPooler =
+      url.searchParams.get("pgbouncer") === "true" ||
+      (host ? host.toLowerCase().includes("pooler") : false);
+
+    return {
+      configured: true,
+      host,
+      port,
+      usesPooler,
+      validUrl: true,
+    };
+  } catch {
+    return {
+      configured: true,
+      host: null,
+      port: null,
+      usesPooler: false,
+      validUrl: false,
+    };
+  }
 }
 
 export function buildClientFlags(env: PublicEnv) {

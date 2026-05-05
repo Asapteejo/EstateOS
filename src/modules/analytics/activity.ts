@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import type { TenantContext } from "@/lib/tenancy/context";
+import { logWarn } from "@/lib/ops/logger";
 
 type ProductEventInput = {
   companyId: string;
@@ -39,15 +40,61 @@ export const PRODUCT_EVENT_NAMES = {
   sampleWorkspaceLoaded: "sample_workspace.loaded",
 } as const;
 
+export function resolveActivityUserForWrite(input: {
+  requestedUserId?: string | null;
+  resolvedUserId?: string | null;
+  isProduction: boolean;
+}) {
+  if (!input.requestedUserId) {
+    return null;
+  }
+
+  if (input.resolvedUserId) {
+    return input.resolvedUserId;
+  }
+
+  if (input.isProduction) {
+    throw new Error("Activity event user does not exist.");
+  }
+
+  return null;
+}
+
+async function findActivityUserId(userId: string) {
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [{ id: userId }, { clerkUserId: userId }],
+    },
+    select: { id: true },
+  });
+
+  return user?.id ?? null;
+}
+
 export async function trackProductEvent(input: ProductEventInput) {
   if (!featureFlags.hasDatabase) {
     return null;
   }
 
+  const resolvedUserId = input.userId ? await findActivityUserId(input.userId) : null;
+  const userId = resolveActivityUserForWrite({
+    requestedUserId: input.userId,
+    resolvedUserId,
+    isProduction: featureFlags.isProduction,
+  });
+
+  if (input.userId && !userId) {
+    logWarn("Activity event user was not found; writing activity event as system action.", {
+      userId: input.userId,
+      companyId: input.companyId,
+      eventName: input.eventName,
+    });
+  }
+
   return prisma.activityEvent.create({
     data: {
       companyId: input.companyId,
-      userId: input.userId ?? null,
+      userId,
       inquiryId: input.inquiryId ?? null,
       eventName: input.eventName,
       summary: input.summary,

@@ -77,6 +77,11 @@ export type PublicPropertyDetail = PropertySummary & {
   }>;
 };
 
+export function resolvePublicPropertyVideoUrl(videoUrl?: string | null) {
+  const trimmed = videoUrl?.trim();
+  return trimmed || undefined;
+}
+
 type PropertyRow = {
   id: string;
   slug: string;
@@ -94,10 +99,20 @@ type PropertyRow = {
   autoHiddenAt: Date | null;
   priceFrom: Decimalish;
   priceTo: Decimalish | null;
+  currency: string;
   bedrooms: number | null;
   bathrooms: number | null;
   parkingSpaces: number | null;
   sizeSqm: Decimalish | null;
+  landSizeSqm: Decimalish | null;
+  numberOfPlots: Decimalish | null;
+  landSaleUnit: string | null;
+  hectares: Decimalish | null;
+  acres: Decimalish | null;
+  plotOptions: unknown;
+  offerEndsAt: Date | null;
+  countdownLabel: string | null;
+  countdownEnabled: boolean;
   locationSummary: string | null;
   landmarks: unknown;
   location: {
@@ -160,6 +175,29 @@ type DetailPropertyRow = Omit<PropertyRow, "units" | "paymentPlans"> & {
     floor: number | null;
   }>;
 };
+
+export function normalizePlotOptions(value: unknown): PropertySummary["plotOptions"] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is Record<string, unknown> => item != null && typeof item === "object")
+    .map((item) => {
+      const option: PropertySummary["plotOptions"][number] = {};
+      if (typeof item.label === "string") option.label = item.label;
+      if (typeof item.unit === "string") option.unit = item.unit as PropertySummary["plotOptions"][number]["unit"];
+      if (typeof item.sizeSqm === "number") option.sizeSqm = item.sizeSqm;
+      if (typeof item.numberOfPlots === "number") option.numberOfPlots = item.numberOfPlots;
+      if (typeof item.hectares === "number") option.hectares = item.hectares;
+      if (typeof item.acres === "number") option.acres = item.acres;
+      if (typeof item.price === "number") option.price = item.price;
+      if (typeof item.currency === "string") option.currency = item.currency;
+      if (typeof item.status === "string") option.status = item.status;
+      if (typeof item.note === "string") option.note = item.note;
+      return option;
+    });
+}
 
 export function buildPublicPropertyWhere(
   context: TenantContext,
@@ -333,10 +371,20 @@ export async function getPublicProperties(
           autoHiddenAt: true,
           priceFrom: true,
           priceTo: true,
+          currency: true,
           bedrooms: true,
           bathrooms: true,
           parkingSpaces: true,
           sizeSqm: true,
+          landSizeSqm: true,
+          numberOfPlots: true,
+          landSaleUnit: true,
+          hectares: true,
+          acres: true,
+          plotOptions: true,
+          offerEndsAt: true,
+          countdownLabel: true,
+          countdownEnabled: true,
           locationSummary: true,
           landmarks: true,
           location: {
@@ -476,10 +524,20 @@ export async function getPublicPropertyDetailBySlug(
         autoHiddenAt: true,
         priceFrom: true,
         priceTo: true,
+        currency: true,
         bedrooms: true,
         bathrooms: true,
         parkingSpaces: true,
         sizeSqm: true,
+        landSizeSqm: true,
+        numberOfPlots: true,
+        landSaleUnit: true,
+        hectares: true,
+        acres: true,
+        plotOptions: true,
+        offerEndsAt: true,
+        countdownLabel: true,
+        countdownEnabled: true,
         locationSummary: true,
         landmarks: true,
         videoUrl: true,
@@ -589,7 +647,7 @@ export async function getPublicPropertyDetailBySlug(
     ...mapPropertyRowToSummary(property),
     brochureAvailable,
     brochureUrl: brochureAvailable ? buildPropertyBrochureHref(property.slug) : null,
-    videoUrl: property.videoUrl ?? undefined,
+    videoUrl: resolvePublicPropertyVideoUrl(property.videoUrl),
     paymentOptions: property.paymentPlans.map((plan) => ({
       id: plan.id,
       propertyUnitId: plan.propertyUnitId,
@@ -744,11 +802,26 @@ function mapPropertyRowToSummary(property: PropertyRow): PropertySummary {
     priceTo:
       maxUnitPrice ??
       (property.priceTo == null ? undefined : decimalToNumber(property.priceTo)),
+    currency: property.currency,
     bedrooms:
       unitBedrooms.length > 0 ? Math.max(...unitBedrooms) : property.bedrooms ?? 0,
     bathrooms: property.bathrooms ?? 0,
     parkingSpaces: property.parkingSpaces ?? 0,
     sizeSqm: property.sizeSqm == null ? 0 : decimalToNumber(property.sizeSqm),
+    landSizeSqm: property.landSizeSqm == null ? undefined : decimalToNumber(property.landSizeSqm),
+    numberOfPlots: property.numberOfPlots == null ? undefined : decimalToNumber(property.numberOfPlots),
+    landSaleUnit: property.landSaleUnit as PropertySummary["landSaleUnit"],
+    hectares: property.hectares == null ? undefined : decimalToNumber(property.hectares),
+    acres: property.acres == null ? undefined : decimalToNumber(property.acres),
+    plotOptions: normalizePlotOptions(property.plotOptions),
+    countdown:
+      property.countdownEnabled && property.offerEndsAt
+        ? {
+            enabled: true,
+            label: property.countdownLabel ?? "Offer ends in",
+            offerEndsAt: property.offerEndsAt.toISOString(),
+          }
+        : undefined,
     locationSummary:
       property.locationSummary ??
       `${property.location?.city ?? "Unknown"}, ${property.location?.state ?? "Unknown"}`,

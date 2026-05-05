@@ -84,7 +84,7 @@ export default async function AdminMarketplacePage() {
                         {property.propertyType.replaceAll("_", " ").toLowerCase()}
                       </td>
                       <td className="font-medium text-[var(--ink-950)]">
-                        {formatCurrency(property.priceFrom)}
+                        {formatCurrency(property.priceFrom, property.currency)}
                       </td>
                       <td className="capitalize">
                         {property.status.toLowerCase()}

@@ -12,6 +12,17 @@ export function MarketplacePropertyCard({
   property: MarketplacePropertySummary;
 }) {
   const detailHref = `/platform/properties/${property.companySlug}/${property.slug}`;
+  const isLand = property.type.toUpperCase() === "LAND";
+  const landOptions = property.plotOptions
+    .map((option) => {
+      const label = option.label ?? (option.sizeSqm ? `${option.sizeSqm} sqm` : option.hectares ? `${option.hectares} ha` : option.acres ? `${option.acres} acres` : null);
+      if (!label) {
+        return null;
+      }
+
+      return `${label} — ${option.price ? formatCurrency(option.price, option.currency ?? property.currency) : "Price on request"}`;
+    })
+    .filter(Boolean);
 
   return (
     <Card className="overflow-hidden">
@@ -79,9 +90,21 @@ export function MarketplacePropertyCard({
         </div>
 
         <div className="flex items-center justify-between text-xs text-[var(--ink-600)]">
-          {property.bedrooms > 0 && <span>{property.bedrooms} bed</span>}
-          {property.bathrooms > 0 && <span>{property.bathrooms} bath</span>}
-          {property.sizeSqm > 0 && <span>{property.sizeSqm} sqm</span>}
+          {isLand ? (
+            <>
+              {property.landSizeSqm ? <span>{property.landSizeSqm} sqm</span> : null}
+              {property.numberOfPlots ? <span>{property.numberOfPlots} plot{property.numberOfPlots === 1 ? "" : "s"}</span> : null}
+              {property.hectares ? <span>{property.hectares} ha</span> : null}
+              {property.acres ? <span>{property.acres} acres</span> : null}
+              {landOptions.length > 0 ? <span>{landOptions.slice(0, 2).join(", ")}</span> : null}
+            </>
+          ) : (
+            <>
+              {property.bedrooms > 0 && <span>{property.bedrooms} bed</span>}
+              {property.bathrooms > 0 && <span>{property.bathrooms} bath</span>}
+              {property.sizeSqm > 0 && <span>{property.sizeSqm} sqm</span>}
+            </>
+          )}
           <span className="rounded-full border border-[var(--line)] bg-[var(--sand-50)] px-2 py-0.5 capitalize">
             {property.type}
           </span>
@@ -93,7 +116,7 @@ export function MarketplacePropertyCard({
               From
             </div>
             <div className="text-xl font-semibold text-[var(--ink-950)]">
-              {formatCurrency(property.priceFrom)}
+              {formatCurrency(property.priceFrom, property.currency)}
             </div>
           </div>
           <Link

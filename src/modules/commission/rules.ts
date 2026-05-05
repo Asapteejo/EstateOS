@@ -24,11 +24,9 @@ type RuleRecord = {
   feeType: "FLAT" | "PERCENTAGE";
   flatAmount: { toNumber: () => number } | number | null;
   percentageRate: { toNumber: () => number } | number | null;
-  currency: string;
   propertyType: string | null;
   propertyId: string | null;
   isActive: boolean;
-  sortOrder: number;
   createdAt: Date;
 };
 
@@ -63,7 +61,6 @@ export type CommissionRuleRow = {
   propertyType: string | null;
   propertyId: string | null;
   isActive: boolean;
-  sortOrder: number;
   createdAt: Date;
 };
 
@@ -74,6 +71,8 @@ export type ApplicableRule = {
   percentageRate: number | null;
   currency: string;
 };
+
+const DEFAULT_RULE_CURRENCY = "NGN";
 
 // ─── Rule lookup ──────────────────────────────────────────────────────────
 
@@ -104,17 +103,16 @@ export async function getApplicableCommissionRule(input: {
         { propertyId: null, propertyType: null },
       ],
     },
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    orderBy: [{ createdAt: "asc" }],
     select: {
       id: true,
       feeType: true,
       flatAmount: true,
       percentageRate: true,
-      currency: true,
       propertyType: true,
       propertyId: true,
     },
-  })) as Array<Pick<RuleRecord, "id" | "feeType" | "flatAmount" | "percentageRate" | "currency" | "propertyType" | "propertyId">>;
+  })) as Array<Pick<RuleRecord, "id" | "feeType" | "flatAmount" | "percentageRate" | "propertyType" | "propertyId">>;
 
   if (candidates.length === 0) return null;
 
@@ -131,7 +129,7 @@ export async function getApplicableCommissionRule(input: {
     feeType: best.feeType,
     flatAmount: best.flatAmount != null ? toNumber(best.flatAmount) : null,
     percentageRate: best.percentageRate != null ? toNumber(best.percentageRate) : null,
-    currency: best.currency,
+    currency: DEFAULT_RULE_CURRENCY,
   };
 }
 
@@ -145,18 +143,16 @@ export async function listCommissionRules(companyId: string): Promise<Commission
 
   const rows = (await delegate.findMany({
     where: { companyId, isActive: true },
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+    orderBy: [{ createdAt: "asc" }],
     select: {
       id: true,
       name: true,
       feeType: true,
       flatAmount: true,
       percentageRate: true,
-      currency: true,
       propertyType: true,
       propertyId: true,
       isActive: true,
-      sortOrder: true,
       createdAt: true,
     },
   })) as RuleRecord[];
@@ -167,11 +163,10 @@ export async function listCommissionRules(companyId: string): Promise<Commission
     feeType: r.feeType,
     flatAmount: r.flatAmount != null ? toNumber(r.flatAmount) : null,
     percentageRate: r.percentageRate != null ? toNumber(r.percentageRate) : null,
-    currency: r.currency,
+    currency: DEFAULT_RULE_CURRENCY,
     propertyType: r.propertyType,
     propertyId: r.propertyId,
     isActive: r.isActive,
-    sortOrder: r.sortOrder,
     createdAt: r.createdAt,
   }));
 }
@@ -182,7 +177,6 @@ export async function createCommissionRule(input: {
   feeType: "FLAT" | "PERCENTAGE";
   flatAmount?: number | null;
   percentageRate?: number | null;
-  currency?: string;
   propertyType?: string | null;
   propertyId?: string | null;
 }): Promise<{ id: string }> {
@@ -196,7 +190,6 @@ export async function createCommissionRule(input: {
       feeType: input.feeType,
       flatAmount: input.flatAmount ?? null,
       percentageRate: input.percentageRate ?? null,
-      currency: input.currency ?? "NGN",
       propertyType: input.propertyType ?? null,
       propertyId: input.propertyId ?? null,
     },

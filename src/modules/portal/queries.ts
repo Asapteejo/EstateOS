@@ -628,10 +628,20 @@ export async function getBuyerSavedProperties(context: TenantContext): Promise<P
             autoHiddenAt: true,
             priceFrom: true,
             priceTo: true,
+            currency: true,
             bedrooms: true,
             bathrooms: true,
             parkingSpaces: true,
             sizeSqm: true,
+            landSizeSqm: true,
+            numberOfPlots: true,
+            landSaleUnit: true,
+            hectares: true,
+            acres: true,
+            plotOptions: true,
+            offerEndsAt: true,
+            countdownLabel: true,
+            countdownEnabled: true,
             locationSummary: true,
             landmarks: true,
             location: {
@@ -703,10 +713,20 @@ export async function getBuyerSavedProperties(context: TenantContext): Promise<P
       autoHiddenAt: Date | null;
       priceFrom: { toNumber?: () => number } | number;
       priceTo: { toNumber?: () => number } | number | null;
+      currency: string;
       bedrooms: number | null;
       bathrooms: number | null;
       parkingSpaces: number | null;
       sizeSqm: { toNumber?: () => number } | number | null;
+      landSizeSqm: { toNumber?: () => number } | number | null;
+      numberOfPlots: { toNumber?: () => number } | number | null;
+      landSaleUnit: string | null;
+      hectares: { toNumber?: () => number } | number | null;
+      acres: { toNumber?: () => number } | number | null;
+      plotOptions: unknown;
+      offerEndsAt: Date | null;
+      countdownLabel: string | null;
+      countdownEnabled: boolean;
       locationSummary: string | null;
       landmarks: unknown;
       location: {
@@ -963,10 +983,20 @@ function mapPropertyRecordToSummary(property: {
   autoHiddenAt: Date | null;
   priceFrom: { toNumber?: () => number } | number;
   priceTo: { toNumber?: () => number } | number | null;
+  currency: string;
   bedrooms: number | null;
   bathrooms: number | null;
   parkingSpaces: number | null;
   sizeSqm: { toNumber?: () => number } | number | null;
+  landSizeSqm: { toNumber?: () => number } | number | null;
+  numberOfPlots: { toNumber?: () => number } | number | null;
+  landSaleUnit: string | null;
+  hectares: { toNumber?: () => number } | number | null;
+  acres: { toNumber?: () => number } | number | null;
+  plotOptions: unknown;
+  offerEndsAt: Date | null;
+  countdownLabel: string | null;
+  countdownEnabled: boolean;
   locationSummary: string | null;
   landmarks: unknown;
   location: {
@@ -1014,6 +1044,7 @@ function mapPropertyRecordToSummary(property: {
         : typeof property.priceTo === "number"
           ? property.priceTo
           : property.priceTo.toNumber?.() ?? Number(property.priceTo),
+    currency: property.currency,
     bedrooms: property.bedrooms ?? 0,
     bathrooms: property.bathrooms ?? 0,
     parkingSpaces: property.parkingSpaces ?? 0,
@@ -1023,6 +1054,42 @@ function mapPropertyRecordToSummary(property: {
         : typeof property.sizeSqm === "number"
           ? property.sizeSqm
           : property.sizeSqm.toNumber?.() ?? Number(property.sizeSqm),
+    landSizeSqm:
+      property.landSizeSqm == null
+        ? undefined
+        : typeof property.landSizeSqm === "number"
+          ? property.landSizeSqm
+          : property.landSizeSqm.toNumber?.() ?? Number(property.landSizeSqm),
+    numberOfPlots:
+      property.numberOfPlots == null
+        ? undefined
+        : typeof property.numberOfPlots === "number"
+          ? property.numberOfPlots
+          : property.numberOfPlots.toNumber?.() ?? Number(property.numberOfPlots),
+    landSaleUnit: property.landSaleUnit as PropertySummary["landSaleUnit"],
+    hectares:
+      property.hectares == null
+        ? undefined
+        : typeof property.hectares === "number"
+          ? property.hectares
+          : property.hectares.toNumber?.() ?? Number(property.hectares),
+    acres:
+      property.acres == null
+        ? undefined
+        : typeof property.acres === "number"
+          ? property.acres
+          : property.acres.toNumber?.() ?? Number(property.acres),
+    plotOptions: Array.isArray(property.plotOptions)
+      ? property.plotOptions.filter((item): item is PropertySummary["plotOptions"][number] => item != null && typeof item === "object")
+      : [],
+    countdown:
+      property.countdownEnabled && property.offerEndsAt
+        ? {
+            enabled: true,
+            label: property.countdownLabel ?? "Offer ends in",
+            offerEndsAt: property.offerEndsAt.toISOString(),
+          }
+        : undefined,
     locationSummary: property.locationSummary ?? `${property.location?.city ?? ""}, ${property.location?.state ?? ""}`.trim(),
     city: property.location?.city ?? "Unknown",
     state: property.location?.state ?? "Unknown",

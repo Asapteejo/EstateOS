@@ -68,23 +68,6 @@ const agreementSelect = {
   acceptedByUserAgent: true,
   createdAt: true,
   updatedAt: true,
-  transaction: {
-    select: {
-      id: true,
-      currentStage: true,
-      reservation: { select: { reference: true } },
-      user: { select: { id: true, firstName: true, lastName: true, email: true } },
-      property: { select: { title: true } },
-    },
-  },
-  document: {
-    select: {
-      id: true,
-      fileName: true,
-      storageKey: true,
-      mimeType: true,
-    },
-  },
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -95,6 +78,72 @@ const saUpdate = prisma.signedAgreement.update as (args: any) => Promise<any>;
 const saFindMany = prisma.signedAgreement.findMany as (args: any) => Promise<any[]>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const saFindFirst = prisma.signedAgreement.findFirst as (args: any) => Promise<any | null>;
+
+type SignedAgreementBaseRow = Awaited<ReturnType<typeof saFindFirst>>;
+
+const transactionSelect = {
+  id: true,
+  currentStage: true,
+  reservation: { select: { reference: true } },
+  user: { select: { id: true, firstName: true, lastName: true, email: true } },
+  property: { select: { title: true } },
+} satisfies Prisma.TransactionSelect;
+
+const documentSelect = {
+  id: true,
+  fileName: true,
+  storageKey: true,
+  mimeType: true,
+} satisfies Prisma.DocumentSelect;
+
+async function hydrateAgreementRows(
+  companyId: string,
+  rows: NonNullable<SignedAgreementBaseRow>[],
+): Promise<SignedAgreementRow[]> {
+  if (rows.length === 0) return [];
+
+  const transactionIds = [...new Set(rows.map((row) => row.transactionId))];
+  const documentIds = [...new Set(rows.map((row) => row.documentId))];
+
+  const [transactions, documents] = await Promise.all([
+    prisma.transaction.findMany({
+      where: { companyId, id: { in: transactionIds } },
+      select: transactionSelect,
+    }),
+    prisma.document.findMany({
+      where: { companyId, id: { in: documentIds } },
+      select: documentSelect,
+    }),
+  ]);
+
+  const transactionMap = new Map(transactions.map((transaction) => [transaction.id, transaction]));
+  const documentMap = new Map(documents.map((document) => [document.id, document]));
+
+  return rows
+    .map((row) => {
+      const transaction = transactionMap.get(row.transactionId);
+      const document = documentMap.get(row.documentId);
+
+      if (!transaction || !document) return null;
+
+      return {
+        ...row,
+        transaction,
+        document,
+      };
+    })
+    .filter((row): row is SignedAgreementRow => row !== null);
+}
+
+async function hydrateAgreementRow(
+  companyId: string,
+  row: NonNullable<SignedAgreementBaseRow> | null,
+): Promise<SignedAgreementRow | null> {
+  if (!row) return null;
+
+  const [hydrated] = await hydrateAgreementRows(companyId, [row]);
+  return hydrated ?? null;
+}
 
 // ─── Admin: create contract record ──────────────────────────────────────────
 
@@ -111,7 +160,7 @@ export async function createContract(input: {
   documentId: string;
   actorUserId?: string;
 }): Promise<SignedAgreementRow> {
-  const row = (await saCreate({
+  const created = await saCreate({
     data: {
       companyId: input.companyId,
       transactionId: input.transactionId,
@@ -119,7 +168,9 @@ export async function createContract(input: {
       status: "PENDING",
     },
     select: agreementSelect,
-  })) as SignedAgreementRow;
+  });
+  const row = await hydrateAgreementRow(input.companyId, created);
+  if (!row) throw new Error("Created contract could not be loaded.");
 
   await writeAuditLog({
     companyId: input.companyId,
@@ -146,10 +197,13 @@ export async function sendContract(input: {
   companyId: string;
   actorUserId?: string;
 }): Promise<SignedAgreementRow> {
-  const existing = (await saFindFirst({
-    where: { id: input.signedAgreementId, companyId: input.companyId },
-    select: agreementSelect,
-  })) as SignedAgreementRow | null;
+  const existing = await hydrateAgreementRow(
+    input.companyId,
+    await saFindFirst({
+      where: { id: input.signedAgreementId, companyId: input.companyId },
+      select: agreementSelect,
+    }),
+  );
 
   if (!existing) throw new Error("Contract not found.");
   if (existing.status === "COMPLETED") throw new Error("Contract already accepted by buyer.");
@@ -157,11 +211,15 @@ export async function sendContract(input: {
   // Idempotent: don't re-notify if already sent
   if (existing.status === "ACTIVE") return existing;
 
-  const updated = (await saUpdate({
-    where: { id: input.signedAgreementId },
-    data: { status: "ACTIVE", sentAt: new Date() },
-    select: agreementSelect,
-  })) as SignedAgreementRow;
+  const updated = await hydrateAgreementRow(
+    input.companyId,
+    await saUpdate({
+      where: { id: input.signedAgreementId },
+      data: { status: "ACTIVE", sentAt: new Date() },
+      select: agreementSelect,
+    }),
+  );
+  if (!updated) throw new Error("Sent contract could not be loaded.");
 
   // Notify buyer
   const buyerUserId = updated.transaction.user.id;
@@ -205,32 +263,40 @@ export async function acceptContract(input: {
   userAgent: string;
 }): Promise<SignedAgreementRow> {
   // Verify the buyer owns this agreement
-  const existing = (await saFindFirst({
-    where: {
-      id: input.signedAgreementId,
-      companyId: input.companyId,
-      transaction: { userId: input.userId },
-    },
-    select: agreementSelect,
-  })) as SignedAgreementRow | null;
+  const existing = await hydrateAgreementRow(
+    input.companyId,
+    await saFindFirst({
+      where: {
+        id: input.signedAgreementId,
+        companyId: input.companyId,
+      },
+      select: agreementSelect,
+    }),
+  );
 
-  if (!existing) throw new Error("Contract not found or access denied.");
+  if (!existing || existing.transaction.user.id !== input.userId) {
+    throw new Error("Contract not found or access denied.");
+  }
   if (existing.status !== "ACTIVE") {
     throw new Error("Contract is not available for acceptance.");
   }
 
   const now = new Date();
 
-  const updated = (await saUpdate({
-    where: { id: input.signedAgreementId },
-    data: {
-      status: "COMPLETED",
-      acceptedAt: now,
-      acceptedByIp: input.ipAddress,
-      acceptedByUserAgent: input.userAgent,
-    },
-    select: agreementSelect,
-  })) as SignedAgreementRow;
+  const updated = await hydrateAgreementRow(
+    input.companyId,
+    await saUpdate({
+      where: { id: input.signedAgreementId },
+      data: {
+        status: "COMPLETED",
+        acceptedAt: now,
+        acceptedByIp: input.ipAddress,
+        acceptedByUserAgent: input.userAgent,
+      },
+      select: agreementSelect,
+    }),
+  );
+  if (!updated) throw new Error("Accepted contract could not be loaded.");
 
   const reservationRef = updated.transaction.reservation?.reference ?? updated.transactionId;
 
@@ -274,11 +340,14 @@ export async function acceptContract(input: {
 // ─── Admin: list all contracts for a company ─────────────────────────────────
 
 export async function getAdminContractRows(companyId: string): Promise<SignedAgreementRow[]> {
-  return (await saFindMany({
-    where: { companyId },
-    orderBy: { createdAt: "desc" },
-    select: agreementSelect,
-  })) as SignedAgreementRow[];
+  return hydrateAgreementRows(
+    companyId,
+    await saFindMany({
+      where: { companyId },
+      orderBy: { createdAt: "desc" },
+      select: agreementSelect,
+    }),
+  );
 }
 
 // ─── Admin: get one contract for a transaction ───────────────────────────────
@@ -287,10 +356,13 @@ export async function getContractForTransaction(
   transactionId: string,
   companyId: string,
 ): Promise<SignedAgreementRow | null> {
-  return (await saFindFirst({
-    where: { transactionId, companyId },
-    select: agreementSelect,
-  })) as SignedAgreementRow | null;
+  return hydrateAgreementRow(
+    companyId,
+    await saFindFirst({
+      where: { transactionId, companyId },
+      select: agreementSelect,
+    }),
+  );
 }
 
 // ─── Portal: list contracts visible to a buyer ───────────────────────────────
@@ -301,15 +373,27 @@ export async function getBuyerContracts(
   userId: string,
   companyId: string,
 ): Promise<BuyerContractRow[]> {
-  const rows = (await saFindMany({
-    where: {
-      companyId,
-      status: { in: ["ACTIVE", "COMPLETED"] },
-      transaction: { userId },
-    },
-    orderBy: { sentAt: "desc" },
-    select: agreementSelect,
-  })) as SignedAgreementRow[];
+  const buyerTransactionIds = (
+    await prisma.transaction.findMany({
+      where: { companyId, userId },
+      select: { id: true },
+    })
+  ).map((transaction) => transaction.id);
+
+  if (buyerTransactionIds.length === 0) return [];
+
+  const rows = await hydrateAgreementRows(
+    companyId,
+    await saFindMany({
+      where: {
+        companyId,
+        status: { in: ["ACTIVE", "COMPLETED"] },
+        transactionId: { in: buyerTransactionIds },
+      },
+      orderBy: { sentAt: "desc" },
+      select: agreementSelect,
+    }),
+  );
 
   return Promise.all(
     rows.map(async (row) => ({
@@ -334,13 +418,17 @@ export async function getTransactionsWithoutContract(
 ): Promise<TransactionWithoutContract[]> {
   if (!featureFlags.hasDatabase) return [];
 
-  // Cast as any: `signedAgreement: null` (relation-absence filter) is not in
-  // the generated TransactionWhereInput until `prisma generate` is re-run.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows = await (prisma.transaction.findMany as (args: any) => Promise<any[]>)({
+  const contractedTransactionIds = (
+    await prisma.signedAgreement.findMany({
+      where: { companyId },
+      select: { transactionId: true },
+    })
+  ).map((agreement) => agreement.transactionId);
+
+  const rows = await prisma.transaction.findMany({
     where: {
       companyId,
-      signedAgreement: null,
+      ...(contractedTransactionIds.length > 0 ? { id: { notIn: contractedTransactionIds } } : {}),
     },
     orderBy: { createdAt: "desc" },
     select: {

@@ -14,6 +14,7 @@ import type {
   WishlistFollowUpMutationInput,
 } from "@/lib/validations/saved-properties";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { trackProductEvent } from "@/modules/analytics/activity";
 import { ensureVisibleTeamMember } from "@/modules/team/queries";
 import { getCompanyOperationalDefaults } from "@/modules/settings/service";
 
@@ -337,18 +338,16 @@ export async function toggleWishlistPropertyForBuyer(
     buyerName,
   });
 
-  await prisma.activityEvent.create({
-    data: {
-      companyId: context.companyId,
-      userId: context.userId,
-      eventName: "wishlist.added",
-      summary: `${buyerName} added ${property.title} to wishlist.`,
-      payload: {
-        propertyId: property.id,
-        wishlistId: saved.id,
-        selectedMarketerId,
-      } as Prisma.InputJsonValue,
-    },
+  await trackProductEvent({
+    companyId: context.companyId,
+    userId: context.userId,
+    eventName: "wishlist.added",
+    summary: `${buyerName} added ${property.title} to wishlist.`,
+    payload: {
+      propertyId: property.id,
+      wishlistId: saved.id,
+      selectedMarketerId,
+    } as Prisma.InputJsonValue,
   });
 
   await writeAuditLog({
@@ -710,16 +709,14 @@ export async function sendWishlistReminder(savedPropertyId: string) {
     } as Prisma.InputJsonValue,
   });
 
-  await prisma.activityEvent.create({
-    data: {
-      companyId: wishlist.companyId,
-      userId: wishlist.userId,
-      eventName: "wishlist.reminder_sent",
-      summary: `Wishlist reminder sent for ${wishlist.property.title}.`,
-      payload: {
-        wishlistId: savedPropertyId,
-      } as Prisma.InputJsonValue,
-    },
+  await trackProductEvent({
+    companyId: wishlist.companyId,
+    userId: wishlist.userId,
+    eventName: "wishlist.reminder_sent",
+    summary: `Wishlist reminder sent for ${wishlist.property.title}.`,
+    payload: {
+      wishlistId: savedPropertyId,
+    } as Prisma.InputJsonValue,
   });
 
   return { delivered: true };

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildDatabaseReadinessMetadata,
   buildDependencySummary,
   buildHealthSnapshot,
   buildRuntimeReadinessSummary,
@@ -28,4 +29,13 @@ test("runtime readiness summary remains safe and structured", () => {
 
   assert.equal(typeof summary.ok, "boolean");
   assert.equal(Array.isArray(summary.issues), true);
+});
+
+test("database readiness metadata stays sanitized", () => {
+  const metadata = buildDatabaseReadinessMetadata();
+  const serialized = JSON.stringify(metadata);
+
+  assert.equal(typeof metadata.runtime.configured, "boolean");
+  assert.equal(typeof metadata.direct.configured, "boolean");
+  assert.equal(serialized.includes("@"), false);
 });

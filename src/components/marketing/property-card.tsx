@@ -7,6 +7,18 @@ import { formatCurrency } from "@/lib/utils";
 import type { PropertySummary } from "@/types/domain";
 
 export function PropertyCard({ property }: { property: PropertySummary }) {
+  const isLand = property.type.toUpperCase() === "LAND";
+  const landSizes = property.plotOptions
+    .map((option) => {
+      const label = option.label ?? (option.sizeSqm ? `${option.sizeSqm} sqm` : option.hectares ? `${option.hectares} ha` : option.acres ? `${option.acres} acres` : null);
+      if (!label) {
+        return null;
+      }
+
+      return `${label} — ${option.price ? formatCurrency(option.price, option.currency ?? property.currency) : "Price on request"}`;
+    })
+    .filter(Boolean);
+
   return (
     <Card className="overflow-hidden">
       <div className="relative h-72">
@@ -32,9 +44,19 @@ export function PropertyCard({ property }: { property: PropertySummary }) {
           <p className="text-xs font-medium text-[var(--ink-500)]">{property.verification.label}</p>
         </div>
         <div className="flex items-center justify-between text-sm text-[var(--ink-700)]">
-          <span>{property.bedrooms} bed</span>
-          <span>{property.bathrooms} bath</span>
-          <span>{property.sizeSqm} sqm</span>
+          {isLand ? (
+            <>
+              <span>{property.landSizeSqm ? `${property.landSizeSqm} sqm` : "Land"}</span>
+              <span>{property.numberOfPlots ? `${property.numberOfPlots} plot${property.numberOfPlots === 1 ? "" : "s"}` : "Plots"}</span>
+              <span>{landSizes.length > 0 ? landSizes.slice(0, 2).join(", ") : "Flexible sizes"}</span>
+            </>
+          ) : (
+            <>
+              <span>{property.bedrooms} bed</span>
+              <span>{property.bathrooms} bath</span>
+              <span>{property.sizeSqm} sqm</span>
+            </>
+          )}
         </div>
         <div className="flex items-end justify-between">
           <div>
@@ -42,7 +64,7 @@ export function PropertyCard({ property }: { property: PropertySummary }) {
               Starting from
             </div>
             <div className="text-2xl font-semibold text-[var(--ink-950)]">
-              {formatCurrency(property.priceFrom)}
+              {formatCurrency(property.priceFrom, property.currency)}
             </div>
           </div>
           <Link

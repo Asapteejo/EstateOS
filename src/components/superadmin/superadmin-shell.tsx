@@ -11,6 +11,7 @@ const links = [
   ["Overview", "/superadmin"],
   ["Revenue", "/superadmin/revenue"],
   ["Companies", "/superadmin/companies"],
+  ["Wallets", "/superadmin/communication-wallets"],
   ["Activity", "/superadmin/activity"],
   ["Controls", "/superadmin/settings"],
 ] as const;

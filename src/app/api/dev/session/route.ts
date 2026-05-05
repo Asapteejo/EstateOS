@@ -9,6 +9,7 @@ import {
 } from "@/lib/auth/session";
 import { buildServerDomainConfig, resolveSafeRedirectUrl } from "@/lib/domains";
 import { env, featureFlags } from "@/lib/env";
+import { ensureDevSessionUser } from "@/lib/auth/dev-users";
 
 const ALLOWED_ROLES = new Set<DemoSessionRole>(["buyer", "admin", "superadmin"]);
 
@@ -37,12 +38,41 @@ export async function GET(request: Request) {
   }
 
   if (role && ALLOWED_ROLES.has(role as DemoSessionRole)) {
+    const devIdentity = await ensureDevSessionUser(role as DemoSessionRole);
+
     response.cookies.set(DEV_SESSION_COOKIE, role, {
       httpOnly: true,
       sameSite: "lax",
       secure: false,
       path: "/",
     });
+
+    if (devIdentity?.companyId) {
+      response.cookies.set(DEV_SESSION_COMPANY_ID_COOKIE, devIdentity.companyId, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: false,
+        path: "/",
+      });
+    }
+
+    if (devIdentity?.companySlug) {
+      response.cookies.set(DEV_SESSION_COMPANY_SLUG_COOKIE, devIdentity.companySlug, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: false,
+        path: "/",
+      });
+    }
+
+    if (devIdentity?.branchId) {
+      response.cookies.set(DEV_SESSION_BRANCH_ID_COOKIE, devIdentity.branchId, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: false,
+        path: "/",
+      });
+    }
   }
 
   return response;

@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import type { AppRole } from "@prisma/client";
 
 import { requireAdminSession } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
@@ -65,7 +66,7 @@ export async function POST(
     inviteeName: existing.fullName,
     companyName: company?.name ?? "EstateOS",
     inviterName,
-    role: existing.role,
+    role: existing.role as AppRole,
     acceptUrl,
     expiresAt,
   });

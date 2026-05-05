@@ -5,6 +5,11 @@ import { getAppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { fail, ok } from "@/lib/http";
+import {
+  buildDevBuyerProfileData,
+  buildDevBuyerUserUpdate,
+  selectDevBuyerUser,
+} from "@/modules/dev/buyer-profile";
 export const runtime = "nodejs";
 
 export async function POST() {
@@ -53,69 +58,66 @@ export async function POST() {
       },
     });
 
-    const createdUser = await tx.user.upsert({
+    const [userById, userByEmail] = await Promise.all([
+      tx.user.findUnique({
+        where: { id: tenant.userId! },
+        select: { id: true, email: true },
+      }),
+      tx.user.findUnique({
+        where: { email },
+        select: { id: true, email: true },
+      }),
+    ]);
+    const selectedUser = selectDevBuyerUser({ byId: userById, byEmail: userByEmail });
+    const userData = buildDevBuyerUserUpdate({
+      companyId: tenant.companyId!,
+      branchId: tenant.branchId,
+      firstName,
+      lastName,
+      email,
+    });
+    const profileData = buildDevBuyerProfileData();
+
+    const createdUser = selectedUser
+      ? await tx.user.update({
+          where: { id: selectedUser.id },
+          data: userData,
+          select: {
+            id: true,
+            email: true,
+          },
+        })
+      : await tx.user.create({
+          data: {
+            id: tenant.userId!,
+            clerkUserId:
+              session?.mode === "clerk" ? session.userId : `dev-${tenant.userId}`,
+            ...userData,
+          },
+          select: {
+            id: true,
+            email: true,
+          },
+        });
+
+    await tx.profile.upsert({
       where: {
-        id: tenant.userId!,
+        userId: createdUser.id,
       },
-      update: {
-        companyId: tenant.companyId,
-        branchId: tenant.branchId,
-        firstName,
-        lastName,
-        email,
-        phone: "+2348010001111",
-        isActive: true,
-        profile: {
-          upsert: {
-            update: {
-              nationality: "Nigerian",
-              addressLine1: "12 Admiralty Way",
-              city: "Lagos",
-              state: "Lagos",
-              country: "Nigeria",
-              occupation: "Real estate buyer",
-              nextOfKinName: "Chika Okafor",
-              nextOfKinPhone: "+2348010002222",
-              profileCompleted: true,
-            },
-            create: {
-              nationality: "Nigerian",
-              addressLine1: "12 Admiralty Way",
-              city: "Lagos",
-              state: "Lagos",
-              country: "Nigeria",
-              occupation: "Real estate buyer",
-              nextOfKinName: "Chika Okafor",
-              nextOfKinPhone: "+2348010002222",
-              profileCompleted: true,
-            },
-          },
-        },
-      },
+      update: profileData,
       create: {
-        id: tenant.userId!,
-        clerkUserId:
-          session?.mode === "clerk" ? session.userId : `dev-${tenant.userId}`,
+        userId: createdUser.id,
+        ...profileData,
+      },
+    });
+
+    await tx.user.update({
+      where: {
+        id: createdUser.id,
+      },
+      data: {
         companyId: tenant.companyId,
         branchId: tenant.branchId,
-        firstName,
-        lastName,
-        email,
-        phone: "+2348010001111",
-        isActive: true,
-        profile: {
-          create: {
-            nationality: "Nigerian",
-            addressLine1: "12 Admiralty Way",
-            city: "Lagos",
-            state: "Lagos",
-            country: "Nigeria",
-            occupation: "Real estate buyer",
-            nextOfKinName: "Chika Okafor",
-            nextOfKinPhone: "+2348010002222",
-            profileCompleted: true,
-          },
-        },
       },
       select: {
         id: true,

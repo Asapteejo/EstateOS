@@ -53,6 +53,12 @@ export default async function SuperadminCompaniesPage({
             current={range}
             extraParams={{ sort, health, filter, search: search || null }}
           />
+          <Link
+            href="/superadmin/companies/new"
+            className="rounded-full bg-[var(--brand-700)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--brand-800)]"
+          >
+            Onboard company
+          </Link>
           <div className="text-xs uppercase tracking-[0.18em] text-[var(--ink-400)]">
             Updated {dashboard.generatedAtLabel}
           </div>

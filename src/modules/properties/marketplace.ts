@@ -64,10 +64,20 @@ type MarketplacePropertyRow = {
   autoHiddenAt: Date | null;
   priceFrom: Decimalish;
   priceTo: Decimalish | null;
+  currency: string;
   bedrooms: number | null;
   bathrooms: number | null;
   parkingSpaces: number | null;
   sizeSqm: Decimalish | null;
+  landSizeSqm: Decimalish | null;
+  numberOfPlots: Decimalish | null;
+  landSaleUnit: string | null;
+  hectares: Decimalish | null;
+  acres: Decimalish | null;
+  plotOptions: unknown;
+  offerEndsAt: Date | null;
+  countdownLabel: string | null;
+  countdownEnabled: boolean;
   locationSummary: string | null;
   landmarks: unknown;
   company: {
@@ -96,6 +106,27 @@ type MarketplacePropertyRow = {
     status: string;
   }>;
 };
+
+function normalizePlotOptions(value: unknown): PropertySummary["plotOptions"] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is Record<string, unknown> => item != null && typeof item === "object")
+    .map((item) => ({
+      label: typeof item.label === "string" ? item.label : undefined,
+      unit: typeof item.unit === "string" ? item.unit as PropertySummary["plotOptions"][number]["unit"] : undefined,
+      sizeSqm: typeof item.sizeSqm === "number" ? item.sizeSqm : undefined,
+      numberOfPlots: typeof item.numberOfPlots === "number" ? item.numberOfPlots : undefined,
+      hectares: typeof item.hectares === "number" ? item.hectares : undefined,
+      acres: typeof item.acres === "number" ? item.acres : undefined,
+      price: typeof item.price === "number" ? item.price : undefined,
+      currency: typeof item.currency === "string" ? item.currency : undefined,
+      status: typeof item.status === "string" ? item.status : undefined,
+      note: typeof item.note === "string" ? item.note : undefined,
+    }));
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -177,10 +208,25 @@ function mapRowToMarketplaceSummary(row: MarketplacePropertyRow): MarketplacePro
     priceTo:
       maxUnitPrice ??
       (row.priceTo == null ? undefined : decimalToNumber(row.priceTo)),
+    currency: row.currency,
     bedrooms: unitBedrooms.length > 0 ? Math.max(...unitBedrooms) : row.bedrooms ?? 0,
     bathrooms: row.bathrooms ?? 0,
     parkingSpaces: row.parkingSpaces ?? 0,
     sizeSqm: row.sizeSqm == null ? 0 : decimalToNumber(row.sizeSqm),
+    landSizeSqm: row.landSizeSqm == null ? undefined : decimalToNumber(row.landSizeSqm),
+    numberOfPlots: row.numberOfPlots == null ? undefined : decimalToNumber(row.numberOfPlots),
+    landSaleUnit: row.landSaleUnit as PropertySummary["landSaleUnit"],
+    hectares: row.hectares == null ? undefined : decimalToNumber(row.hectares),
+    acres: row.acres == null ? undefined : decimalToNumber(row.acres),
+    plotOptions: normalizePlotOptions(row.plotOptions),
+    countdown:
+      row.countdownEnabled && row.offerEndsAt
+        ? {
+            enabled: true,
+            label: row.countdownLabel ?? "Offer ends in",
+            offerEndsAt: row.offerEndsAt.toISOString(),
+          }
+        : undefined,
     locationSummary:
       row.locationSummary ??
       `${row.location?.city ?? "Unknown"}, ${row.location?.state ?? "Unknown"}`,
@@ -261,10 +307,20 @@ export async function getMarketplaceProperties(
         autoHiddenAt: true,
         priceFrom: true,
         priceTo: true,
+        currency: true,
         bedrooms: true,
         bathrooms: true,
         parkingSpaces: true,
         sizeSqm: true,
+        landSizeSqm: true,
+        numberOfPlots: true,
+        landSaleUnit: true,
+        hectares: true,
+        acres: true,
+        plotOptions: true,
+        offerEndsAt: true,
+        countdownLabel: true,
+        countdownEnabled: true,
         locationSummary: true,
         landmarks: true,
         company: {
@@ -347,10 +403,20 @@ export async function getMarketplacePropertyDetail(
       autoHiddenAt: true,
       priceFrom: true,
       priceTo: true,
+      currency: true,
       bedrooms: true,
       bathrooms: true,
       parkingSpaces: true,
       sizeSqm: true,
+      landSizeSqm: true,
+      numberOfPlots: true,
+      landSaleUnit: true,
+      hectares: true,
+      acres: true,
+      plotOptions: true,
+      offerEndsAt: true,
+      countdownLabel: true,
+      countdownEnabled: true,
       locationSummary: true,
       landmarks: true,
       videoUrl: true,
@@ -467,6 +533,7 @@ export type AdminMarketplaceRow = {
   propertyType: string;
   locationSummary: string | null;
   priceFrom: number;
+  currency: string;
   isMarketplaceListed: boolean;
   isPubliclyVisible: boolean;
   verificationStatus: string;
@@ -487,6 +554,7 @@ export async function getAdminMarketplaceRows(companyId: string): Promise<AdminM
       propertyType: true,
       locationSummary: true,
       priceFrom: true,
+      currency: true,
       isMarketplaceListed: true,
       isPubliclyVisible: true,
       verificationStatus: true,
@@ -499,6 +567,7 @@ export async function getAdminMarketplaceRows(companyId: string): Promise<AdminM
     propertyType: string;
     locationSummary: string | null;
     priceFrom: Decimalish;
+    currency: string;
     isMarketplaceListed: boolean;
     isPubliclyVisible: boolean;
     verificationStatus: string;

@@ -9,10 +9,33 @@ export type PropertySummary = {
   featured: boolean;
   priceFrom: number;
   priceTo?: number;
+  currency: string;
   bedrooms: number;
   bathrooms: number;
   parkingSpaces: number;
   sizeSqm: number;
+  landSizeSqm?: number;
+  numberOfPlots?: number;
+  landSaleUnit?: "SQM" | "PLOT" | "HECTARE" | "ACRE" | "CUSTOM";
+  hectares?: number;
+  acres?: number;
+  plotOptions: Array<{
+    label?: string;
+    unit?: "SQM" | "PLOT" | "HECTARE" | "ACRE" | "CUSTOM";
+    sizeSqm?: number;
+    numberOfPlots?: number;
+    hectares?: number;
+    acres?: number;
+    price?: number;
+    currency?: string;
+    status?: string;
+    note?: string;
+  }>;
+  countdown?: {
+    enabled: boolean;
+    label: string;
+    offerEndsAt: string;
+  };
   locationSummary: string;
   city: string;
   state: string;

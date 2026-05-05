@@ -17,6 +17,7 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "seed:mock-company": "tsx scripts/seed-mock-company.ts",
     "db:backfill:risk-scores": "tsx scripts/backfill-risk-scores.ts",
     "check": "npm run test && npm run typecheck && npm run lint && npm run build"
   },

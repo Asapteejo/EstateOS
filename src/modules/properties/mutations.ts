@@ -395,8 +395,20 @@ function buildPropertyBaseData(
     bathrooms: input.bathrooms,
     parkingSpaces: input.parkingSpaces,
     sizeSqm: input.sizeSqm,
+    landSizeSqm: input.propertyType === "LAND" ? input.landSizeSqm : null,
+    numberOfPlots: input.propertyType === "LAND" ? input.numberOfPlots : null,
+    landSaleUnit: input.propertyType === "LAND" ? input.landSaleUnit ?? null : null,
+    hectares: input.propertyType === "LAND" ? input.hectares : null,
+    acres: input.propertyType === "LAND" ? input.acres : null,
+    plotOptions:
+      input.propertyType === "LAND" && input.plotOptions.length > 0
+        ? (input.plotOptions as Prisma.InputJsonValue)
+        : Prisma.JsonNull,
     brochureDocumentId: brochureDocumentId ?? null,
     videoUrl: input.videoUrl,
+    offerEndsAt: input.offerEndsAt ?? null,
+    countdownLabel: input.countdownLabel,
+    countdownEnabled: input.countdownEnabled,
     locationSummary:
       input.locationSummary ?? `${input.location.city}, ${input.location.state}`,
     landmarks: input.landmarks,
