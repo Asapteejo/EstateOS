@@ -36,9 +36,16 @@ export function buildSafeErrorLogContext(error: unknown) {
     };
   }
 
+  const errorWithMetadata = error as Error & {
+    code?: unknown;
+    digest?: unknown;
+  };
+
   return {
     errorName: error.name,
     errorMessage: redactConnectionCredentials(error.message),
     errorStack: error.stack ? redactConnectionCredentials(error.stack) : undefined,
+    prismaCode: typeof errorWithMetadata.code === "string" ? errorWithMetadata.code : undefined,
+    digest: typeof errorWithMetadata.digest === "string" ? errorWithMetadata.digest : undefined,
   };
 }

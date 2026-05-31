@@ -165,7 +165,7 @@ export async function getPublishedTenantBranding(context: TenantContext) {
   }
 }
 
-export async function getTenantPresentation(context: TenantContext) {
+async function loadTenantPresentation(context: TenantContext) {
   const fallbackName = context.companySlug
     ? context.companySlug.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
     : "Tenant Company";
@@ -213,6 +213,26 @@ export async function getTenantPresentation(context: TenantContext) {
     companyName: presentation.companyName,
     branding: presentation.branding,
   };
+}
+
+export async function getTenantPresentation(context: TenantContext) {
+  try {
+    return await loadTenantPresentation(context);
+  } catch (error) {
+    logError("Tenant presentation lookup failed; using default branding.", {
+      route: "authenticated-shell",
+      companyIdPresent: Boolean(context.companyId),
+      ...buildSafeErrorLogContext(error),
+    });
+    const presentation = resolveTenantBrandingPresentation({
+      companySlug: context.companySlug,
+      branding: defaultTenantBranding,
+    });
+    return {
+      companyName: presentation.companyName,
+      branding: presentation.branding,
+    };
+  }
 }
 
 export async function getPublicTenantPresentation(context: TenantContext) {

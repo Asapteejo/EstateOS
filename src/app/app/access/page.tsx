@@ -3,6 +3,30 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 
 function resolveCopy(status: string | undefined, reason: string | undefined) {
+  if (status === "superadmin-setup") {
+    return {
+      eyebrow: "Platform owner setup required",
+      title: "Your account is allowlisted but does not have the persisted platform role.",
+      body:
+        "Run the secure SUPER_ADMIN grant script for this signed-in account, then return to the platform dashboard.",
+      reason: "Access remains blocked until the database role assignment exists.",
+      actionHref: "/",
+      actionLabel: "Return to EstateOS",
+    };
+  }
+
+  if (status === "forbidden") {
+    return {
+      eyebrow: "Access denied",
+      title: "This account cannot access the platform owner dashboard.",
+      body:
+        "Superadmin access is private and requires both an allowlisted email address and a persisted platform role.",
+      reason: "Use the normal admin or buyer workspace for this account.",
+      actionHref: "/",
+      actionLabel: "Return to EstateOS",
+    };
+  }
+
   if (status === "suspended") {
     return {
       eyebrow: "Workspace suspended",
@@ -10,6 +34,8 @@ function resolveCopy(status: string | undefined, reason: string | undefined) {
       body:
         "EstateOS has blocked admin and buyer access for this company until the platform owner reactivates it.",
       reason,
+      actionHref: "/",
+      actionLabel: "Return to EstateOS",
     };
   }
 
@@ -19,6 +45,8 @@ function resolveCopy(status: string | undefined, reason: string | undefined) {
     body:
       "Admin and buyer actions are paused for this company right now. Contact the EstateOS platform owner if you need access restored.",
     reason,
+    actionHref: "/",
+    actionLabel: "Return to EstateOS",
   };
 }
 
@@ -65,10 +93,10 @@ export default async function AppAccessPage({
               </p>
               <div className="mt-5">
                 <Link
-                  href="/"
+                  href={copy.actionHref}
                   className="inline-flex items-center justify-center rounded-full bg-[var(--ink-950)] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[var(--ink-800)]"
                 >
-                  Return to EstateOS
+                  {copy.actionLabel}
                 </Link>
               </div>
             </div>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SuperadminShell } from "@/components/superadmin/superadmin-shell";
 import { Card } from "@/components/ui/card";
 import { requireSuperAdminSession } from "@/lib/auth/guards";
+import { buildSafeErrorLogContext, logError } from "@/lib/ops/logger";
 import { formatDate } from "@/lib/utils";
 import { listCompanyWalletSummaries } from "@/modules/communication/wallet";
 
@@ -12,7 +13,17 @@ function balanceClassName(balance: number) {
 
 export default async function SuperadminCommunicationWalletsPage() {
   await requireSuperAdminSession();
-  const wallets = await listCompanyWalletSummaries();
+  let wallets: Awaited<ReturnType<typeof listCompanyWalletSummaries>> = [];
+  try {
+    wallets = await listCompanyWalletSummaries();
+  } catch (error) {
+    logError("Superadmin wallet summaries query failed; using empty-state fallback.", {
+      route: "/superadmin/communication-wallets",
+      component: "SuperadminCommunicationWalletsPage",
+      queryName: "listCompanyWalletSummaries",
+      ...buildSafeErrorLogContext(error),
+    });
+  }
 
   return (
     <SuperadminShell
@@ -69,6 +80,13 @@ export default async function SuperadminCommunicationWalletsPage() {
                   </td>
                 </tr>
               ))}
+              {wallets.length === 0 ? (
+                <tr>
+                  <td className="px-6 py-6 text-sm text-[var(--ink-500)]" colSpan={5}>
+                    Wallet data is unavailable or no tenant communication wallets exist yet.
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>

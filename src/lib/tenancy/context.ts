@@ -4,9 +4,10 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getAppSession } from "@/lib/auth/session";
+import { resolveAuthenticatedSetupRedirect } from "@/lib/auth/access";
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
-import { buildSafeErrorLogContext, logError, logInfo } from "@/lib/ops/logger";
+import { buildSafeErrorLogContext, logError, logInfo, logWarn } from "@/lib/ops/logger";
 import {
   TENANT_HINT_COOKIE,
   buildAuthRedirect,
@@ -134,6 +135,15 @@ export async function resolveTenantContext(
       return await lookupCompany(input);
     } catch (error) {
       if (area !== "marketing") {
+        logError("Authenticated tenant company lookup failed.", {
+          route: `/${area}`,
+          area,
+          step: "tenant-company-lookup",
+          companyIdHintPresent: Boolean(input.companyId),
+          companySlugHintPresent: Boolean(input.companySlug),
+          hostHintPresent: Boolean(input.host),
+          ...buildSafeErrorLogContext(error),
+        });
         throw error;
       }
 
@@ -261,7 +271,7 @@ export async function resolveTenantContext(
     };
   }
 
-  return {
+  const context: TenantContext = {
     userId: session.userId,
     email: session.email || null,
     companyId: session.roles.includes("SUPER_ADMIN")
@@ -296,6 +306,16 @@ export async function resolveTenantContext(
             ? "session"
             : "session",
   };
+  logInfo("Resolved authenticated tenant context.", {
+    area,
+    step: "tenant-context-resolved",
+    userIdPresent: Boolean(context.userId),
+    emailPresent: Boolean(context.email),
+    rolesFound: context.roles,
+    companyIdResolved: Boolean(context.companyId),
+    resolutionSource: context.resolutionSource,
+  });
+  return context;
 }
 
 export async function requireTenantContext(
@@ -320,8 +340,28 @@ export async function requireTenantContext(
     );
   }
 
-  if (!context.isSuperAdmin && !context.companyId) {
-    throw new Error("Tenant context is required for non-super-admin users.");
+  const setupRedirect = resolveAuthenticatedSetupRedirect({
+    area,
+    roles: context.roles,
+    companyId: context.companyId,
+    email: context.email ?? "",
+  });
+  if (setupRedirect) {
+    logWarn("Authenticated tenant context requires account setup.", {
+      area,
+      step: "tenant-context-access-check",
+      userIdPresent: Boolean(context.userId),
+      emailPresent: Boolean(context.email),
+      rolesFound: context.roles,
+      companyIdResolved: Boolean(context.companyId),
+      redirectTo: setupRedirect,
+    });
+
+    if (options?.redirectOnMissingAuth === false) {
+      throw new Error("Authenticated account setup is required.");
+    }
+
+    redirect(setupRedirect);
   }
 
   if (

@@ -8,6 +8,7 @@ import { requireAdminSession, requirePortalSession } from "@/lib/auth/guards";
 import { getAppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
+import { buildSafeErrorLogContext, logError } from "@/lib/ops/logger";
 import { getTenantPresentation } from "@/modules/branding/service";
 import { resolveBuyerTenantContextForKyc } from "@/modules/kyc/buyer-user";
 import { cn } from "@/lib/utils";
@@ -77,17 +78,25 @@ export async function DashboardShell({
   const portalUserRows =
     area === "portal" && featureFlags.hasDatabase && profileTenant.userId && profileTenant.companyId
       ? await prisma.$queryRaw<Array<{
-          firstName: string | null;
-          lastName: string | null;
-          email: string;
-          profileImageUrl: string | null;
-        }>>`
-          SELECT "firstName", "lastName", "email", "profileImageUrl"
-          FROM "User"
-          WHERE "id" = ${profileTenant.userId}
-            AND "companyId" = ${profileTenant.companyId}
-          LIMIT 1
-        `
+            firstName: string | null;
+            lastName: string | null;
+            email: string;
+            profileImageUrl: string | null;
+          }>>`
+            SELECT "firstName", "lastName", "email", "profileImageUrl"
+            FROM "User"
+            WHERE "id" = ${profileTenant.userId}
+              AND "companyId" = ${profileTenant.companyId}
+            LIMIT 1
+          `.catch((error) => {
+            logError("Dashboard shell buyer identity lookup failed; using empty state.", {
+              route: `/${area}`,
+              component: "DashboardShell",
+              queryName: "portal-user",
+              ...buildSafeErrorLogContext(error),
+            });
+            return [];
+          })
       : [];
   const portalUser = portalUserRows[0] ?? null;
   const portalUserName =
@@ -103,6 +112,14 @@ export async function DashboardShell({
             userId: notificationUserId,
             readAt: null,
           },
+        }).catch((error) => {
+          logError("Dashboard shell notification count failed; using empty state.", {
+            route: `/${area}`,
+            component: "DashboardShell",
+            queryName: "unread-notification-count",
+            ...buildSafeErrorLogContext(error),
+          });
+          return 0;
         })
       : 0;
 

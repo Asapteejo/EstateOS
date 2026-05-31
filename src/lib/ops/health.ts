@@ -9,6 +9,9 @@ import { buildSafeErrorLogContext, logError } from "@/lib/ops/logger";
 import { parseSuperadminEmails } from "@/lib/auth/superadmin";
 
 export const EXPECTED_PRODUCTION_MIGRATIONS = [
+  "0030_communication_wallet_ledger",
+  "0031_communication_topups",
+  "0032_buyer_portal_kyc_review_metadata",
   "0033_buyer_testimonial_moderation",
   "0034_contract_generation_mvp",
   "0035_contract_template_version_locking",

@@ -8,9 +8,25 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { QuickInquiryForm } from "@/components/portal/quick-inquiry-form";
 import { getTenantPresentation } from "@/modules/branding/service";
+import { getAppSession } from "@/lib/auth/session";
+import { getBuyerProfileRecord } from "@/modules/kyc/service";
+import { shouldRedirectBuyerToProfileSetup } from "@/modules/portal/profile-access";
+import { redirect } from "next/navigation";
 
 export default async function PortalDashboardPage() {
   const tenant = await requirePortalSession();
+  const session = await getAppSession("portal");
+  const profile = tenant.roles.includes("BUYER")
+    ? await getBuyerProfileRecord(tenant, { email: session?.email })
+    : null;
+  if (
+    shouldRedirectBuyerToProfileSetup({
+      roles: tenant.roles,
+      profileExists: Boolean(profile),
+    })
+  ) {
+    redirect("/portal/profile?setup=1");
+  }
   const [summary, paymentExperience] = await Promise.all([
     getBuyerDashboardSummary(tenant),
     getBuyerPaymentExperience(tenant),

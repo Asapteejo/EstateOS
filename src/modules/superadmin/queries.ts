@@ -4,6 +4,7 @@ import { formatDistanceToNowStrict, startOfDay, startOfMonth, subDays } from "da
 import { getPlatformAnalyticsReport, type AnalyticsRange } from "@/modules/analytics/aggregates";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
+import { buildSafeErrorLogContext, logError } from "@/lib/ops/logger";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 type Decimalish = { toNumber?: () => number } | number | null | undefined;
@@ -150,6 +151,28 @@ type ActivityFeedItem = {
   amountLabel: string | null;
   accent: "positive" | "alert" | "neutral";
 };
+
+async function runSuperadminOverviewQuery<T>(
+  queryName: string,
+  fallback: NoInfer<T>,
+  query: () => Promise<T>,
+  context?: {
+    route?: string;
+    component?: string;
+  },
+) {
+  try {
+    return await query();
+  } catch (error) {
+    logError("Superadmin overview query failed; using empty-state fallback.", {
+      route: context?.route ?? "/superadmin",
+      component: context?.component ?? "SuperadminDashboardPage",
+      queryName,
+      ...buildSafeErrorLogContext(error),
+    });
+    return fallback;
+  }
+}
 
 function decimalToNumber(value: Decimalish) {
   if (typeof value === "number") {
@@ -534,14 +557,30 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
         }
       : undefined;
   const [platformReport, snapshotMetrics] = await Promise.all([
-    getPlatformAnalyticsReport(toAnalyticsRange(range)),
-    loadCompanySnapshotMetrics(range, window.from),
+    runSuperadminOverviewQuery("platformAnalyticsReport", {
+      range: toAnalyticsRange(range),
+      generatedAt: new Date(),
+      summary: {
+        totalPlatformInflow: 0,
+        successfulPayments: 0,
+        totalDeals: 0,
+        overdueAmount: 0,
+        subscriptionRevenue: 0,
+        commissionRevenue: 0,
+        totalPlatformRevenue: 0,
+        totalCompanies: 0,
+        activeCompanies: 0,
+      },
+      trendSeries: [],
+    }, () => getPlatformAnalyticsReport(toAnalyticsRange(range))),
+    runSuperadminOverviewQuery("companySnapshotMetrics", new Map(), () =>
+      loadCompanySnapshotMetrics(range, window.from)),
   ]);
 
   const useSnapshotMetrics = snapshotMetrics.size > 0;
 
   const [companies, latestActivities, latestPayments, latestRequests, latestTransactions, plans] = await Promise.all([
-    prisma.company.findMany({
+    runSuperadminOverviewQuery("companies", [], () => prisma.company.findMany({
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -625,25 +664,25 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
           },
         },
       },
-    }),
-    prisma.activityEvent.groupBy({
+    })),
+    runSuperadminOverviewQuery("latestActivities", [], () => prisma.activityEvent.groupBy({
       by: ["companyId"],
       _max: { createdAt: true },
-    }),
-    prisma.payment.groupBy({
+    })),
+    runSuperadminOverviewQuery("latestPayments", [], () => prisma.payment.groupBy({
       by: ["companyId"],
       where: { status: "SUCCESS" },
       _max: { paidAt: true, createdAt: true },
-    }),
-    prisma.paymentRequest.groupBy({
+    })),
+    runSuperadminOverviewQuery("latestPaymentRequests", [], () => prisma.paymentRequest.groupBy({
       by: ["companyId"],
       _max: { sentAt: true, createdAt: true },
-    }),
-    prisma.transaction.groupBy({
+    })),
+    runSuperadminOverviewQuery("latestTransactions", [], () => prisma.transaction.groupBy({
       by: ["companyId"],
       _max: { updatedAt: true, createdAt: true },
-    }),
-    prisma.plan.findMany({
+    })),
+    runSuperadminOverviewQuery("plans", [], () => prisma.plan.findMany({
       orderBy: [{ code: "asc" }, { interval: "asc" }],
       include: {
         _count: {
@@ -659,13 +698,13 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
           },
         },
       },
-    }),
+    })),
   ]);
 
   const [paymentAgg, commissionAgg, subscriptionAgg, overdueAgg] = useSnapshotMetrics
     ? [[], [], [], []]
     : await Promise.all([
-        prisma.payment.groupBy({
+        runSuperadminOverviewQuery("paymentAggregates", [], () => prisma.payment.groupBy({
           by: ["companyId"],
           where: {
             status: "SUCCESS",
@@ -673,29 +712,29 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
           },
           _sum: { amount: true },
           _count: { _all: true },
-        }),
-        prisma.commissionRecord.groupBy({
+        })),
+        runSuperadminOverviewQuery("commissionAggregates", [], () => prisma.commissionRecord.groupBy({
           by: ["companyId"],
           where: {
             ...(timeWhere ? { createdAt: timeWhere } : {}),
           },
           _sum: { platformCommission: true },
-        }),
-        prisma.billingEvent.groupBy({
+        })),
+        runSuperadminOverviewQuery("subscriptionAggregates", [], () => prisma.billingEvent.groupBy({
           by: ["companyId"],
           where: {
             type: "SUBSCRIPTION_PAYMENT_RECORDED",
             ...(timeWhere ? { createdAt: timeWhere } : {}),
           },
           _sum: { amount: true },
-        }),
-        prisma.transaction.groupBy({
+        })),
+        runSuperadminOverviewQuery("overdueAggregates", [], () => prisma.transaction.groupBy({
           by: ["companyId"],
           where: {
             paymentStatus: "OVERDUE",
           },
           _sum: { outstandingBalance: true },
-        }),
+        })),
       ]);
 
   const [
@@ -710,33 +749,33 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
     recentJobFailures,
   ] = await Promise.all([
     previousWhere
-      ? prisma.payment.aggregate({
+      ? runSuperadminOverviewQuery("previousPaymentAggregate", { _sum: { amount: null }, _count: { _all: 0 } }, () => prisma.payment.aggregate({
           where: {
             status: "SUCCESS",
             paidAt: previousWhere,
           },
           _sum: { amount: true },
           _count: { _all: true },
-        })
+        }))
       : Promise.resolve({ _sum: { amount: null }, _count: { _all: 0 } }),
     previousWhere
-      ? prisma.commissionRecord.aggregate({
+      ? runSuperadminOverviewQuery("previousCommissionAggregate", { _sum: { platformCommission: null } }, () => prisma.commissionRecord.aggregate({
           where: {
             createdAt: previousWhere,
           },
           _sum: { platformCommission: true },
-        })
+        }))
       : Promise.resolve({ _sum: { platformCommission: null } }),
     previousWhere
-      ? prisma.billingEvent.aggregate({
+      ? runSuperadminOverviewQuery("previousSubscriptionAggregate", { _sum: { amount: null } }, () => prisma.billingEvent.aggregate({
           where: {
             type: "SUBSCRIPTION_PAYMENT_RECORDED",
             createdAt: previousWhere,
           },
           _sum: { amount: true },
-        })
+        }))
       : Promise.resolve({ _sum: { amount: null } }),
-    prisma.payment.findMany({
+    runSuperadminOverviewQuery("recentSuccessfulPayments", [], () => prisma.payment.findMany({
       where: { status: "SUCCESS", paidAt: { not: null } },
       orderBy: { paidAt: "desc" },
       take: 18,
@@ -750,8 +789,8 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
         createdAt: true,
         company: { select: { name: true } },
       },
-    }),
-    prisma.paymentRequest.findMany({
+    })),
+    runSuperadminOverviewQuery("recentPaymentRequests", [], () => prisma.paymentRequest.findMany({
       where: {
         status: {
           in: ["SENT", "AWAITING_PAYMENT", "PAID"] satisfies PaymentRequestStatus[],
@@ -770,8 +809,8 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
         createdAt: true,
         company: { select: { name: true } },
       },
-    }),
-    prisma.billingEvent.findMany({
+    })),
+    runSuperadminOverviewQuery("recentBillingEvents", [], () => prisma.billingEvent.findMany({
       where: {
         type: "SUBSCRIPTION_PAYMENT_RECORDED",
       },
@@ -787,8 +826,8 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
         createdAt: true,
         company: { select: { name: true } },
       },
-    }),
-    prisma.activityEvent.findMany({
+    })),
+    runSuperadminOverviewQuery("recentCompanyActivity", [], () => prisma.activityEvent.findMany({
       where: {
         eventName: {
           in: [
@@ -810,8 +849,8 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
         createdAt: true,
         company: { select: { name: true } },
       },
-    }),
-    prisma.webhookEvent.findMany({
+    })),
+    runSuperadminOverviewQuery("recentWebhookIssues", [], () => prisma.webhookEvent.findMany({
       where: {
         signatureVerified: false,
       },
@@ -825,8 +864,8 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
         createdAt: true,
         company: { select: { name: true } },
       },
-    }),
-    prisma.backgroundJobLog.findMany({
+    })),
+    runSuperadminOverviewQuery("recentJobFailures", [], () => prisma.backgroundJobLog.findMany({
       where: {
         status: {
           notIn: ["SUCCESS", "COMPLETED"],
@@ -842,7 +881,7 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
         createdAt: true,
         company: { select: { name: true } },
       },
-    }),
+    })),
   ]);
 
   const paymentMap = useSnapshotMetrics
@@ -1291,7 +1330,7 @@ export async function getSuperadminCompanyOverview(companyId: string, range: Sup
 
   const [transactions, paymentRequests, payments, billingEvents, activityEvents, providerAccounts, subscriptions] =
     await Promise.all([
-      prisma.transaction.findMany({
+      runSuperadminOverviewQuery("companyDetail.transactions", [], () => prisma.transaction.findMany({
         where: { companyId },
         orderBy: { updatedAt: "desc" },
         take: 12,
@@ -1308,8 +1347,8 @@ export async function getSuperadminCompanyOverview(companyId: string, range: Sup
           user: { select: { firstName: true, lastName: true, email: true } },
           updatedAt: true,
         },
-      }),
-      prisma.paymentRequest.findMany({
+      }), { route: `/superadmin/companies/${companyId}`, component: "SuperadminCompanyOverviewPage" }),
+      runSuperadminOverviewQuery("companyDetail.paymentRequests", [], () => prisma.paymentRequest.findMany({
         where: { companyId },
         orderBy: { createdAt: "desc" },
         take: 12,
@@ -1323,8 +1362,8 @@ export async function getSuperadminCompanyOverview(companyId: string, range: Sup
           sentAt: true,
           createdAt: true,
         },
-      }),
-      prisma.payment.findMany({
+      }), { route: `/superadmin/companies/${companyId}`, component: "SuperadminCompanyOverviewPage" }),
+      runSuperadminOverviewQuery("companyDetail.payments", [], () => prisma.payment.findMany({
         where: { companyId, status: "SUCCESS" },
         orderBy: { paidAt: "desc" },
         take: 12,
@@ -1336,8 +1375,8 @@ export async function getSuperadminCompanyOverview(companyId: string, range: Sup
           paidAt: true,
           method: true,
         },
-      }),
-      prisma.billingEvent.findMany({
+      }), { route: `/superadmin/companies/${companyId}`, component: "SuperadminCompanyOverviewPage" }),
+      runSuperadminOverviewQuery("companyDetail.billingEvents", [], () => prisma.billingEvent.findMany({
         where: { companyId },
         orderBy: { createdAt: "desc" },
         take: 10,
@@ -1349,8 +1388,8 @@ export async function getSuperadminCompanyOverview(companyId: string, range: Sup
           currency: true,
           createdAt: true,
         },
-      }),
-      prisma.activityEvent.findMany({
+      }), { route: `/superadmin/companies/${companyId}`, component: "SuperadminCompanyOverviewPage" }),
+      runSuperadminOverviewQuery("companyDetail.activityEvents", [], () => prisma.activityEvent.findMany({
         where: { companyId },
         orderBy: { createdAt: "desc" },
         take: 10,
@@ -1360,8 +1399,8 @@ export async function getSuperadminCompanyOverview(companyId: string, range: Sup
           summary: true,
           createdAt: true,
         },
-      }),
-      prisma.companyPaymentProviderAccount.findMany({
+      }), { route: `/superadmin/companies/${companyId}`, component: "SuperadminCompanyOverviewPage" }),
+      runSuperadminOverviewQuery("companyDetail.providerAccounts", [], () => prisma.companyPaymentProviderAccount.findMany({
         where: { companyId },
         orderBy: { updatedAt: "desc" },
         take: 5,
@@ -1375,8 +1414,8 @@ export async function getSuperadminCompanyOverview(companyId: string, range: Sup
           isDefaultPayout: true,
           updatedAt: true,
         },
-      }),
-      prisma.companySubscription.findMany({
+      }), { route: `/superadmin/companies/${companyId}`, component: "SuperadminCompanyOverviewPage" }),
+      runSuperadminOverviewQuery("companyDetail.subscriptions", [], () => prisma.companySubscription.findMany({
         where: { companyId },
         orderBy: { startsAt: "desc" },
         take: 5,
@@ -1392,7 +1431,7 @@ export async function getSuperadminCompanyOverview(companyId: string, range: Sup
             },
           },
         },
-      }),
+      }), { route: `/superadmin/companies/${companyId}`, component: "SuperadminCompanyOverviewPage" }),
     ]);
 
   const paidDeals = transactions.filter((item) => item.paymentStatus === "COMPLETED").length;

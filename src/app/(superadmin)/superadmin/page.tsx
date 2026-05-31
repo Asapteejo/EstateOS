@@ -89,7 +89,7 @@ export default async function SuperadminDashboardPage({
             </p>
           </div>
           <div className="divide-y divide-[var(--line)]">
-            {dashboard.topRevenueCompanies.map((company, index) => (
+            {dashboard.topRevenueCompanies.length ? dashboard.topRevenueCompanies.map((company, index) => (
               <div key={company.companyId} className="grid gap-3 px-6 py-4 lg:grid-cols-[auto_1fr_auto_auto] lg:items-center">
                 <div className="text-sm font-semibold text-[var(--ink-400)]">#{index + 1}</div>
                 <div>
@@ -109,7 +109,11 @@ export default async function SuperadminDashboardPage({
                   <div className="mt-1 text-[var(--ink-500)]">Platform inflow</div>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="px-6 py-10 text-sm text-[var(--ink-500)]">
+                Revenue data is unavailable or no companies have recorded platform revenue yet.
+              </div>
+            )}
           </div>
         </Card>
 

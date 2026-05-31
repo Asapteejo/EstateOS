@@ -1,11 +1,14 @@
 import type { AppRole } from "@prisma/client";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
-import { logWarn } from "@/lib/ops/logger";
+import { syncAuthenticatedClerkUser } from "@/lib/auth/clerk-user-sync";
 import { sanitizeSessionRoles } from "@/lib/auth/superadmin";
+import { buildSafeErrorLogContext, logError, logInfo, logWarn } from "@/lib/ops/logger";
+
+export type AppArea = "marketing" | "portal" | "admin" | "superadmin";
 
 export type AppSession = {
   userId: string;
@@ -152,7 +155,7 @@ export function resolveDemoCompanyContextAfterDbError({
 }
 
 export function getDefaultDemoSessionRole(
-  area: "marketing" | "portal" | "admin" | "superadmin",
+  area: AppArea,
 ): DemoSessionRole | null {
   if (area === "superadmin") {
     return "superadmin";
@@ -170,7 +173,7 @@ export function getDefaultDemoSessionRole(
 }
 
 export async function resolveDemoSessionRole(
-  area: "marketing" | "portal" | "admin" | "superadmin",
+  area: AppArea,
 ): Promise<DemoSessionRole | null> {
   const defaultRole = getDefaultDemoSessionRole(area);
 
@@ -317,7 +320,7 @@ export async function getPreferredTenantSiteCompanySlug() {
 }
 
 export async function getAppSession(
-  area: "marketing" | "portal" | "admin" | "superadmin" = "marketing",
+  area: AppArea = "marketing",
 ): Promise<AppSession | null> {
   if (!featureFlags.hasClerk) {
     const role = await resolveDemoSessionRole(area);
@@ -333,7 +336,8 @@ export async function getAppSession(
   }
 
   if (featureFlags.hasDatabase) {
-    const user = await prisma.user.findUnique({
+    const findPersistedUser = () =>
+      prisma.user.findUnique({
       where: {
         clerkUserId: session.userId,
       },
@@ -359,7 +363,73 @@ export async function getAppSession(
           },
         },
       },
-    });
+      });
+
+    const findPersistedUserWithLogging = async () => {
+      try {
+        return await findPersistedUser();
+      } catch (error) {
+        logError("Authenticated application user lookup failed.", {
+          area,
+          step: "database-user-lookup",
+          clerkUserIdPresent: true,
+          ...buildSafeErrorLogContext(error),
+        });
+        throw error;
+      }
+    };
+
+    let user = await findPersistedUserWithLogging();
+    if (!user) {
+      logWarn("Authenticated Clerk identity is missing a persisted user row.", {
+        area,
+        step: "database-user-lookup",
+        clerkUserIdPresent: true,
+        dbUserFound: false,
+      });
+
+      try {
+        const clerkUser = await currentUser();
+        const primaryEmail =
+          clerkUser?.emailAddresses.find(
+            (address) => address.id === clerkUser.primaryEmailAddressId,
+          ) ?? clerkUser?.emailAddresses[0];
+        const primaryPhone =
+          clerkUser?.phoneNumbers.find(
+            (phone) => phone.id === clerkUser.primaryPhoneNumberId,
+          ) ?? clerkUser?.phoneNumbers[0];
+
+        if (clerkUser?.id === session.userId && primaryEmail?.emailAddress) {
+          const syncResult = await syncAuthenticatedClerkUser({
+            clerkUserId: session.userId,
+            email: primaryEmail.emailAddress,
+            firstName: clerkUser.firstName,
+            lastName: clerkUser.lastName,
+            phone: primaryPhone?.phoneNumber,
+          });
+          logInfo("Synchronized authenticated Clerk identity on first login.", {
+            area,
+            step: "first-login-user-sync",
+            outcome: syncResult.outcome,
+          });
+          user = await findPersistedUserWithLogging();
+        } else {
+          logWarn("Skipped first-login user sync because Clerk identity details are incomplete.", {
+            area,
+            step: "first-login-user-sync",
+            clerkUserIdPresent: Boolean(clerkUser?.id),
+            clerkEmailPresent: Boolean(primaryEmail?.emailAddress),
+          });
+        }
+      } catch (error) {
+        logError("First-login Clerk user sync failed.", {
+          area,
+          step: "first-login-user-sync",
+          ...buildSafeErrorLogContext(error),
+        });
+        user = await findPersistedUserWithLogging();
+      }
+    }
 
     if (user) {
       const roles = sanitizeSessionRoles({
@@ -368,6 +438,15 @@ export async function getAppSession(
         isProduction: featureFlags.isProduction,
         superadminEmails: env.SUPERADMIN_EMAILS,
         source: "database",
+      });
+      logInfo("Resolved authenticated application session.", {
+        area,
+        step: "session-resolved",
+        clerkUserIdPresent: true,
+        clerkEmailPresent: Boolean(user.email),
+        dbUserFound: true,
+        rolesFound: roles,
+        companyIdResolved: Boolean(user.companyId),
       });
       return {
         userId: session.userId,
@@ -383,31 +462,24 @@ export async function getAppSession(
     }
   }
 
-  const metadata =
-    (session.sessionClaims?.metadata as
-      | {
-          roles?: AppRole[];
-          companyId?: string;
-          companySlug?: string;
-          branchId?: string;
-        }
-      | undefined) ?? {};
-
+  logWarn("Authenticated Clerk identity could not be resolved to a persisted application user.", {
+    area,
+    step: "session-fallback",
+    clerkUserIdPresent: true,
+    clerkEmailPresent: Boolean(session.sessionClaims?.email),
+    dbUserFound: false,
+    rolesFound: [],
+    companyIdResolved: false,
+  });
   return {
     userId: session.userId,
     email: (session.sessionClaims?.email as string | undefined) ?? "",
     firstName: (session.sessionClaims?.first_name as string | undefined) ?? "",
     lastName: (session.sessionClaims?.last_name as string | undefined) ?? "",
-    roles: sanitizeSessionRoles({
-      roles: metadata.roles ?? ["BUYER"],
-      email: (session.sessionClaims?.email as string | undefined) ?? "",
-      isProduction: featureFlags.isProduction,
-      superadminEmails: env.SUPERADMIN_EMAILS,
-      source: "claims",
-    }),
-    companyId: metadata.companyId ?? null,
-    companySlug: metadata.companySlug ?? null,
-    branchId: metadata.branchId ?? null,
+    roles: [],
+    companyId: null,
+    companySlug: null,
+    branchId: null,
     mode: "clerk",
   };
 }

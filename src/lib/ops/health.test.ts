@@ -47,6 +47,9 @@ test("database readiness metadata stays sanitized", () => {
 test("migration readiness reports missing production contract migrations", () => {
   assert.deepEqual(
     getMissingExpectedMigrations([
+      "0030_communication_wallet_ledger",
+      "0031_communication_topups",
+      "0032_buyer_portal_kyc_review_metadata",
       "0033_buyer_testimonial_moderation",
       "0034_contract_generation_mvp",
     ]),
@@ -54,6 +57,9 @@ test("migration readiness reports missing production contract migrations", () =>
   );
   assert.deepEqual(
     getMissingExpectedMigrations([
+      "0030_communication_wallet_ledger",
+      "0031_communication_topups",
+      "0032_buyer_portal_kyc_review_metadata",
       "0033_buyer_testimonial_moderation",
       "0034_contract_generation_mvp",
       "0035_contract_template_version_locking",

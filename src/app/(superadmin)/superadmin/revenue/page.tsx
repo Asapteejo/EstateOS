@@ -6,7 +6,6 @@ import { SuperadminShell } from "@/components/superadmin/superadmin-shell";
 import { Card } from "@/components/ui/card";
 import { requireSuperAdminSession } from "@/lib/auth/guards";
 import { formatCurrency } from "@/lib/utils";
-import { getPlatformAnalyticsReport } from "@/modules/analytics/aggregates";
 import { getSuperadminRevenueData, parseSuperadminRange } from "@/modules/superadmin/queries";
 
 export default async function SuperadminRevenuePage({
@@ -18,10 +17,7 @@ export default async function SuperadminRevenuePage({
 
   const resolvedSearchParams = ((await searchParams) ?? {}) as Record<string, string | undefined>;
   const range = parseSuperadminRange(resolvedSearchParams.range);
-  const [revenue, platformAnalytics] = await Promise.all([
-    getSuperadminRevenueData(range),
-    getPlatformAnalyticsReport(range === "today" ? "7d" : range === "7d" ? "7d" : range === "30d" ? "30d" : "all"),
-  ]);
+  const revenue = await getSuperadminRevenueData(range);
 
   return (
     <SuperadminShell
@@ -82,13 +78,13 @@ export default async function SuperadminRevenuePage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--line)]">
-                {platformAnalytics.trendSeries.map((item) => (
+                {revenue.trendSeries.map((item) => (
                   <tr key={item.label}>
                     <td className="px-6 py-4 font-medium text-[var(--ink-950)]">{item.label}</td>
                     <td className="px-6 py-4 text-[var(--ink-700)]">{formatCurrency(item.inflow)}</td>
                     <td className="px-6 py-4 text-[var(--ink-700)]">{formatCurrency(item.platformRevenue)}</td>
-                    <td className="px-6 py-4 text-[var(--ink-700)]">{item.newCompanies}</td>
-                    <td className="px-6 py-4 text-[var(--ink-700)]">{formatCurrency(item.overdueAmount)}</td>
+                    <td className="px-6 py-4 text-[var(--ink-700)]">{item.signups}</td>
+                    <td className="px-6 py-4 text-[var(--ink-700)]">{formatCurrency(item.overdueExposure)}</td>
                   </tr>
                 ))}
               </tbody>

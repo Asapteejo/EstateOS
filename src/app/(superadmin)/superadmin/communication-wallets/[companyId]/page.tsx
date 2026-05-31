@@ -6,8 +6,9 @@ import { Card } from "@/components/ui/card";
 import { requireSuperAdminSession } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
+import { buildSafeErrorLogContext, logError } from "@/lib/ops/logger";
 import { formatDate } from "@/lib/utils";
-import { getCompanyWalletOverview } from "@/modules/communication/wallet";
+import { buildDefaultWalletSnapshot, getCompanyWalletOverview } from "@/modules/communication/wallet";
 import { adjustCommunicationWalletAction } from "@/app/(superadmin)/superadmin/communication-wallets/actions";
 
 function balanceClassName(balance: number) {
@@ -39,7 +40,27 @@ export default async function SuperadminCompanyWalletPage({
     notFound();
   }
 
-  const overview = await getCompanyWalletOverview(companyId, { take: 50 });
+  let overview: Awaited<ReturnType<typeof getCompanyWalletOverview>>;
+  try {
+    overview = await getCompanyWalletOverview(companyId, { take: 50 });
+  } catch (error) {
+    logError("Superadmin company wallet query failed; using empty-state fallback.", {
+      route: `/superadmin/communication-wallets/${companyId}`,
+      component: "SuperadminCompanyWalletPage",
+      queryName: "getCompanyWalletOverview",
+      ...buildSafeErrorLogContext(error),
+    });
+    overview = {
+      wallet: {
+        id: `unavailable-wallet-${companyId}`,
+        ...buildDefaultWalletSnapshot(companyId),
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+      },
+      ledger: [],
+      totalUsage: 0,
+    };
+  }
   const wallet = overview.wallet;
 
   return (

@@ -1,6 +1,7 @@
 import { Webhook } from "svix";
 
 import { ok, fail } from "@/lib/http";
+import { syncAuthenticatedClerkUser } from "@/lib/auth/clerk-user-sync";
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
 import { captureServerException } from "@/lib/integrations/posthog";
@@ -88,22 +89,16 @@ export async function POST(request: Request) {
         : null;
 
     try {
-      await prisma.user.upsert({
+      await syncAuthenticatedClerkUser({
+        clerkUserId: event.data.id,
+        email: primaryEmail,
+        firstName: event.data.first_name,
+        lastName: event.data.last_name,
+        phone: event.data.phone_numbers?.[0]?.phone_number,
+      });
+      await prisma.user.update({
         where: { clerkUserId: event.data.id },
-        create: {
-          clerkUserId: event.data.id,
-          email: primaryEmail,
-          firstName: event.data.first_name ?? "",
-          lastName: event.data.last_name ?? "",
-          phone: event.data.phone_numbers?.[0]?.phone_number,
-          companyId: companyId ?? null,
-          branchId,
-        },
-        update: {
-          email: primaryEmail,
-          firstName: event.data.first_name ?? "",
-          lastName: event.data.last_name ?? "",
-          phone: event.data.phone_numbers?.[0]?.phone_number,
+        data: {
           companyId: companyId ?? null,
           branchId,
         },
