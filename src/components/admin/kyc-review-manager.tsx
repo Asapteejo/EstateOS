@@ -14,7 +14,12 @@ type KycReviewItem = {
   buyer: string;
   status: string;
   notes: string | null;
+  rejectionReason: string | null;
+  requiredActions: string | null;
+  reviewedAt: string | null;
   documentType: string;
+  identityDocumentType: string | null;
+  country: string | null;
   fileName: string;
   updatedAt: string;
   downloadUrl: string;
@@ -24,6 +29,12 @@ export function KycReviewManager({ items }: { items: KycReviewItem[] }) {
   const router = useRouter();
   const [draftNotes, setDraftNotes] = useState<Record<string, string>>(
     Object.fromEntries(items.map((item) => [item.id, item.notes ?? ""])),
+  );
+  const [draftRejectionReasons, setDraftRejectionReasons] = useState<Record<string, string>>(
+    Object.fromEntries(items.map((item) => [item.id, item.rejectionReason ?? ""])),
+  );
+  const [draftRequiredActions, setDraftRequiredActions] = useState<Record<string, string>>(
+    Object.fromEntries(items.map((item) => [item.id, item.requiredActions ?? ""])),
   );
   const [pending, setPending] = useState<string | null>(null);
 
@@ -37,6 +48,8 @@ export function KycReviewManager({ items }: { items: KycReviewItem[] }) {
       body: JSON.stringify({
         status,
         notes: draftNotes[submissionId] || undefined,
+        rejectionReason: draftRejectionReasons[submissionId] || undefined,
+        requiredActions: draftRequiredActions[submissionId] || undefined,
       }),
     });
     setPending(null);
@@ -62,37 +75,71 @@ export function KycReviewManager({ items }: { items: KycReviewItem[] }) {
             <div key={item.id} className="grid gap-4 px-6 py-5 xl:grid-cols-[1fr_0.9fr_1.2fr_auto]">
               <div>
                 <div className="font-semibold text-[var(--ink-950)]">{item.fileName}</div>
-                <div className="mt-1 text-sm text-[var(--ink-500)]">{item.documentType} • {item.buyer}</div>
+                <div className="mt-1 text-sm text-[var(--ink-500)]">
+                  {item.identityDocumentType ?? item.documentType} - {item.country ?? "Unknown country"} - {item.buyer}
+                </div>
                 <div className="mt-3">
                   <Badge>{item.status.toLowerCase().replaceAll("_", " ")}</Badge>
                 </div>
+                {item.reviewedAt ? (
+                  <div className="mt-2 text-xs text-[var(--ink-500)]">
+                    Reviewed {new Date(item.reviewedAt).toLocaleString()}
+                  </div>
+                ) : null}
               </div>
               <div className="text-sm text-[var(--ink-700)]">
                 {new Date(item.updatedAt).toLocaleString()}
               </div>
-              <Textarea
-                value={draftNotes[item.id] ?? ""}
-                onChange={(event) =>
-                  setDraftNotes((current) => ({
-                    ...current,
-                    [item.id]: event.target.value,
-                  }))
-                }
-                placeholder="Reviewer note"
-                className="min-h-24"
-              />
+              <div className="space-y-3">
+                <Textarea
+                  value={draftNotes[item.id] ?? ""}
+                  onChange={(event) =>
+                    setDraftNotes((current) => ({
+                      ...current,
+                      [item.id]: event.target.value,
+                    }))
+                  }
+                  placeholder="Reviewer note"
+                  className="min-h-20"
+                />
+                <Textarea
+                  value={draftRejectionReasons[item.id] ?? ""}
+                  onChange={(event) =>
+                    setDraftRejectionReasons((current) => ({
+                      ...current,
+                      [item.id]: event.target.value,
+                    }))
+                  }
+                  placeholder="Rejection reason, if unclear or invalid"
+                  className="min-h-20"
+                />
+                <Textarea
+                  value={draftRequiredActions[item.id] ?? ""}
+                  onChange={(event) =>
+                    setDraftRequiredActions((current) => ({
+                      ...current,
+                      [item.id]: event.target.value,
+                    }))
+                  }
+                  placeholder="Required buyer actions for resubmission"
+                  className="min-h-20"
+                />
+              </div>
               <div className="flex flex-col items-stretch gap-2">
-                <a href={item.downloadUrl}>
-                  <Button variant="outline" size="sm" className="w-full">Open doc</Button>
+                <a href={`${item.downloadUrl}?disposition=inline`} target="_blank" rel="noreferrer">
+                  <Button variant="outline" size="sm" className="w-full">View inline</Button>
+                </a>
+                <a href={`${item.downloadUrl}?disposition=attachment`}>
+                  <Button variant="outline" size="sm" className="w-full">Download</Button>
                 </a>
                 <Button size="sm" variant="outline" disabled={pending === item.id} onClick={() => updateStatus(item.id, "UNDER_REVIEW")}>
                   Under review
                 </Button>
                 <Button size="sm" disabled={pending === item.id} onClick={() => updateStatus(item.id, "APPROVED")}>
-                  Approve
+                  Accept document
                 </Button>
                 <Button size="sm" variant="outline" disabled={pending === item.id} onClick={() => updateStatus(item.id, "CHANGES_REQUESTED")}>
-                  Request changes
+                  Request clearer upload
                 </Button>
                 <Button size="sm" variant="outline" disabled={pending === item.id} onClick={() => updateStatus(item.id, "REJECTED")}>
                   Reject

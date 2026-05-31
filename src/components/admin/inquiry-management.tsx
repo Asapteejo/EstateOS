@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 
 import { AdminAttentionBadge, AdminBulkActionBar, AdminEmptyState, AdminField, AdminFormSection, AdminLifecycleSteps, AdminQuickActions, AdminStateBanner } from "@/components/admin/admin-ui";
@@ -367,6 +368,12 @@ export function InquiryManagement({
                   Current owner: {inquiry.assignedStaffName}
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Link
+                    href={`/admin/inquiries/${inquiry.id}`}
+                    className="admin-interactive admin-focus inline-flex h-11 items-center justify-center rounded-full border border-[var(--line)] px-5 text-sm font-semibold text-[var(--ink-900)] hover:bg-[var(--sand-100)]"
+                  >
+                    View
+                  </Link>
                   <Button variant="outline" onClick={() => resetInquiry(inquiry)} disabled={!isDirty(inquiry) || pendingId === inquiry.id}>
                     Reset
                   </Button>

@@ -12,7 +12,7 @@ export function TenantThemeShell({
   const theme = buildTenantThemeStyles(branding, surface);
 
   return (
-    <div className={theme.classes} style={theme.style}>
+    <div className={`${theme.classes} tenant-theme-shell`} style={theme.style} data-tenant-surface={surface}>
       {children}
     </div>
   );

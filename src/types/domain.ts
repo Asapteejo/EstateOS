@@ -73,10 +73,18 @@ export type TeamMember = {
 };
 
 export type Testimonial = {
+  id?: string;
   fullName: string;
+  displayName?: string;
   role: string;
   company?: string;
   quote: string;
+  title?: string;
+  rating?: number;
+  avatarUrl?: string | null;
+  propertyTitle?: string | null;
+  isVerifiedBuyer?: boolean;
+  publishedAt?: string;
 };
 
 export type FaqItem = {

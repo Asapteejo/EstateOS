@@ -13,6 +13,7 @@ export type PlatformRealtimeEvent = {
     | "deal.updated"
     | "overdue.detected"
     | "followup.updated"
+    | "notification.created"
     | "company.created"
     | "company.status.updated";
   summary: string;

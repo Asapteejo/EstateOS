@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
+import { buildSafeErrorLogContext, logError } from "@/lib/ops/logger";
 
 export const platformFeatures = [
   {
@@ -57,50 +58,60 @@ export const platformFaqs = [
   },
 ];
 
+export const fallbackPlatformPricingPlans = [
+  {
+    code: "growth",
+    name: "Growth monthly",
+    interval: "MONTHLY",
+    priceAmount: 150000,
+    currency: "NGN",
+    description: "Monthly operations plan for one real estate company.",
+  },
+  {
+    code: "growth",
+    name: "Growth annual",
+    interval: "ANNUAL",
+    priceAmount: 1500000,
+    currency: "NGN",
+    description: "Annual operating plan with the same transaction and portal capabilities.",
+  },
+] as const;
+
 export async function getPlatformPricingPlans() {
   if (!featureFlags.hasDatabase) {
-    return [
-      {
-        code: "growth",
-        name: "Growth monthly",
-        interval: "MONTHLY",
-        priceAmount: 150000,
-        currency: "NGN",
-        description: "Monthly operations plan for one real estate company.",
-      },
-      {
-        code: "growth",
-        name: "Growth annual",
-        interval: "ANNUAL",
-        priceAmount: 1500000,
-        currency: "NGN",
-        description: "Annual operating plan with the same transaction and portal capabilities.",
-      },
-    ];
+    return [...fallbackPlatformPricingPlans];
   }
 
-  return prisma.plan.findMany({
-    where: {
-      isActive: true,
-      isPublic: true,
-    },
-    orderBy: [{ code: "asc" }, { interval: "asc" }],
-    select: {
-      code: true,
-      name: true,
-      interval: true,
-      priceAmount: true,
-      currency: true,
-      description: true,
-    },
-  }).then((plans) =>
-    plans.map((plan) => ({
-      code: plan.code,
-      name: plan.name,
-      interval: plan.interval,
-      priceAmount: plan.priceAmount.toNumber(),
-      currency: plan.currency,
-      description: plan.description,
-    })),
-  );
+  try {
+    return await prisma.plan.findMany({
+      where: {
+        isActive: true,
+        isPublic: true,
+      },
+      orderBy: [{ code: "asc" }, { interval: "asc" }],
+      select: {
+        code: true,
+        name: true,
+        interval: true,
+        priceAmount: true,
+        currency: true,
+        description: true,
+      },
+    }).then((plans) =>
+      plans.map((plan) => ({
+        code: plan.code,
+        name: plan.name,
+        interval: plan.interval,
+        priceAmount: plan.priceAmount.toNumber(),
+        currency: plan.currency,
+        description: plan.description,
+      })),
+    );
+  } catch (error) {
+    logError("Platform pricing query failed; using fallback pricing.", {
+      route: "/platform",
+      ...buildSafeErrorLogContext(error),
+    });
+    return [...fallbackPlatformPricingPlans];
+  }
 }

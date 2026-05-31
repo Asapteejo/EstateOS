@@ -12,18 +12,25 @@
  * Prisma types until `prisma generate` is run after the migration.
  */
 
+import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { Prisma } from "@prisma/client";
 
 import { writeAuditLog } from "@/lib/audit/service";
 import { prisma } from "@/lib/db/prisma";
-import { featureFlags } from "@/lib/env";
+import { env, featureFlags } from "@/lib/env";
 import {
   createInAppNotification,
   getTenantOperatorRecipients,
   notifyManyUsers,
 } from "@/lib/notifications/service";
-import { getPrivateDownloadUrl } from "@/lib/storage/r2";
+import { r2 } from "@/lib/storage/r2";
+import { namespaceTenantStorageKey } from "@/lib/storage/paths";
+import type { TenantContext } from "@/lib/tenancy/context";
+import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
+import type { ContractSettingsInput } from "@/lib/validations/contracts";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { PRODUCT_EVENT_NAMES, trackProductEvent } from "@/modules/analytics/activity";
+import { renderContractPdf, type PdfImage } from "@/modules/contracts/pdf";
 
 // ─── Shared row type (mirrors the new schema fields) ────────────────────────
 
@@ -79,7 +86,20 @@ const saFindMany = prisma.signedAgreement.findMany as (args: any) => Promise<any
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const saFindFirst = prisma.signedAgreement.findFirst as (args: any) => Promise<any | null>;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const contractSettingsDelegate = (prisma as any).companyContractSettings;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const generatedContractDelegate = (prisma as any).generatedContract;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const contractTemplateDelegate = (prisma as any).contractTemplate;
+
 type SignedAgreementBaseRow = Awaited<ReturnType<typeof saFindFirst>>;
+type ContractActorUserLookupDelegate = {
+  findFirst: (args: {
+    where: Record<string, unknown>;
+    select: { id: true; companyId: true };
+  }) => Promise<{ id: string; companyId: string | null } | null>;
+};
 
 const transactionSelect = {
   id: true,
@@ -95,6 +115,62 @@ const documentSelect = {
   storageKey: true,
   mimeType: true,
 } satisfies Prisma.DocumentSelect;
+
+export function resolveContractActorUserForWrite(input: {
+  requestedUserId?: string | null;
+  resolvedUserId?: string | null;
+  isProduction: boolean;
+}) {
+  if (!input.requestedUserId) {
+    return null;
+  }
+
+  if (input.resolvedUserId) {
+    return input.resolvedUserId;
+  }
+
+  if (input.isProduction) {
+    throw new Error("Contract actor user does not exist.");
+  }
+
+  return null;
+}
+
+export async function resolveContractActorDbUserId(
+  context: Pick<TenantContext, "userId" | "email" | "companyId" | "isSuperAdmin">,
+  options?: {
+    userDelegate?: ContractActorUserLookupDelegate;
+  },
+) {
+  if (!context.userId) return null;
+
+  const userDelegate = options?.userDelegate ?? prisma.user;
+  const user = await userDelegate.findFirst({
+    where: {
+      OR: [
+        { id: context.userId },
+        { clerkUserId: context.userId },
+        ...(context.email ? [{ email: context.email }] : []),
+      ],
+      ...(context.isSuperAdmin || !context.companyId ? {} : { companyId: context.companyId }),
+    },
+    select: {
+      id: true,
+      companyId: true,
+    },
+  });
+
+  const resolvedUserId =
+    user && (context.isSuperAdmin || !context.companyId || user.companyId === context.companyId)
+      ? user.id
+      : null;
+
+  return resolveContractActorUserForWrite({
+    requestedUserId: context.userId,
+    resolvedUserId,
+    isProduction: featureFlags.isProduction,
+  });
+}
 
 async function hydrateAgreementRows(
   companyId: string,
@@ -398,7 +474,7 @@ export async function getBuyerContracts(
   return Promise.all(
     rows.map(async (row) => ({
       ...row,
-      downloadUrl: await getPrivateDownloadUrl(row.document.storageKey),
+      downloadUrl: `/api/documents/${row.document.id}/download`,
     })),
   );
 }
@@ -424,11 +500,22 @@ export async function getTransactionsWithoutContract(
       select: { transactionId: true },
     })
   ).map((agreement) => agreement.transactionId);
+  const generatedTransactionIds = generatedContractDelegate
+    ? (
+        await generatedContractDelegate.findMany({
+          where: { companyId, transactionId: { not: null }, status: { in: ["DRAFT", "PENDING_REVIEW", "ACTIVE"] } },
+          select: { transactionId: true },
+        })
+      )
+        .map((contract: { transactionId: string | null }) => contract.transactionId)
+        .filter((id: string | null): id is string => Boolean(id))
+    : [];
+  const unavailableTransactionIds = [...new Set([...contractedTransactionIds, ...generatedTransactionIds])];
 
   const rows = await prisma.transaction.findMany({
     where: {
       companyId,
-      ...(contractedTransactionIds.length > 0 ? { id: { notIn: contractedTransactionIds } } : {}),
+      ...(unavailableTransactionIds.length > 0 ? { id: { notIn: unavailableTransactionIds } } : {}),
     },
     orderBy: { createdAt: "desc" },
     select: {
@@ -440,4 +527,1165 @@ export async function getTransactionsWithoutContract(
     },
   });
   return rows as TransactionWithoutContract[];
+}
+
+export type ContractSettingsReadiness = {
+  ceoName: boolean;
+  ceoTitle: boolean;
+  signatureUploaded: boolean;
+  stampUploaded: boolean;
+  contractTermsPresent: boolean;
+  isConfigured: boolean;
+};
+
+export type ContractSettingsRow = {
+  id: string;
+  companyId: string;
+  ceoName: string;
+  ceoTitle: string;
+  signatureKey: string | null;
+  stampKey: string | null;
+  contractTerms: string | null;
+  footerLegalText: string | null;
+  isConfigured: boolean;
+  readiness: ContractSettingsReadiness;
+};
+
+export type ContractTemplateMode = "SYSTEM_TEMPLATE" | "UPLOADED_PDF_TEMPLATE";
+
+export type ContractTemplateRow = {
+  id: string;
+  companyId: string;
+  mode: ContractTemplateMode;
+  version: number;
+  isActive: boolean;
+  isConfigured: boolean;
+  documentId: string | null;
+  storageKey: string | null;
+  fieldMappings: Prisma.JsonValue | null;
+  ceoName: string;
+  ceoTitle: string;
+  signatureKey: string | null;
+  stampKey: string | null;
+  contractTerms: string | null;
+  footerLegalText: string | null;
+  replacedByTemplateId: string | null;
+  archivedAt: Date | null;
+  createdByUserId: string | null;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy?: { firstName: string | null; lastName: string | null; email: string | null } | null;
+  document?: { id: string; fileName: string; storageKey: string } | null;
+};
+
+export type ContractTemplateSnapshot = {
+  templateId: string | null;
+  templateVersion: number | null;
+  templateMode: ContractTemplateMode;
+  ceoName: string;
+  ceoTitle: string;
+  templateFileName: string | null;
+  footerLegalTextHash: string | null;
+  fieldMappingsHash: string | null;
+};
+
+export function buildContractSettingsReadiness(settings: {
+  ceoName?: string | null;
+  ceoTitle?: string | null;
+  signatureKey?: string | null;
+  stampKey?: string | null;
+  contractTerms?: string | null;
+}) {
+  const readiness = {
+    ceoName: Boolean(settings.ceoName?.trim()),
+    ceoTitle: Boolean(settings.ceoTitle?.trim()),
+    signatureUploaded: Boolean(settings.signatureKey?.trim()),
+    stampUploaded: Boolean(settings.stampKey?.trim()),
+    contractTermsPresent: Boolean(settings.contractTerms?.trim()),
+    isConfigured: false,
+  };
+  readiness.isConfigured =
+    readiness.ceoName &&
+    readiness.ceoTitle &&
+    readiness.signatureUploaded &&
+    readiness.stampUploaded &&
+    readiness.contractTermsPresent;
+  return readiness;
+}
+
+function withReadiness(row: Omit<ContractSettingsRow, "readiness">): ContractSettingsRow {
+  const readiness = buildContractSettingsReadiness(row);
+  return { ...row, isConfigured: readiness.isConfigured, readiness };
+}
+
+function stableJson(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((item) => stableJson(item)).join(",")}]`;
+  return `{${Object.keys(value as Record<string, unknown>)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${stableJson((value as Record<string, unknown>)[key])}`)
+    .join(",")}}`;
+}
+
+async function sha256Hex(value: string | null | undefined) {
+  if (!value) return null;
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export async function buildTemplateSnapshot(template: ContractTemplateRow | null): Promise<ContractTemplateSnapshot> {
+  return {
+    templateId: template?.id ?? null,
+    templateVersion: template?.version ?? null,
+    templateMode: template?.mode ?? "SYSTEM_TEMPLATE",
+    ceoName: template?.ceoName ?? "",
+    ceoTitle: template?.ceoTitle ?? "",
+    templateFileName: template?.document?.fileName ?? null,
+    footerLegalTextHash: await sha256Hex(template?.footerLegalText),
+    fieldMappingsHash: await sha256Hex(stableJson(template?.fieldMappings)),
+  };
+}
+
+async function getNextTemplateVersion(companyId: string) {
+  if (!contractTemplateDelegate) return 1;
+  const latest = await contractTemplateDelegate.findFirst({
+    where: { companyId },
+    orderBy: { version: "desc" },
+    select: { version: true },
+  });
+  return (latest?.version ?? 0) + 1;
+}
+
+function templatesEquivalent(
+  left: (Pick<ContractTemplateRow, "mode" | "ceoName" | "ceoTitle" | "signatureKey" | "stampKey" | "contractTerms" | "footerLegalText" | "documentId" | "storageKey"> & { fieldMappings: unknown }) | null,
+  right: Pick<ContractTemplateRow, "mode" | "ceoName" | "ceoTitle" | "signatureKey" | "stampKey" | "contractTerms" | "footerLegalText" | "documentId" | "storageKey"> & { fieldMappings: unknown },
+) {
+  if (!left) return false;
+  return (
+    left.mode === right.mode &&
+    left.ceoName === right.ceoName &&
+    left.ceoTitle === right.ceoTitle &&
+    (left.signatureKey ?? null) === (right.signatureKey ?? null) &&
+    (left.stampKey ?? null) === (right.stampKey ?? null) &&
+    (left.contractTerms ?? null) === (right.contractTerms ?? null) &&
+    (left.footerLegalText ?? null) === (right.footerLegalText ?? null) &&
+    (left.documentId ?? null) === (right.documentId ?? null) &&
+    (left.storageKey ?? null) === (right.storageKey ?? null) &&
+    stableJson(left.fieldMappings) === stableJson(right.fieldMappings)
+  );
+}
+
+export function assertTemplateCanBeMutated(input: {
+  generatedContractsCount: number;
+}) {
+  if (input.generatedContractsCount > 0) {
+    throw new Error("This contract template version has generated buyer contracts and cannot be mutated. Create a new version instead.");
+  }
+}
+
+export async function getCompanyContractTemplates(companyId: string): Promise<ContractTemplateRow[]> {
+  if (!featureFlags.hasDatabase || !contractTemplateDelegate) return [];
+  return contractTemplateDelegate.findMany({
+    where: { companyId },
+    orderBy: [{ version: "desc" }],
+    select: {
+      id: true,
+      companyId: true,
+      mode: true,
+      version: true,
+      isActive: true,
+      isConfigured: true,
+      documentId: true,
+      storageKey: true,
+      fieldMappings: true,
+      ceoName: true,
+      ceoTitle: true,
+      signatureKey: true,
+      stampKey: true,
+      contractTerms: true,
+      footerLegalText: true,
+      replacedByTemplateId: true,
+      archivedAt: true,
+      createdByUserId: true,
+      notes: true,
+      createdAt: true,
+      updatedAt: true,
+      createdBy: { select: { firstName: true, lastName: true, email: true } },
+      document: { select: { id: true, fileName: true, storageKey: true } },
+    },
+  });
+}
+
+async function getActiveContractTemplate(companyId: string): Promise<ContractTemplateRow | null> {
+  const templates = await getCompanyContractTemplates(companyId);
+  return templates.find((template) => template.isActive && !template.archivedAt) ?? null;
+}
+
+async function getContractTemplateById(companyId: string, templateId: string): Promise<ContractTemplateRow | null> {
+  if (!featureFlags.hasDatabase || !contractTemplateDelegate) return null;
+  const template = await contractTemplateDelegate.findFirst({
+    where: { id: templateId, companyId },
+    select: {
+      id: true,
+      companyId: true,
+      mode: true,
+      version: true,
+      isActive: true,
+      isConfigured: true,
+      documentId: true,
+      storageKey: true,
+      fieldMappings: true,
+      ceoName: true,
+      ceoTitle: true,
+      signatureKey: true,
+      stampKey: true,
+      contractTerms: true,
+      footerLegalText: true,
+      replacedByTemplateId: true,
+      archivedAt: true,
+      createdByUserId: true,
+      notes: true,
+      createdAt: true,
+      updatedAt: true,
+      createdBy: { select: { firstName: true, lastName: true, email: true } },
+      document: { select: { id: true, fileName: true, storageKey: true } },
+    },
+  });
+  return template;
+}
+
+export async function createContractTemplateVersion(input: {
+  companyId: string;
+  actorUserId?: string | null;
+  actorEmail?: string | null;
+  actorIsSuperAdmin?: boolean;
+  mode?: ContractTemplateMode;
+  ceoName: string;
+  ceoTitle: string;
+  signatureKey?: string | null;
+  stampKey?: string | null;
+  contractTerms?: string | null;
+  footerLegalText?: string | null;
+  documentId?: string | null;
+  storageKey?: string | null;
+  fieldMappings?: Prisma.InputJsonValue | null;
+  notes?: string | null;
+}) {
+  if (!featureFlags.hasDatabase || !contractTemplateDelegate) return null;
+
+  const mode = input.mode ?? "SYSTEM_TEMPLATE";
+  const nextTemplateData = {
+    mode,
+    ceoName: input.ceoName,
+    ceoTitle: input.ceoTitle,
+    signatureKey: input.signatureKey ?? null,
+    stampKey: input.stampKey ?? null,
+    contractTerms: input.contractTerms ?? null,
+    footerLegalText: input.footerLegalText ?? null,
+    documentId: input.documentId ?? null,
+    storageKey: input.storageKey ?? null,
+    fieldMappings: input.fieldMappings ?? null,
+  };
+  const active = await getActiveContractTemplate(input.companyId);
+  if (templatesEquivalent(active, nextTemplateData)) {
+    return active;
+  }
+
+  const version = await getNextTemplateVersion(input.companyId);
+  const readiness = buildContractSettingsReadiness(input);
+  const actorDbUserId = await resolveContractActorDbUserId({
+    userId: input.actorUserId ?? null,
+    email: input.actorEmail ?? null,
+    companyId: input.companyId,
+    isSuperAdmin: Boolean(input.actorIsSuperAdmin),
+  });
+
+  const created = await prisma.$transaction(async (tx) => {
+    const contractTemplate = (tx as typeof tx & {
+      contractTemplate: {
+        updateMany: (args: unknown) => Promise<unknown>;
+        create: (args: unknown) => Promise<ContractTemplateRow>;
+      };
+    }).contractTemplate;
+
+    const existingActive = active;
+    await contractTemplate.updateMany({
+      where: { companyId: input.companyId, isActive: true },
+      data: { isActive: false },
+    });
+
+    const createdTemplate = await contractTemplate.create({
+      data: {
+        companyId: input.companyId,
+        mode,
+        version,
+        isActive: true,
+        isConfigured: readiness.isConfigured,
+        documentId: input.documentId ?? null,
+        storageKey: input.storageKey ?? null,
+        fieldMappings: input.fieldMappings ?? undefined,
+        ceoName: input.ceoName,
+        ceoTitle: input.ceoTitle,
+        signatureKey: input.signatureKey ?? null,
+        stampKey: input.stampKey ?? null,
+        contractTerms: input.contractTerms ?? null,
+        footerLegalText: input.footerLegalText ?? null,
+        createdByUserId: actorDbUserId,
+        notes: input.notes ?? null,
+      },
+      select: {
+        id: true,
+        companyId: true,
+        mode: true,
+        version: true,
+        isActive: true,
+        isConfigured: true,
+        documentId: true,
+        storageKey: true,
+        fieldMappings: true,
+        ceoName: true,
+        ceoTitle: true,
+        signatureKey: true,
+        stampKey: true,
+        contractTerms: true,
+        footerLegalText: true,
+        replacedByTemplateId: true,
+        archivedAt: true,
+        createdByUserId: true,
+        notes: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    if (existingActive) {
+      await contractTemplate.updateMany({
+        where: { id: existingActive.id, companyId: input.companyId },
+        data: { replacedByTemplateId: createdTemplate.id },
+      });
+    }
+
+    return createdTemplate;
+  });
+
+  await writeAuditLog({
+    companyId: input.companyId,
+    actorUserId: actorDbUserId ?? undefined,
+    action: "CREATE",
+    entityType: "ContractTemplate",
+    entityId: created.id,
+    summary: `Created contract template v${created.version}`,
+    payload: { mode: created.mode, isConfigured: created.isConfigured } as Prisma.InputJsonValue,
+  });
+
+  await writeAuditLog({
+    companyId: input.companyId,
+    actorUserId: actorDbUserId ?? undefined,
+    action: "UPDATE",
+    entityType: "ContractTemplate",
+    entityId: created.id,
+    summary: `Activated contract template v${created.version}`,
+    payload: { mode: created.mode, version: created.version } as Prisma.InputJsonValue,
+  });
+
+  if (active) {
+    await writeAuditLog({
+      companyId: input.companyId,
+      actorUserId: actorDbUserId ?? undefined,
+      action: "UPDATE",
+      entityType: "ContractTemplate",
+      entityId: active.id,
+      summary: `Replaced contract template v${active.version} with v${created.version}`,
+      payload: { replacedByTemplateId: created.id, replacedByVersion: created.version } as Prisma.InputJsonValue,
+    });
+  }
+
+  return created;
+}
+
+export async function archiveContractTemplateVersion(input: {
+  companyId: string;
+  templateId: string;
+  actorUserId?: string | null;
+  actorEmail?: string | null;
+  actorIsSuperAdmin?: boolean;
+}) {
+  if (!featureFlags.hasDatabase || !contractTemplateDelegate) return null;
+
+  const template = await getContractTemplateById(input.companyId, input.templateId);
+  if (!template) {
+    throw new Error("Contract template version not found.");
+  }
+
+  const archived = await contractTemplateDelegate.update({
+    where: { id: template.id },
+    data: {
+      isActive: false,
+      archivedAt: template.archivedAt ?? new Date(),
+    },
+    select: {
+      id: true,
+      companyId: true,
+      mode: true,
+      version: true,
+      isActive: true,
+      isConfigured: true,
+      documentId: true,
+      storageKey: true,
+      fieldMappings: true,
+      ceoName: true,
+      ceoTitle: true,
+      signatureKey: true,
+      stampKey: true,
+      contractTerms: true,
+      footerLegalText: true,
+      replacedByTemplateId: true,
+      archivedAt: true,
+      createdByUserId: true,
+      notes: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+  const actorDbUserId = await resolveContractActorDbUserId({
+    userId: input.actorUserId ?? null,
+    email: input.actorEmail ?? null,
+    companyId: input.companyId,
+    isSuperAdmin: Boolean(input.actorIsSuperAdmin),
+  });
+
+  await writeAuditLog({
+    companyId: input.companyId,
+    actorUserId: actorDbUserId ?? undefined,
+    action: "UPDATE",
+    entityType: "ContractTemplate",
+    entityId: template.id,
+    summary: `Archived contract template v${template.version}`,
+    payload: { mode: template.mode, version: template.version } as Prisma.InputJsonValue,
+  });
+
+  return archived;
+}
+
+export async function activateContractTemplateVersion(input: {
+  companyId: string;
+  templateId: string;
+  actorUserId?: string | null;
+  actorEmail?: string | null;
+  actorIsSuperAdmin?: boolean;
+}) {
+  if (!featureFlags.hasDatabase || !contractTemplateDelegate) return null;
+
+  const template = await getContractTemplateById(input.companyId, input.templateId);
+  if (!template) {
+    throw new Error("Contract template version not found.");
+  }
+  if (!template.isConfigured) {
+    throw new Error("Only configured contract template versions can be activated.");
+  }
+
+  const currentActive = await getActiveContractTemplate(input.companyId);
+  const actorDbUserId = await resolveContractActorDbUserId({
+    userId: input.actorUserId ?? null,
+    email: input.actorEmail ?? null,
+    companyId: input.companyId,
+    isSuperAdmin: Boolean(input.actorIsSuperAdmin),
+  });
+  const activated = await prisma.$transaction(async (tx) => {
+    const contractTemplate = (tx as typeof tx & {
+      contractTemplate: {
+        updateMany: (args: unknown) => Promise<unknown>;
+        update: (args: unknown) => Promise<ContractTemplateRow>;
+      };
+    }).contractTemplate;
+
+    await contractTemplate.updateMany({
+      where: { companyId: input.companyId, isActive: true },
+      data: { isActive: false },
+    });
+
+    return contractTemplate.update({
+      where: { id: template.id },
+      data: { isActive: true, archivedAt: null },
+      select: {
+        id: true,
+        companyId: true,
+        mode: true,
+        version: true,
+        isActive: true,
+        isConfigured: true,
+        documentId: true,
+        storageKey: true,
+        fieldMappings: true,
+        ceoName: true,
+        ceoTitle: true,
+        signatureKey: true,
+        stampKey: true,
+        contractTerms: true,
+        footerLegalText: true,
+        replacedByTemplateId: true,
+        archivedAt: true,
+        createdByUserId: true,
+        notes: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  });
+
+  await writeAuditLog({
+    companyId: input.companyId,
+    actorUserId: actorDbUserId ?? undefined,
+    action: "UPDATE",
+    entityType: "ContractTemplate",
+    entityId: template.id,
+    summary: currentActive && currentActive.id !== template.id
+      ? `Rolled back active contract template to v${template.version}`
+      : `Activated contract template v${template.version}`,
+    payload: {
+      mode: template.mode,
+      version: template.version,
+      previousActiveTemplateId: currentActive?.id ?? null,
+      previousActiveVersion: currentActive?.version ?? null,
+    } as Prisma.InputJsonValue,
+  });
+
+  return activated;
+}
+
+export async function getCompanyContractSettings(context: TenantContext): Promise<ContractSettingsRow | null> {
+  if (!featureFlags.hasDatabase || !context.companyId || !contractSettingsDelegate) {
+    return null;
+  }
+
+  const row = await contractSettingsDelegate.findUnique({
+    where: { companyId: context.companyId },
+    select: {
+      id: true,
+      companyId: true,
+      ceoName: true,
+      ceoTitle: true,
+      signatureKey: true,
+      stampKey: true,
+      contractTerms: true,
+      footerLegalText: true,
+      isConfigured: true,
+    },
+  });
+
+  return row ? withReadiness(row) : null;
+}
+
+export async function upsertCompanyContractSettings(
+  context: TenantContext,
+  rawInput: ContractSettingsInput & Record<string, unknown>,
+) {
+  rejectUnsafeCompanyIdInput(rawInput);
+  if (!context.companyId) {
+    throw new Error("Tenant context is required.");
+  }
+  if (!featureFlags.hasDatabase || !contractSettingsDelegate) {
+    return withReadiness({
+      id: "demo-contract-settings",
+      companyId: context.companyId,
+      ceoName: rawInput.ceoName,
+      ceoTitle: rawInput.ceoTitle,
+      signatureKey: rawInput.signatureKey ?? null,
+      stampKey: rawInput.stampKey ?? null,
+      contractTerms: rawInput.contractTerms ?? null,
+      footerLegalText: rawInput.footerLegalText ?? null,
+      isConfigured: false,
+    });
+  }
+
+  const readiness = buildContractSettingsReadiness(rawInput);
+  const saved = await contractSettingsDelegate.upsert({
+    where: { companyId: context.companyId },
+    update: {
+      ceoName: rawInput.ceoName,
+      ceoTitle: rawInput.ceoTitle,
+      signatureKey: rawInput.signatureKey ?? null,
+      stampKey: rawInput.stampKey ?? null,
+      contractTerms: rawInput.contractTerms ?? null,
+      footerLegalText: rawInput.footerLegalText ?? null,
+      isConfigured: readiness.isConfigured,
+    },
+    create: {
+      companyId: context.companyId,
+      ceoName: rawInput.ceoName,
+      ceoTitle: rawInput.ceoTitle,
+      signatureKey: rawInput.signatureKey ?? null,
+      stampKey: rawInput.stampKey ?? null,
+      contractTerms: rawInput.contractTerms ?? null,
+      footerLegalText: rawInput.footerLegalText ?? null,
+      isConfigured: readiness.isConfigured,
+    },
+    select: {
+      id: true,
+      companyId: true,
+      ceoName: true,
+      ceoTitle: true,
+      signatureKey: true,
+      stampKey: true,
+      contractTerms: true,
+      footerLegalText: true,
+      isConfigured: true,
+    },
+  });
+
+  const actorDbUserId = await resolveContractActorDbUserId(context);
+  await writeAuditLog({
+    companyId: context.companyId,
+    actorUserId: actorDbUserId ?? undefined,
+    action: "UPDATE",
+    entityType: "CompanyContractSettings",
+    entityId: saved.id,
+    summary: "Updated contract generation settings",
+    payload: {
+      isConfigured: readiness.isConfigured,
+      signatureUploaded: readiness.signatureUploaded,
+      stampUploaded: readiness.stampUploaded,
+    } as Prisma.InputJsonValue,
+  });
+
+  await createContractTemplateVersion({
+    companyId: context.companyId,
+    actorUserId: context.userId,
+    actorEmail: context.email,
+    actorIsSuperAdmin: context.isSuperAdmin,
+    mode: "SYSTEM_TEMPLATE",
+    ceoName: rawInput.ceoName,
+    ceoTitle: rawInput.ceoTitle,
+    signatureKey: rawInput.signatureKey ?? null,
+    stampKey: rawInput.stampKey ?? null,
+    contractTerms: rawInput.contractTerms ?? null,
+    footerLegalText: rawInput.footerLegalText ?? null,
+    notes: "Created from contract settings save.",
+  });
+
+  return withReadiness(saved);
+}
+
+function streamToBuffer(body: unknown): Promise<Buffer> {
+  if (!body || typeof body !== "object") return Promise.resolve(Buffer.alloc(0));
+  if ("transformToByteArray" in body && typeof body.transformToByteArray === "function") {
+    return body.transformToByteArray().then((bytes: Uint8Array) => Buffer.from(bytes));
+  }
+  if ("arrayBuffer" in body && typeof body.arrayBuffer === "function") {
+    return body.arrayBuffer().then((bytes: ArrayBuffer) => Buffer.from(bytes));
+  }
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    const stream = body as NodeJS.ReadableStream;
+    stream.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+    stream.on("error", reject);
+    stream.on("end", () => resolve(Buffer.concat(chunks)));
+  });
+}
+
+async function loadPrivateContractImage(storageKey: string | null | undefined): Promise<PdfImage | null> {
+  if (!storageKey || !r2 || !env.R2_BUCKET_NAME) {
+    return null;
+  }
+
+  try {
+    const object = await r2.send(new GetObjectCommand({ Bucket: env.R2_BUCKET_NAME, Key: storageKey }));
+    const input = await streamToBuffer(object.Body);
+    const sharpModule = await import("sharp").catch(() => null);
+    const sharp = sharpModule?.default;
+    if (!sharp) return null;
+    const image = sharp(input).flatten({ background: "#ffffff" }).jpeg({ quality: 88 });
+    const metadata = await image.metadata();
+    const bytes = await image.toBuffer();
+    if (!metadata.width || !metadata.height) return null;
+    return { bytes, width: metadata.width, height: metadata.height, format: "jpeg" };
+  } catch {
+    return null;
+  }
+}
+
+function buildContractNumber(input: { companySlug: string; transactionId?: string | null; paymentId?: string | null; version: number }) {
+  const suffix = (input.transactionId ?? input.paymentId ?? crypto.randomUUID()).replace(/[^a-zA-Z0-9]/g, "").slice(-8).toUpperCase();
+  const version = String(input.version).padStart(2, "0");
+  return `COS-${input.companySlug.toUpperCase()}-${suffix}-V${version}`;
+}
+
+export type GeneratedContractRow = {
+  id: string;
+  companyId: string;
+  buyerUserId: string;
+  propertyId: string | null;
+  transactionId: string | null;
+  paymentRequestId: string | null;
+  paymentId: string | null;
+  documentId: string;
+  templateId: string | null;
+  templateVersion: number | null;
+  templateMode: ContractTemplateMode;
+  templateSnapshot: Prisma.JsonValue | null;
+  regeneratedFromContractId: string | null;
+  contractNumber: string;
+  status: "DRAFT" | "PENDING_REVIEW" | "ACTIVE" | "VOIDED" | "REGENERATED";
+  generatedAt: Date;
+  version: number;
+  document: { id: string; fileName: string; storageKey: string; mimeType: string | null };
+  buyer: { firstName: string | null; lastName: string | null; email: string | null };
+  property: { title: string } | null;
+};
+
+const generatedContractSelect = {
+  id: true,
+  companyId: true,
+  buyerUserId: true,
+  propertyId: true,
+  transactionId: true,
+  paymentRequestId: true,
+  paymentId: true,
+  documentId: true,
+  templateId: true,
+  templateVersion: true,
+  templateMode: true,
+  templateSnapshot: true,
+  regeneratedFromContractId: true,
+  contractNumber: true,
+  status: true,
+  generatedAt: true,
+  version: true,
+  document: { select: { id: true, fileName: true, storageKey: true, mimeType: true } },
+  buyer: { select: { firstName: true, lastName: true, email: true } },
+  property: { select: { title: true } },
+};
+
+export async function generateContractForTransaction(input: {
+  companyId: string;
+  companySlug: string;
+  transactionId: string;
+  paymentId?: string | null;
+  actorUserId?: string | null;
+  actorEmail?: string | null;
+  actorIsSuperAdmin?: boolean;
+  forceRegenerate?: boolean;
+  templateId?: string | null;
+  regeneratedFromContractId?: string | null;
+}): Promise<GeneratedContractRow> {
+  if (!featureFlags.hasDatabase || !generatedContractDelegate) {
+    throw new Error("Database is required for contract generation.");
+  }
+
+  const existing = await generatedContractDelegate.findFirst({
+    where: {
+      companyId: input.companyId,
+      transactionId: input.transactionId,
+      status: { in: ["DRAFT", "PENDING_REVIEW", "ACTIVE"] },
+    },
+    orderBy: { version: "desc" },
+    select: generatedContractSelect,
+  });
+  if (existing && !input.forceRegenerate) {
+    return existing;
+  }
+
+  const [settings, transaction, priorLatest, explicitTemplate, activeTemplate] = await Promise.all([
+    contractSettingsDelegate.findUnique({
+      where: { companyId: input.companyId },
+      select: {
+        ceoName: true,
+        ceoTitle: true,
+        signatureKey: true,
+        stampKey: true,
+        contractTerms: true,
+        footerLegalText: true,
+        isConfigured: true,
+      },
+    }),
+    prisma.transaction.findFirst({
+      where: { companyId: input.companyId, id: input.transactionId },
+      select: {
+        id: true,
+        companyId: true,
+        userId: true,
+        propertyId: true,
+        outstandingBalance: true,
+        user: { select: { firstName: true, lastName: true, email: true, phone: true } },
+        company: {
+          select: {
+            name: true,
+            slug: true,
+            legalName: true,
+            siteSetting: { select: { address: true, supportEmail: true, supportPhone: true } },
+          },
+        },
+        property: {
+          select: {
+            title: true,
+            location: { select: { addressLine1: true, city: true, state: true, country: true } },
+          },
+        },
+        propertyUnit: { select: { title: true } },
+        paymentRequests: {
+          orderBy: { updatedAt: "desc" },
+          take: 1,
+          select: { id: true },
+        },
+        payments: {
+          where: { status: "SUCCESS" },
+          orderBy: { paidAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            providerReference: true,
+            amount: true,
+            currency: true,
+            paidAt: true,
+          },
+        },
+      },
+    }),
+    generatedContractDelegate.findFirst({
+      where: { companyId: input.companyId, transactionId: input.transactionId },
+      orderBy: { version: "desc" },
+      select: { version: true },
+    }),
+    input.templateId ? getContractTemplateById(input.companyId, input.templateId) : Promise.resolve(null),
+    getActiveContractTemplate(input.companyId),
+  ]);
+
+  const template = explicitTemplate ?? activeTemplate;
+  if (input.templateId && !explicitTemplate) {
+    throw new Error("Contract template version not found.");
+  }
+  if (template?.mode === "UPLOADED_PDF_TEMPLATE") {
+    throw new Error("Uploaded PDF contract templates are versioned but PDF field filling is not implemented yet.");
+  }
+  const renderSource = template ?? settings;
+  const readiness = buildContractSettingsReadiness(renderSource ?? {});
+  if (!renderSource || !readiness.isConfigured || ("isConfigured" in renderSource && !renderSource.isConfigured)) {
+    throw new Error("Contract settings are incomplete.");
+  }
+  if (!transaction) {
+    throw new Error("Transaction not found.");
+  }
+  const actorDbUserId = await resolveContractActorDbUserId({
+    userId: input.actorUserId ?? null,
+    email: input.actorEmail ?? null,
+    companyId: input.companyId,
+    isSuperAdmin: Boolean(input.actorIsSuperAdmin),
+  });
+
+  const latestPayment =
+    input.paymentId && transaction.payments.find((payment) => payment.id === input.paymentId)
+      ? transaction.payments.find((payment) => payment.id === input.paymentId)!
+      : transaction.payments[0];
+  if (!latestPayment) {
+    throw new Error("A successful payment is required before generating a contract.");
+  }
+
+  const version = input.forceRegenerate ? (priorLatest?.version ?? 0) + 1 : 1;
+  const contractNumber = buildContractNumber({
+    companySlug: transaction.company.slug,
+    transactionId: transaction.id,
+    paymentId: latestPayment.id,
+    version,
+  });
+  const locationParts = [
+    transaction.property.location?.addressLine1,
+    transaction.property.location?.city,
+    transaction.property.location?.state,
+    transaction.property.location?.country,
+  ].filter(Boolean);
+  const [signatureImage, stampImage] = await Promise.all([
+    loadPrivateContractImage(renderSource.signatureKey),
+    loadPrivateContractImage(renderSource.stampKey),
+  ]);
+  const templateSnapshot: ContractTemplateSnapshot = template
+    ? await buildTemplateSnapshot(template)
+    : {
+        templateId: null,
+        templateVersion: null,
+        templateMode: "SYSTEM_TEMPLATE",
+        ceoName: renderSource.ceoName,
+        ceoTitle: renderSource.ceoTitle,
+        templateFileName: null,
+        footerLegalTextHash: await sha256Hex(renderSource.footerLegalText),
+        fieldMappingsHash: null,
+      };
+  const pdfBytes = renderContractPdf({
+    contractNumber,
+    generatedDate: formatDate(new Date(), "PPP"),
+    company: {
+      name: transaction.company.name,
+      legalName: transaction.company.legalName,
+      address: transaction.company.siteSetting?.address ?? null,
+      email: transaction.company.siteSetting?.supportEmail ?? null,
+      phone: transaction.company.siteSetting?.supportPhone ?? null,
+    },
+    buyer: {
+      name: `${transaction.user.firstName ?? ""} ${transaction.user.lastName ?? ""}`.trim() || "Buyer",
+      email: transaction.user.email,
+      phone: transaction.user.phone,
+    },
+    property: {
+      title: transaction.property.title,
+      unitTitle: transaction.propertyUnit?.title ?? null,
+      location: locationParts.join(", ") || null,
+    },
+    payment: {
+      reference: latestPayment.providerReference,
+      amount: formatCurrency(latestPayment.amount.toNumber?.() ?? Number(latestPayment.amount)),
+      currency: latestPayment.currency,
+      paidAt: latestPayment.paidAt ? formatDate(latestPayment.paidAt, "PPP") : formatDate(new Date(), "PPP"),
+    },
+    signatory: {
+      name: renderSource.ceoName,
+      title: renderSource.ceoTitle,
+    },
+    terms: renderSource.contractTerms ?? "",
+    footerLegalText: renderSource.footerLegalText,
+    signatureImage,
+    stampImage,
+  });
+
+  const storageKey = namespaceTenantStorageKey(
+    {
+      userId: input.actorUserId ?? null,
+      companyId: input.companyId,
+      companySlug: input.companySlug,
+      branchId: null,
+      roles: [],
+      isSuperAdmin: false,
+      host: null,
+      resolutionSource: "session",
+    },
+    "contracts/generated",
+    `${contractNumber}.pdf`,
+    crypto.randomUUID(),
+  );
+
+  if (r2 && env.R2_BUCKET_NAME) {
+    await r2.send(
+      new PutObjectCommand({
+        Bucket: env.R2_BUCKET_NAME,
+        Key: storageKey,
+        Body: pdfBytes,
+        ContentType: "application/pdf",
+      }),
+    );
+  }
+
+  const created = await prisma.$transaction(async (tx) => {
+    if (input.forceRegenerate) {
+      await (tx as typeof tx & { generatedContract: { updateMany: (args: unknown) => Promise<unknown> } }).generatedContract.updateMany({
+        where: {
+          companyId: input.companyId,
+          transactionId: input.transactionId,
+          status: { in: ["DRAFT", "PENDING_REVIEW", "ACTIVE"] },
+        },
+        data: { status: "REGENERATED" },
+      });
+    }
+
+    const document = await tx.document.create({
+      data: {
+        companyId: input.companyId,
+        userId: transaction.userId,
+        transactionId: transaction.id,
+        fileName: `${contractNumber}.pdf`,
+        storageKey,
+        mimeType: "application/pdf",
+        sizeBytes: pdfBytes.length,
+        documentType: "CONTRACT",
+        visibility: "PRIVATE",
+        uploadedByUserId: actorDbUserId ?? undefined,
+        createdForUserId: transaction.userId,
+        metadata: {
+          generatedContract: true,
+          contractNumber,
+          version,
+          paymentId: latestPayment.id,
+        } as Prisma.InputJsonValue,
+      },
+      select: { id: true },
+    });
+
+    return (tx as typeof tx & { generatedContract: { create: (args: unknown) => Promise<GeneratedContractRow> } }).generatedContract.create({
+      data: {
+        companyId: input.companyId,
+        buyerUserId: transaction.userId,
+        propertyId: transaction.propertyId,
+        transactionId: transaction.id,
+        paymentRequestId: transaction.paymentRequests[0]?.id ?? null,
+        paymentId: latestPayment.id,
+        documentId: document.id,
+        templateId: template?.id ?? null,
+        templateVersion: template?.version ?? null,
+        templateMode: template?.mode ?? "SYSTEM_TEMPLATE",
+        templateSnapshot: templateSnapshot as unknown as Prisma.InputJsonValue,
+        regeneratedFromContractId: input.regeneratedFromContractId ?? null,
+        contractNumber,
+        status: "ACTIVE",
+        generatedAt: new Date(),
+        generatedByUserId: actorDbUserId,
+        version,
+      },
+      select: generatedContractSelect,
+    });
+  });
+
+  await createInAppNotification({
+    companyId: input.companyId,
+    userId: transaction.userId,
+    type: "DOCUMENT_REQUESTED",
+    title: "Your Contract of Sale is ready",
+    body: `Your Contract of Sale for ${transaction.property.title} is ready to download.`,
+    metadata: {
+      generatedContractId: created.id,
+      documentId: created.documentId,
+      href: "/portal/contracts",
+      actionUrl: "/portal/contracts",
+      entityType: "GeneratedContract",
+      entityId: created.id,
+    } as Prisma.InputJsonValue,
+  });
+
+  await writeAuditLog({
+    companyId: input.companyId,
+    actorUserId: actorDbUserId ?? undefined,
+    action: input.regeneratedFromContractId ? "UPDATE" : "CREATE",
+    entityType: "GeneratedContract",
+    entityId: created.id,
+    summary: input.regeneratedFromContractId
+      ? `Regenerated Contract of Sale ${created.contractNumber}`
+      : `Generated Contract of Sale ${created.contractNumber}`,
+    payload: {
+      transactionId: input.transactionId,
+      paymentId: latestPayment.id,
+      documentId: created.documentId,
+      version,
+      templateId: created.templateId,
+      templateVersion: created.templateVersion,
+      templateMode: created.templateMode,
+      regeneratedFromContractId: input.regeneratedFromContractId ?? null,
+    } as Prisma.InputJsonValue,
+  });
+
+  return created;
+}
+
+export async function attemptGenerateContractForSuccessfulPayment(input: {
+  companyId: string;
+  companySlug: string;
+  paymentId: string;
+}) {
+  if (!featureFlags.hasDatabase) return null;
+
+  const payment = await prisma.payment.findFirst({
+    where: {
+      companyId: input.companyId,
+      id: input.paymentId,
+      status: "SUCCESS",
+      transactionId: { not: null },
+    },
+    select: {
+      id: true,
+      transactionId: true,
+      transaction: {
+        select: {
+          id: true,
+          outstandingBalance: true,
+          userId: true,
+        },
+      },
+    },
+  });
+
+  if (!payment?.transactionId || !payment.transaction) return null;
+  const settings = await contractSettingsDelegate.findUnique({
+    where: { companyId: input.companyId },
+    select: { isConfigured: true },
+  });
+  const outstandingBalance = payment.transaction.outstandingBalance.toNumber?.() ?? Number(payment.transaction.outstandingBalance);
+  const shouldGenerate = shouldTriggerContractGenerationAfterPayment({
+    paymentStatus: "SUCCESS",
+    outstandingBalance,
+    isConfigured: Boolean(settings?.isConfigured),
+  });
+
+  if (outstandingBalance <= 0 && !settings?.isConfigured) {
+    const operators = await getTenantOperatorRecipients(input.companyId);
+    await notifyManyUsers(operators, {
+      companyId: input.companyId,
+      type: "DOCUMENT_REQUESTED",
+      title: "Contract settings incomplete",
+      body: "A buyer completed payment, but Contract of Sale generation is not configured yet.",
+      metadata: {
+        paymentId: input.paymentId,
+        transactionId: payment.transactionId,
+        href: "/admin/settings/contracts",
+        actionUrl: "/admin/settings/contracts",
+        entityType: "Payment",
+        entityId: input.paymentId,
+      } as Prisma.InputJsonValue,
+    });
+    return null;
+  }
+  if (!shouldGenerate) return null;
+
+  try {
+    return await generateContractForTransaction({
+      companyId: input.companyId,
+      companySlug: input.companySlug,
+      transactionId: payment.transactionId,
+      paymentId: input.paymentId,
+    });
+  } catch (error) {
+    const operators = await getTenantOperatorRecipients(input.companyId);
+    await notifyManyUsers(operators, {
+      companyId: input.companyId,
+      type: "DOCUMENT_REQUESTED",
+      title: "Contract generation failed",
+      body: error instanceof Error ? error.message : "Contract generation failed after successful payment.",
+      metadata: {
+        paymentId: input.paymentId,
+        transactionId: payment.transactionId,
+        href: "/admin/contracts",
+        actionUrl: "/admin/contracts",
+        entityType: "Payment",
+        entityId: input.paymentId,
+      } as Prisma.InputJsonValue,
+    });
+    return null;
+  }
+}
+
+export function shouldTriggerContractGenerationAfterPayment(input: {
+  paymentStatus: string;
+  outstandingBalance: number;
+  isConfigured: boolean;
+}) {
+  return input.paymentStatus === "SUCCESS" && input.outstandingBalance <= 0 && input.isConfigured;
+}
+
+export async function getAdminGeneratedContracts(companyId: string): Promise<GeneratedContractRow[]> {
+  if (!featureFlags.hasDatabase || !generatedContractDelegate) return [];
+  return generatedContractDelegate.findMany({
+    where: { companyId },
+    orderBy: [{ generatedAt: "desc" }, { version: "desc" }],
+    select: generatedContractSelect,
+  });
+}
+
+export async function getBuyerGeneratedContracts(userId: string, companyId: string): Promise<GeneratedContractRow[]> {
+  if (!featureFlags.hasDatabase || !generatedContractDelegate) return [];
+  return generatedContractDelegate.findMany({
+    where: {
+      companyId,
+      buyerUserId: userId,
+      status: { in: ["ACTIVE", "PENDING_REVIEW"] },
+    },
+    orderBy: [{ generatedAt: "desc" }, { version: "desc" }],
+    select: generatedContractSelect,
+  });
 }

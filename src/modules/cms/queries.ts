@@ -9,6 +9,7 @@ import {
 } from "@/lib/tenancy/db";
 import { formatDate } from "@/lib/utils";
 import { blogPosts, faqs, teamMembers, testimonials } from "@/modules/cms/demo-data";
+import { getPublicTestimonials as getModeratedPublicTestimonials } from "@/modules/testimonials/service";
 import type { BlogPost, FaqItem, TeamMember, Testimonial } from "@/types/domain";
 
 type ScopedFindManyDelegate = { findMany: (args?: unknown) => Promise<unknown> };
@@ -18,37 +19,29 @@ export async function getPublicCmsContext() {
   return requirePublicTenantContext();
 }
 
-export async function getPublicTestimonials(context?: TenantContext): Promise<Testimonial[]> {
+export async function getPublicTestimonials(
+  context?: TenantContext,
+  filters: unknown = {},
+  options: { limit?: number } = {},
+): Promise<Testimonial[]> {
   if (!featureFlags.hasDatabase || !context?.companyId) {
-    return testimonials;
+    return typeof options.limit === "number" ? testimonials.slice(0, options.limit) : testimonials;
   }
 
-  const rows = (await findManyPublicForTenant(
-    prisma.testimonial as ScopedFindManyDelegate,
-    context,
-    {
-      where: {},
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-      select: {
-        fullName: true,
-        role: true,
-        companyName: true,
-        quote: true,
-      },
-    } as Parameters<typeof prisma.testimonial.findMany>[0],
-    { modelName: "Testimonial", publishedOnly: true },
-  )) as Array<{
-    fullName: string;
-    role: string | null;
-    companyName: string | null;
-    quote: string;
-  }>;
-
+  const rows = await getModeratedPublicTestimonials(context, filters, options);
   return rows.map((row) => ({
-    fullName: row.fullName,
-    role: row.role ?? "Client",
-    company: row.companyName ?? undefined,
+    id: row.id,
+    fullName: row.displayName,
+    displayName: row.displayName,
+    role: row.role,
+    company: row.company,
     quote: row.quote,
+    title: row.title,
+    rating: row.rating,
+    avatarUrl: row.avatarUrl,
+    propertyTitle: row.propertyTitle,
+    isVerifiedBuyer: row.isVerifiedBuyer,
+    publishedAt: row.publishedAt,
   }));
 }
 

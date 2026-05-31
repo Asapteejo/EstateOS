@@ -53,8 +53,12 @@ export function BrandingManagement({
     setPending(false);
 
     if (!response.ok) {
-      const json = (await response.json().catch(() => null)) as { error?: string } | null;
-      toast.error(json?.error ?? "Unable to save branding draft.");
+      const json = (await response.json().catch(() => null)) as {
+        error?: string;
+        issues?: Array<{ path?: string; message?: string }>;
+      } | null;
+      const firstIssue = json?.issues?.[0];
+      toast.error(firstIssue?.message ? `${firstIssue.path ? `${firstIssue.path}: ` : ""}${firstIssue.message}` : json?.error ?? "Unable to save branding draft.");
       return;
     }
 

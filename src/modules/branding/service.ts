@@ -8,12 +8,27 @@ import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import { buildPublicAssetUrl } from "@/lib/uploads/assets";
 import type { BrandingConfigInput } from "@/lib/validations/branding";
 import {
+  buildTenantThemeStyles,
   defaultTenantBranding,
   getBrandingPublishIssues,
   normalizeTenantBrandingConfig,
   resolveBrandingState,
   type TenantBrandingConfig,
 } from "@/modules/branding/theme";
+
+export type TenantBrandingPresentation = {
+  companyName: string;
+  logoUrl: string | null;
+  primaryColor: string;
+  accentColor: string;
+  backgroundColor: string;
+  foregroundColor: string;
+  mutedColor: string;
+  cardColor: string;
+  borderColor: string;
+  cssVariables: Record<string, string>;
+  branding: TenantBrandingConfig;
+};
 
 export function resolveTenantBrandAssetUrl(value?: string | null) {
   const trimmed = value?.trim();
@@ -49,6 +64,45 @@ function buildFallbackBranding(input?: {
     secondaryColor: input?.primaryColor ?? defaultTenantBranding.secondaryColor,
     accentColor: input?.accentColor ?? defaultTenantBranding.accentColor,
   }));
+}
+
+export function resolveTenantBrandingPresentation(input: {
+  companyName?: string | null;
+  companySlug?: string | null;
+  branding?: Partial<TenantBrandingConfig> | null;
+  fallback?: {
+    logoUrl?: string | null;
+    primaryColor?: string | null;
+    accentColor?: string | null;
+  } | null;
+  surface?: "public" | "app";
+}): TenantBrandingPresentation {
+  const fallbackName = input.companySlug
+    ? input.companySlug.replaceAll("-", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
+    : "Tenant Company";
+  const fallback = buildFallbackBranding(input.fallback ?? undefined);
+  const branding = resolveTenantBrandingAssetUrls(normalizeTenantBrandingConfig({
+    ...fallback,
+    ...(input.branding ?? {}),
+  }));
+  const theme = buildTenantThemeStyles(branding, input.surface ?? "app");
+  const cssVariables = Object.fromEntries(
+    Object.entries(theme.style).filter(([key, value]) => key.startsWith("--") && typeof value === "string"),
+  ) as Record<string, string>;
+
+  return {
+    companyName: input.companyName?.trim() || fallbackName,
+    logoUrl: branding.logoUrl,
+    primaryColor: branding.primaryColor,
+    accentColor: branding.accentColor,
+    backgroundColor: branding.backgroundColor,
+    foregroundColor: theme.meta.headingColor,
+    mutedColor: theme.meta.mutedColor,
+    cardColor: branding.surfaceColor,
+    borderColor: cssVariables["--tenant-border"] ?? "rgba(15, 23, 42, 0.08)",
+    cssVariables,
+    branding,
+  };
 }
 
 export async function getTenantBrandingState(context: TenantContext) {
@@ -107,9 +161,14 @@ export async function getTenantPresentation(context: TenantContext) {
     : "Tenant Company";
 
   if (!featureFlags.hasDatabase || !context.companyId) {
-    return {
+    const presentation = resolveTenantBrandingPresentation({
       companyName: fallbackName,
+      companySlug: context.companySlug,
       branding: defaultTenantBranding,
+    });
+    return {
+      companyName: presentation.companyName,
+      branding: presentation.branding,
     };
   }
 
@@ -117,17 +176,32 @@ export async function getTenantPresentation(context: TenantContext) {
     where: { id: context.companyId },
     select: {
       name: true,
+      logoUrl: true,
+      primaryColor: true,
+      accentColor: true,
       siteSetting: {
         select: {
           companyName: true,
+          publishedBrandingConfig: true,
         },
       },
     },
   });
 
-  return {
+  const presentation = resolveTenantBrandingPresentation({
     companyName: company?.siteSetting?.companyName ?? company?.name ?? fallbackName,
-    branding: await getPublishedTenantBranding(context),
+    companySlug: context.companySlug,
+    branding: company?.siteSetting?.publishedBrandingConfig as Partial<TenantBrandingConfig> | null | undefined,
+    fallback: {
+      logoUrl: company?.logoUrl,
+      primaryColor: company?.primaryColor,
+      accentColor: company?.accentColor,
+    },
+  });
+
+  return {
+    companyName: presentation.companyName,
+    branding: presentation.branding,
   };
 }
 

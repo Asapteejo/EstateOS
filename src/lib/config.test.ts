@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   assertProductionRuntimeEnv,
+  buildClientFlags,
   buildFeatureFlags,
   getProductionReadinessIssues,
   parsePublicEnv,
@@ -213,6 +214,21 @@ test("public env exposes only client-safe values", () => {
   assert.equal(env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN, "public-mapbox");
 });
 
+test("client flags enable Clerk provider when the public publishable key exists", () => {
+  const enabled = buildClientFlags(parsePublicEnv({
+    NODE_ENV: "production",
+    NEXT_PUBLIC_APP_URL: "https://estateos.example.com",
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_live_example",
+  }));
+  const disabled = buildClientFlags(parsePublicEnv({
+    NODE_ENV: "development",
+    NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+  }));
+
+  assert.equal(enabled.hasClerk, true);
+  assert.equal(disabled.hasClerk, false);
+});
+
 test("feature flags require full service groups", () => {
   const env = parseServerEnv({
     NODE_ENV: "development",
@@ -255,6 +271,35 @@ test("server env accepts separate pooled and direct database urls", () => {
 
   assert.equal(env.DATABASE_URL?.includes("pgbouncer=true"), true);
   assert.equal(env.DIRECT_URL?.includes("sslmode=require"), true);
+});
+
+test("production readiness reports unsafe Supabase runtime and migration url topology", () => {
+  const env = parseServerEnv({
+    NODE_ENV: "production",
+    NEXT_PUBLIC_APP_URL: "https://estateos.example.com",
+    DATABASE_URL:
+      "postgresql://postgres:secret@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require",
+    DIRECT_URL:
+      "postgresql://postgres:secret@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require",
+  });
+
+  const issues = getProductionReadinessIssues(env);
+
+  assert.equal(issues.some((issue) => issue.includes("transaction pooler on port 6543")), true);
+  assert.equal(issues.some((issue) => issue.includes("direct Supabase database endpoint")), true);
+});
+
+test("production readiness rejects a Paystack webhook url used as its signing secret", () => {
+  const env = parseServerEnv({
+    NODE_ENV: "production",
+    NEXT_PUBLIC_APP_URL: "https://estateos.example.com",
+    PAYSTACK_WEBHOOK_SECRET: "https://estateos.example.com/api/webhooks/paystack",
+  });
+
+  assert.equal(
+    getProductionReadinessIssues(env).some((issue) => issue.includes("signing secret")),
+    true,
+  );
 });
 
 test("database readiness endpoint sanitization never exposes credentials", () => {

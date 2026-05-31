@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { DashboardShell } from "@/components/portal/dashboard-shell";
 import {
   getAdminContractRows,
+  getAdminGeneratedContracts,
   getTransactionsWithoutContract,
+  type GeneratedContractRow,
   type SignedAgreementRow,
   type TransactionWithoutContract,
 } from "@/modules/contracts/service";
-import { sendContractAction, uploadContractAction } from "./actions";
+import { generateContractAction, sendContractAction, uploadContractAction } from "./actions";
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
@@ -132,20 +134,102 @@ function UploadContractForm({ transactions }: { transactions: TransactionWithout
   );
 }
 
+function GenerateContractForm({ transactions }: { transactions: TransactionWithoutContract[] }) {
+  if (transactions.length === 0) return null;
+
+  return (
+    <div className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-white p-5">
+      <h2 className="text-sm font-semibold text-[var(--ink-900)]">Generate Contract of Sale</h2>
+      <p className="mt-1 text-sm text-[var(--ink-500)]">
+        Create the system-generated PDF from tenant contract settings and the selected transaction.
+      </p>
+      <form action={generateContractAction} className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-[var(--ink-600)]">
+            Transaction
+          </label>
+          <select
+            name="transactionId"
+            required
+            className="w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm text-[var(--ink-800)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-500)]"
+          >
+            <option value="">Select a transaction...</option>
+            {transactions.map((tx) => {
+              const ref = tx.reservation?.reference ?? tx.id.slice(0, 8);
+              const buyer = [tx.user.firstName, tx.user.lastName].filter(Boolean).join(" ") || "Buyer";
+              return (
+                <option key={tx.id} value={tx.id}>
+                  {ref} - {buyer} - {tx.property.title}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+        <div className="flex items-end">
+          <Button type="submit" variant="default">
+            Generate PDF
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function GeneratedContractRowView({ row }: { row: GeneratedContractRow }) {
+  const buyer = [row.buyer.firstName, row.buyer.lastName].filter(Boolean).join(" ") || row.buyer.email || "Buyer";
+
+  return (
+    <tr className="border-b border-[var(--line)] last:border-0">
+      <td className="py-3 pr-4 text-sm font-medium text-[var(--ink-900)]">{row.contractNumber}</td>
+      <td className="py-3 pr-4 text-sm text-[var(--ink-600)]">{buyer}</td>
+      <td className="py-3 pr-4 text-sm text-[var(--ink-600)]">{row.property?.title ?? "Unlinked"}</td>
+      <td className="py-3 pr-4 text-sm text-[var(--ink-600)]">{row.status}</td>
+      <td className="py-3 pr-4 text-sm text-[var(--ink-500)]">
+        v{row.version} - {formatDate(row.generatedAt, "PP")}
+        {row.templateVersion ? <div className="text-xs">Template v{row.templateVersion}</div> : null}
+      </td>
+      <td className="py-3 pr-4 text-right">
+        <div className="flex justify-end gap-2">
+          <a href={`/api/documents/${row.documentId}/download?disposition=attachment`}>
+            <Button size="sm" variant="outline">Download</Button>
+          </a>
+          {row.transactionId && row.status !== "REGENERATED" ? (
+            <form action={generateContractAction}>
+              <input type="hidden" name="transactionId" value={row.transactionId} />
+              <input type="hidden" name="forceRegenerate" value="true" />
+              <Button type="submit" size="sm" variant="outline">Regenerate</Button>
+            </form>
+          ) : null}
+          {row.transactionId && row.templateId && row.status !== "REGENERATED" ? (
+            <form action={generateContractAction}>
+              <input type="hidden" name="transactionId" value={row.transactionId} />
+              <input type="hidden" name="forceRegenerate" value="true" />
+              <input type="hidden" name="templateId" value={row.templateId} />
+              <input type="hidden" name="regeneratedFromContractId" value={row.id} />
+              <Button type="submit" size="sm" variant="outline">Original template</Button>
+            </form>
+          ) : null}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function AdminContractsPage() {
   const tenant = await requireAdminSession();
 
-  const [contracts, unlinked] = featureFlags.hasDatabase
+  const [contracts, generatedContracts, unlinked] = featureFlags.hasDatabase
     ? await Promise.all([
         getAdminContractRows(tenant.companyId!),
+        getAdminGeneratedContracts(tenant.companyId!),
         getTransactionsWithoutContract(tenant.companyId!),
       ])
-    : [[], []];
+    : [[], [], []];
 
-  const pending   = contracts.filter((c) => c.status === "PENDING").length;
-  const sent      = contracts.filter((c) => c.status === "ACTIVE").length;
+  const pending   = contracts.filter((c) => c.status === "PENDING").length + generatedContracts.filter((c) => c.status === "PENDING_REVIEW").length;
+  const sent      = contracts.filter((c) => c.status === "ACTIVE").length + generatedContracts.filter((c) => c.status === "ACTIVE").length;
   const accepted  = contracts.filter((c) => c.status === "COMPLETED").length;
 
   return (
@@ -166,13 +250,44 @@ export default async function AdminContractsPage() {
       </AdminToolbar>
 
       <AdminMetricGrid>
-        <AdminMetricCard label="Total contracts"  value={contracts.length} hint="All agreements linked to transactions." />
+        <AdminMetricCard label="Total contracts"  value={contracts.length + generatedContracts.length} hint="Uploaded and generated agreements linked to transactions." />
         <AdminMetricCard label="Uploaded"         value={pending}   hint="Uploaded but not yet sent to buyer." />
         <AdminMetricCard label="Sent to buyer"    value={sent}      hint="Buyer has been notified and can accept." tone={sent > 0 ? "accent" : "default"} />
         <AdminMetricCard label="Accepted"         value={accepted}  hint="Buyer accepted in portal." tone={accepted > 0 ? "success" : "default"} />
       </AdminMetricGrid>
 
+      <GenerateContractForm transactions={unlinked} />
       <UploadContractForm transactions={unlinked} />
+
+      <div className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-white">
+        <div className="border-b border-[var(--line)] px-5 py-4">
+          <h2 className="text-sm font-semibold text-[var(--ink-900)]">Generated Contracts of Sale</h2>
+        </div>
+        {generatedContracts.length === 0 ? (
+          <div className="px-5 py-10 text-center text-sm text-[var(--ink-400)]">
+            No generated contracts yet. Use the generator above after contract settings are ready.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[var(--line)] text-left">
+                  {["Contract", "Buyer", "Property", "Status", "Version", ""].map((h) => (
+                    <th key={h} className="px-0 pb-3 pt-4 pr-4 first:pl-5 last:pr-5 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ink-400)]">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {generatedContracts.map((row) => (
+                  <GeneratedContractRowView key={row.id} row={row} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       <div className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-white">
         <div className="border-b border-[var(--line)] px-5 py-4">

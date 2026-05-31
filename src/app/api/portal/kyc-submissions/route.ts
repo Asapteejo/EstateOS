@@ -1,4 +1,5 @@
 import { requirePortalSession } from "@/lib/auth/guards";
+import { getAppSession } from "@/lib/auth/session";
 import { fail, ok } from "@/lib/http";
 import { buyerKycSubmissionSchema } from "@/lib/validations/kyc";
 import { createBuyerKycSubmission } from "@/modules/kyc/service";
@@ -23,7 +24,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const created = await createBuyerKycSubmission(tenant, body.data);
+    const session = await getAppSession("portal");
+    const created = await createBuyerKycSubmission(tenant, body.data, {
+      email: session?.email,
+    });
     return ok(created, { status: 201 });
   } catch (error) {
     return fail(error instanceof Error ? error.message : "Unable to submit KYC.", 400);

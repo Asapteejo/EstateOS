@@ -19,18 +19,27 @@ export const buyerTimeline = [
 
 export const buyerNotifications = [
   {
+    id: "demo-notification-allocation",
     title: "Allocation update",
     body: "Your unit allocation is being finalized by operations and legal.",
     time: "2h ago",
+    state: "Unread",
+    actionUrl: null,
   },
   {
+    id: "demo-notification-receipt",
     title: "Receipt available",
     body: "A new receipt has been added to your document vault.",
     time: "Yesterday",
+    state: "Unread",
+    actionUrl: "/portal/documents",
   },
   {
+    id: "demo-notification-document",
     title: "Document request",
     body: "Please upload a recent utility bill for address verification.",
     time: "2 days ago",
+    state: "Read",
+    actionUrl: "/portal/documents",
   },
 ];

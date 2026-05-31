@@ -21,9 +21,10 @@ const CATEGORY_OPTIONS = [
 type Props = {
   initialName: string;
   initialEmail: string;
+  companyName: string;
 };
 
-export function SupportRequestForm({ initialName, initialEmail }: Props) {
+export function SupportRequestForm({ initialName, initialEmail, companyName }: Props) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [category, setCategory] = useState<(typeof CATEGORY_OPTIONS)[number][0]>("question");
@@ -82,17 +83,7 @@ export function SupportRequestForm({ initialName, initialEmail }: Props) {
       setMessage("");
       router.refresh();
 
-      const issueSuffix = json?.data?.linearIssueIdentifier
-        ? ` Linked as ${json.data.linearIssueIdentifier}.`
-        : "";
-      const syncSuffix =
-        json?.data?.syncStatus === "FAILED"
-          ? " Saved internally, but Linear sync needs operator attention."
-          : json?.data?.syncStatus === "SKIPPED"
-            ? " Saved internally."
-            : issueSuffix;
-
-      toast.success(`Support request submitted.${syncSuffix}`);
+      toast.success(`Your request has been sent to ${companyName} support team.`);
     } finally {
       setPending(false);
     }
@@ -116,8 +107,7 @@ export function SupportRequestForm({ initialName, initialEmail }: Props) {
               What happens next
             </div>
             <div className="text-sm leading-6 text-[var(--ink-600)]">
-              Your request is stored inside EstateOS first. If Linear is configured for the
-              workspace, the operations team also gets an issue automatically.
+              Your request is sent to {companyName}&apos;s support team and stored inside this tenant workspace for follow-up.
             </div>
           </div>
         </div>

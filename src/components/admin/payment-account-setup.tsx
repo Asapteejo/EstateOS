@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { AdminField, AdminStateBanner } from "@/components/admin/admin-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { normalizeBankOptions } from "@/modules/settings/banks";
 import { getPaymentSetupState, unwrapApiData, type ApiEnvelope } from "@/modules/settings/payment-account-ui";
 
 type Bank = { name: string; code: string };
@@ -107,8 +108,8 @@ function SubaccountForm({
           <option value="" disabled>
             Select a bank
           </option>
-          {banks.map((b) => (
-            <option key={b.code} value={b.code}>
+          {normalizeBankOptions(banks).map((b) => (
+            <option key={b.optionKey} value={b.code}>
               {b.name}
             </option>
           ))}

@@ -3,7 +3,12 @@ import { featureFlags } from "@/lib/env";
 import { formatDate } from "@/lib/utils";
 import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { Button } from "@/components/ui/button";
-import { getBuyerContracts, type BuyerContractRow } from "@/modules/contracts/service";
+import {
+  getBuyerContracts,
+  getBuyerGeneratedContracts,
+  type BuyerContractRow,
+  type GeneratedContractRow,
+} from "@/modules/contracts/service";
 import { acceptContractAction } from "./actions";
 
 // ─── Status label ─────────────────────────────────────────────────────────────
@@ -108,17 +113,57 @@ function ContractCard({ contract }: { contract: BuyerContractRow }) {
   );
 }
 
+function GeneratedContractCard({ contract }: { contract: GeneratedContractRow }) {
+  const isActive = contract.status === "ACTIVE";
+
+  return (
+    <div className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-white p-5 sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--ink-400)]">
+            {contract.property?.title ?? "Property"}
+          </p>
+          <h2 className="mt-0.5 text-base font-semibold text-[var(--ink-900)]">
+            Contract of Sale - {contract.contractNumber}
+          </h2>
+        </div>
+        <span className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${isActive ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+          {contract.status.replaceAll("_", " ")}
+        </span>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-[var(--radius-md)] border border-[var(--line)] bg-[var(--sand-50)] px-4 py-3">
+        <div>
+          <p className="text-sm font-medium text-[var(--ink-800)]">{contract.document.fileName}</p>
+          <p className="mt-0.5 text-xs text-[var(--ink-500)]">
+            Generated {formatDate(contract.generatedAt, "PP")} - version {contract.version}
+          </p>
+        </div>
+        <a
+          href={`/api/documents/${contract.documentId}/download?disposition=attachment`}
+          className="shrink-0 rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--ink-700)] hover:bg-[var(--sand-100)] transition-colors"
+        >
+          Download PDF
+        </a>
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function PortalContractsPage() {
   const tenant = await requirePortalSession({ redirectOnMissingAuth: false });
 
-  const contracts =
+  const [contracts, generatedContracts] =
     featureFlags.hasDatabase && tenant.userId && tenant.companyId
-      ? await getBuyerContracts(tenant.userId, tenant.companyId)
-      : [];
+      ? await Promise.all([
+          getBuyerContracts(tenant.userId, tenant.companyId),
+          getBuyerGeneratedContracts(tenant.userId, tenant.companyId),
+        ])
+      : [[], []];
 
   const pendingCount = contracts.filter((c) => c.status !== "COMPLETED").length;
+  const totalContracts = contracts.length + generatedContracts.length;
 
   return (
     <DashboardShell
@@ -136,7 +181,7 @@ export default async function PortalContractsPage() {
         </div>
       )}
 
-      {contracts.length === 0 ? (
+      {totalContracts === 0 ? (
         <div className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-white px-6 py-14 text-center">
           <p className="text-sm font-medium text-[var(--ink-700)]">No contracts yet</p>
           <p className="mt-1 text-sm text-[var(--ink-400)]">
@@ -145,6 +190,9 @@ export default async function PortalContractsPage() {
         </div>
       ) : (
         <div className="space-y-4">
+          {generatedContracts.map((contract) => (
+            <GeneratedContractCard key={contract.id} contract={contract} />
+          ))}
           {contracts.map((c) => (
             <ContractCard key={c.id} contract={c} />
           ))}

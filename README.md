@@ -749,6 +749,7 @@ Notes:
 
 - `prisma migrate dev` is for local development only.
 - `prisma migrate deploy` is the production-safe path.
+- Vercel builds intentionally run only `prisma generate` and `next build`. Run `npm run db:migrate:deploy` separately in a controlled CI or release step before deploying application code.
 - `DATABASE_URL` should point to the Supabase pooler for runtime traffic.
 - `DIRECT_URL` should point to the direct Supabase Postgres host for migrations.
 - Seed data is deterministic and intended for development/demo environments.
@@ -960,7 +961,7 @@ The repo is prepared for Next.js production deployment and includes [vercel.json
    `npm run db:validate`
    `npm run db:generate`
    `npm run db:migrate:deploy`
-8. Deploy the app.
+8. Deploy the app. The Vercel build does not run migrations or require `DIRECT_URL` network access.
 9. Verify:
    `/api/health`
    `/api/readyz`

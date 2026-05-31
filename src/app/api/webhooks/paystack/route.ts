@@ -5,6 +5,8 @@ import { verifyPaystackSignature } from "@/lib/payments/paystack";
 import { logError, logWarn } from "@/lib/ops/logger";
 import { captureException } from "@/lib/sentry";
 
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
   const rawBody = await request.text();
   const signature = request.headers.get("x-paystack-signature");

@@ -1,3 +1,5 @@
+import type { Prisma } from "@prisma/client";
+
 import { featureFlags } from "@/lib/env";
 import { prisma } from "@/lib/db/prisma";
 import { findManyForTenant, findFirstForTenant } from "@/lib/tenancy/db";
@@ -6,6 +8,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { properties as demoProperties } from "@/modules/properties/demo-data";
 import { buyerNotifications, buyerOverview, buyerTimeline } from "@/modules/portal/demo-data";
 import { isBuyerOwnedDocumentRecord, isBuyerOwnedTransactionRecord } from "@/modules/portal/access";
+import { resolveBuyerTenantContextForKyc } from "@/modules/kyc/buyer-user";
 import { buildBuyerPaymentProgress, resolveBuyerPaymentMarketer } from "@/modules/portal/payments";
 import { buildTransactionInstallmentSchedule, summarizeTransactionPayment } from "@/modules/payments/progress";
 import { buildPropertyVerificationPresentation } from "@/modules/properties/verification";
@@ -465,19 +468,26 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
   };
 }
 
-export async function getBuyerDocumentsTable(context: TenantContext) {
+export async function getBuyerDocumentsTable(
+  context: TenantContext,
+  options?: { email?: string | null },
+) {
   if (!featureFlags.hasDatabase || !context.companyId || !context.userId) {
     return [["allocation-letter.pdf", "AGREEMENT", "PRIVATE", "2026-03-27"]];
   }
 
+  const buyerContext = await resolveBuyerTenantContextForKyc(context, {
+    email: options?.email,
+  });
+
   const documents = (await findManyForTenant(
     prisma.document as ScopedFindManyDelegate,
-    context,
+    buyerContext,
     {
       where: {
         OR: [
-          { userId: context.userId },
-          { transaction: { userId: context.userId } },
+          { userId: buyerContext.userId },
+          { transaction: { userId: buyerContext.userId } },
         ],
       },
       orderBy: {
@@ -512,7 +522,7 @@ export async function getBuyerDocumentsTable(context: TenantContext) {
     .filter((document) =>
       isBuyerOwnedDocumentRecord({
         viewerCompanyId: context.companyId,
-        viewerUserId: context.userId,
+        viewerUserId: buyerContext.userId,
         documentUserId: document.userId,
         transactionCompanyId: document.transaction?.companyId,
         transactionUserId: document.transaction?.userId,
@@ -526,7 +536,10 @@ export async function getBuyerDocumentsTable(context: TenantContext) {
     ]);
 }
 
-export async function getBuyerDocumentsList(context: TenantContext) {
+export async function getBuyerDocumentsList(
+  context: TenantContext,
+  options?: { email?: string | null },
+) {
   if (!featureFlags.hasDatabase || !context.companyId || !context.userId) {
     return [
       {
@@ -540,12 +553,16 @@ export async function getBuyerDocumentsList(context: TenantContext) {
     ];
   }
 
+  const buyerContext = await resolveBuyerTenantContextForKyc(context, {
+    email: options?.email,
+  });
+
   const documents = (await findManyForTenant(
     prisma.document as ScopedFindManyDelegate,
-    context,
+    buyerContext,
     {
       where: {
-        OR: [{ userId: context.userId }, { transaction: { userId: context.userId } }],
+        OR: [{ userId: buyerContext.userId }, { transaction: { userId: buyerContext.userId } }],
       },
       orderBy: {
         updatedAt: "desc",
@@ -579,7 +596,7 @@ export async function getBuyerDocumentsList(context: TenantContext) {
     .filter((document) =>
       isBuyerOwnedDocumentRecord({
         viewerCompanyId: context.companyId,
-        viewerUserId: context.userId,
+        viewerUserId: buyerContext.userId,
         documentUserId: document.userId,
         transactionCompanyId: document.transaction?.companyId,
         transactionUserId: document.transaction?.userId,
@@ -769,22 +786,38 @@ export async function getBuyerNotifications(context: TenantContext) {
         createdAt: "desc",
       },
       select: {
+        id: true,
         title: true,
         body: true,
+        readAt: true,
+        metadata: true,
         createdAt: true,
       },
     } as Parameters<typeof prisma.notification.findMany>[0],
   )) as Array<{
+    id: string;
     title: string;
     body: string;
+    readAt: Date | null;
+    metadata: Prisma.JsonValue | null;
     createdAt: Date;
   }>;
 
-  return notifications.map((notification) => ({
-    title: notification.title,
-    body: notification.body,
-    time: formatDate(notification.createdAt, "PPP p"),
-  }));
+  return notifications.map((notification) => {
+    const metadata =
+      notification.metadata && typeof notification.metadata === "object" && !Array.isArray(notification.metadata)
+        ? (notification.metadata as Record<string, unknown>)
+        : {};
+
+    return {
+      id: notification.id,
+      title: notification.title,
+      body: notification.body,
+      time: formatDate(notification.createdAt, "PPP p"),
+      state: notification.readAt ? "Read" : "Unread",
+      actionUrl: typeof metadata.actionUrl === "string" ? metadata.actionUrl : null,
+    };
+  });
 }
 
 export async function getBuyerTimeline(context: TenantContext) {

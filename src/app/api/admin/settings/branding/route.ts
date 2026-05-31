@@ -1,5 +1,7 @@
 import { requireAdminSession } from "@/lib/auth/guards";
-import { fail, ok } from "@/lib/http";
+import { fail, ok, safeValidationIssues, validationFail } from "@/lib/http";
+import { featureFlags } from "@/lib/env";
+import { logWarn } from "@/lib/ops/logger";
 import { brandingActionSchema, brandingConfigSchema } from "@/lib/validations/branding";
 import {
   getTenantBrandingState,
@@ -39,7 +41,11 @@ export async function PATCH(request: Request) {
   const json = (await request.json()) as Record<string, unknown>;
   const body = brandingConfigSchema.safeParse(json);
   if (!body.success) {
-    return fail("Invalid branding payload.");
+    const issues = safeValidationIssues(body.error);
+    if (!featureFlags.isProduction) {
+      logWarn("Branding draft validation failed.", { issues });
+    }
+    return validationFail(body.error);
   }
 
   try {

@@ -1,8 +1,6 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
-const mode = process.argv[2] === "vercel" ? "vercel" : "build";
-
 const env = {
   ...process.env,
   NODE_OPTIONS: [process.env.NODE_OPTIONS, "--max-old-space-size=4096"]
@@ -10,17 +8,12 @@ const env = {
     .join(" "),
 };
 
-const steps =
-  mode === "vercel"
-    ? [
-        ["prisma", ["generate"]],
-        ["prisma", ["migrate", "deploy"]],
-        ["next", ["build"]],
-      ]
-    : [
-        ["prisma", ["generate"]],
-        ["next", ["build"]],
-      ];
+// Builds must not require direct database access. Run `npm run db:migrate:deploy`
+// separately in a controlled CI/release step before deploying application code.
+const steps = [
+  ["prisma", ["generate"]],
+  ["next", ["build"]],
+];
 
 const cliEntrypoints = {
   prisma: path.join(process.cwd(), "node_modules", "prisma", "build", "index.js"),

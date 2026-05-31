@@ -29,8 +29,14 @@ export function InquiryForm({ propertyId }: { propertyId?: string }) {
 
     setIsPending(false);
 
+    const json = (await response.json().catch(() => null)) as {
+      error?: string;
+      issues?: Array<{ path?: string; message?: string }>;
+    } | null;
+
     if (!response.ok) {
-      toast.error("Unable to submit inquiry right now.");
+      const firstIssue = json?.issues?.[0];
+      toast.error(firstIssue?.message ? `${firstIssue.path ? `${firstIssue.path}: ` : ""}${firstIssue.message}` : json?.error ?? "Unable to submit inquiry right now.");
       return;
     }
 

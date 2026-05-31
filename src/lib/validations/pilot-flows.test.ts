@@ -434,11 +434,56 @@ test("buyer profile and KYC schemas enforce pilot-critical onboarding fields", (
   assert.equal(
     buyerKycSubmissionSchema.safeParse({
       documentType: "KYC_ID",
+      country: "Nigeria",
+      identityDocumentType: "NIN",
       fileName: "passport.pdf",
       storageKey: "acme-realty/kyc/test-passport.pdf",
+      mimeType: "application/pdf",
     }).success,
     true,
   );
 
-  assert.equal(adminKycReviewSchema.safeParse({ status: "APPROVED" }).success, true);
+  assert.equal(
+    buyerKycSubmissionSchema.safeParse({
+      documentType: "KYC_ID",
+      country: "Ghana",
+      identityDocumentType: "NATIONAL_ID",
+      fileName: "national-id.png",
+      storageKey: "acme-realty/kyc/test-national-id.png",
+      mimeType: "image/png",
+    }).success,
+    true,
+  );
+
+  assert.equal(
+    buyerKycSubmissionSchema.safeParse({
+      documentType: "KYC_ID",
+      country: "Nigeria",
+      identityDocumentType: "TAX_ID",
+      fileName: "tax.pdf",
+      storageKey: "acme-realty/kyc/test-tax.pdf",
+      mimeType: "application/pdf",
+    }).success,
+    false,
+  );
+
+  assert.equal(
+    buyerKycSubmissionSchema.safeParse({
+      country: "Nigeria",
+      identityDocumentType: "CAC_BUSINESS_DOC",
+      fileName: "cac.pdf",
+      storageKey: "acme-realty/kyc/test-cac.pdf",
+      mimeType: "application/pdf",
+    }).success,
+    false,
+  );
+
+  assert.equal(
+    adminKycReviewSchema.safeParse({
+      status: "REJECTED",
+      rejectionReason: "Document is blurry.",
+      requiredActions: "Upload a clearer NIN slip.",
+    }).success,
+    true,
+  );
 });

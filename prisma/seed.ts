@@ -428,9 +428,15 @@ async function main() {
     data: testimonials.map((testimonial) => ({
       companyId: company.id,
       fullName: testimonial.fullName,
+      displayName: testimonial.fullName,
       role: testimonial.role,
       companyName: testimonial.company,
       quote: testimonial.quote,
+      rating: testimonial.rating ?? 5,
+      status: "PUBLISHED",
+      source: "ADMIN_CREATED",
+      isPublished: true,
+      publishedAt: new Date(),
     })),
   });
 

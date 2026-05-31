@@ -22,20 +22,22 @@ export function Logo({
   tagline?: string;
   logoUrl?: string | null;
 }) {
+  const monogram = buildMonogram(name);
+
   return (
-    <Link href={href} className="inline-flex items-center gap-3">
-      <div className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-[var(--brand-700)] text-white">
+    <Link href={href} className="tenant-logo inline-flex w-full max-w-full min-w-0 items-center gap-3" aria-label={`${name} home`} title={name}>
+      <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[var(--tenant-primary,var(--brand-700))] text-sm font-semibold text-[var(--tenant-primary-foreground,#fff)] ring-1 ring-[var(--tenant-border,var(--line))]">
         {logoUrl ? (
-          <OptimizedImage src={logoUrl} alt={name} fill preset="thumbnail" className="object-cover" />
+          <OptimizedImage src={logoUrl} alt={`${name} logo`} fill preset="thumbnail" className="bg-white object-contain p-1.5" />
         ) : (
-          buildMonogram(name)
+          monogram
         )}
       </div>
-      <div>
-        <div className="font-serif text-xl font-semibold text-[var(--ink-950)]">
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <div className="tenant-logo-name font-serif text-lg font-semibold leading-tight text-[var(--ink-950)]">
           {name}
         </div>
-        <div className="text-xs uppercase tracking-[0.24em] text-[var(--ink-500)]">
+        <div className="mt-1 truncate text-xs uppercase tracking-[0.2em] text-[var(--ink-500)]">
           {tagline}
         </div>
       </div>

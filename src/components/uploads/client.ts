@@ -1,5 +1,20 @@
 import type { UploadPurpose } from "@/modules/uploads/config";
 
+const kycAllowedMimeTypes = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+]);
+
+const contractAssetAllowedMimeTypes = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+]);
+
 export type UploadedAssetResult = {
   fileName: string;
   storageKey: string;
@@ -25,6 +40,16 @@ export async function uploadTenantFile(input: {
   mode: "publicAsset" | "document" | "preparedUpload";
   allowExternalUrl?: boolean;
 }) {
+  if (input.purpose === "KYC_DOCUMENT" && !kycAllowedMimeTypes.has((input.file.type || "").toLowerCase())) {
+    throw new Error("KYC documents must be PDF, JPG, PNG, or WEBP files.");
+  }
+  if (
+    (input.purpose === "COMPANY_STAMP" || input.purpose === "COMPANY_SIGNATURE") &&
+    !contractAssetAllowedMimeTypes.has((input.file.type || "").toLowerCase())
+  ) {
+    throw new Error("Contract stamp and signature uploads must be PNG, JPG, or WEBP images.");
+  }
+
   const signResponse = await fetch("/api/uploads/sign", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

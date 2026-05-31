@@ -11,7 +11,9 @@ export type UploadPurpose =
   | "PROPERTY_WALKTHROUGH_VIDEO"
   | "BROCHURE"
   | "KYC_DOCUMENT"
-  | "CONTRACT_DOCUMENT";
+  | "CONTRACT_DOCUMENT"
+  | "COMPANY_STAMP"
+  | "COMPANY_SIGNATURE";
 
 export type UploadPurposeConfig = {
   domain: string;
@@ -93,7 +95,7 @@ const uploadPurposeConfig: Record<UploadPurpose, UploadPurposeConfig> = {
     visibility: "PRIVATE",
     isPublicAsset: false,
     documentType: "OTHER",
-    accept: ".pdf,image/*,application/pdf",
+    accept: ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp",
     label: "KYC document",
   },
   CONTRACT_DOCUMENT: {
@@ -103,6 +105,20 @@ const uploadPurposeConfig: Record<UploadPurpose, UploadPurposeConfig> = {
     documentType: "CONTRACT",
     accept: ".pdf,application/pdf",
     label: "Contract document",
+  },
+  COMPANY_STAMP: {
+    domain: "contract-assets",
+    visibility: "PRIVATE",
+    isPublicAsset: false,
+    accept: ".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/jpg,image/webp",
+    label: "Company stamp",
+  },
+  COMPANY_SIGNATURE: {
+    domain: "contract-assets",
+    visibility: "PRIVATE",
+    isPublicAsset: false,
+    accept: ".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/jpg,image/webp",
+    label: "CEO signature",
   },
 };
 

@@ -26,7 +26,7 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
   const [featuredInventory, latestInventory, testimonials, leaderboard] = await Promise.all([
     getPublicProperties(tenant, parsePropertySearchParams({ featured: "true", page: "1" })),
     getPublicProperties(tenant, parsePropertySearchParams({ page: "1" })),
-    getPublicTestimonials(tenant),
+    getPublicTestimonials(tenant, {}, { limit: 6 }),
     getTenantMarketerLeaderboard(tenant, new Date(), 3, "MONTHLY"),
   ]);
 
@@ -207,16 +207,38 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
           />
           {testimonials.length > 0 ? (
             <div className="grid gap-6 lg:grid-cols-3">
-              {testimonials.slice(0, 3).map((testimonial) => (
-                <Card key={`${testimonial.fullName}-${testimonial.quote.slice(0, 24)}`} className="rounded-[28px] p-7">
+              {testimonials.map((testimonial) => (
+                <Card key={testimonial.id ?? `${testimonial.fullName}-${testimonial.quote.slice(0, 24)}`} className="rounded-[28px] p-7">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-[var(--sand-100)] text-sm font-semibold text-[var(--ink-700)]">
+                      {testimonial.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={testimonial.avatarUrl} alt={`${testimonial.fullName} avatar`} className="h-full w-full object-cover" />
+                      ) : (
+                        testimonial.fullName.slice(0, 2).toUpperCase()
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-[var(--ink-950)]">{testimonial.fullName}</div>
+                      <div className="text-xs text-[var(--ink-500)]">
+                        {testimonial.propertyTitle ?? testimonial.role}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-5 text-sm font-semibold text-amber-500" aria-label={`${testimonial.rating ?? 5} star rating`}>
+                    {"★".repeat(testimonial.rating ?? 5)}{"☆".repeat(5 - (testimonial.rating ?? 5))}
+                  </div>
+                  {testimonial.title ? (
+                    <div className="mt-3 text-base font-semibold text-[var(--ink-950)]">{testimonial.title}</div>
+                  ) : null}
                   <p className="text-base leading-8 text-[var(--ink-700)]">
                     &ldquo;{testimonial.quote}&rdquo;
                   </p>
-                  <div className="mt-6 text-sm font-semibold text-[var(--ink-950)]">{testimonial.fullName}</div>
-                  <div className="text-sm text-[var(--ink-500)]">
-                    {testimonial.role}
-                    {testimonial.company ? `, ${testimonial.company}` : ""}
-                  </div>
+                  {testimonial.isVerifiedBuyer ? (
+                    <div className="mt-5 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                      Verified buyer
+                    </div>
+                  ) : null}
                 </Card>
               ))}
             </div>

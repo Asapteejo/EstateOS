@@ -9,6 +9,12 @@ export const inquirySchema = z.object({
   message: z.string().min(10),
 });
 
+export const portalInquirySchema = z.object({
+  propertyId: z.string().trim().optional().transform((value) => value || undefined),
+  category: z.enum(["PROPERTY_GUIDANCE", "AVAILABILITY", "PAYMENT_STEPS", "DOCUMENTS", "OTHER"]).default("PROPERTY_GUIDANCE"),
+  message: z.string().trim().min(10, "Enter a message with at least 10 characters."),
+});
+
 export const inspectionSchema = z.object({
   propertyId: z.string().min(1),
   inquiryId: z.string().optional(),
@@ -32,6 +38,10 @@ export const inquiryUpdateSchema = z.object({
   ]),
   assignedStaffId: z.string().nullable().optional(),
   notes: z.string().max(1000).nullable().optional(),
+});
+
+export const inquiryReplySchema = z.object({
+  message: z.string().trim().min(10, "Enter a reply with at least 10 characters.").max(2000),
 });
 
 export const inspectionUpdateSchema = z.object({

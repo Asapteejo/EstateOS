@@ -9,6 +9,14 @@ export async function markAdminNotificationAsRead(
   context: TenantContext,
   notificationId: string,
 ) {
+  return setAdminNotificationReadState(context, notificationId, true);
+}
+
+export async function setAdminNotificationReadState(
+  context: TenantContext,
+  notificationId: string,
+  read: boolean,
+) {
   if (!context.companyId) {
     throw new Error("Tenant context is required.");
   }
@@ -42,7 +50,7 @@ export async function markAdminNotificationAsRead(
       id: notification.id,
     },
     data: {
-      readAt: new Date(),
+      readAt: read ? new Date() : null,
     },
     select: {
       id: true,

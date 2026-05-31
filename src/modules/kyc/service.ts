@@ -10,6 +10,12 @@ import { isTenantStorageKey } from "@/lib/storage/paths";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { findFirstForTenant, findManyForTenant, rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import type { AdminKycReviewInput, BuyerKycSubmissionInput } from "@/lib/validations/kyc";
+import { resolveBuyerDbUserForKyc, resolveBuyerTenantContextForKyc } from "@/modules/kyc/buyer-user";
+import {
+  getBuyerProfileKycChecklist,
+  getKycDocumentFormatMessage,
+  isBuyerProfileReadyForKyc,
+} from "@/modules/kyc/presentation";
 import { deriveOverallKycStatus } from "@/modules/transactions/workflow";
 import { syncTransactionMilestones } from "@/modules/transactions/mutations";
 
@@ -38,14 +44,23 @@ export type BuyerProfileRecord = {
 export type BuyerKycSubmissionListItem = {
   id: string;
   documentType: string;
+  identityDocumentType: string | null;
+  country: string | null;
   fileName: string;
   status: string;
   notes: string | null;
+  rejectionReason: string | null;
+  requiredActions: string | null;
+  reviewedAt: string | null;
   createdAt: string;
   downloadUrl: string;
+  unsupportedFormatMessage: string | null;
 };
 
-export async function getBuyerProfileRecord(context: TenantContext): Promise<BuyerProfileRecord | null> {
+export async function getBuyerProfileRecord(
+  context: TenantContext,
+  options?: { email?: string | null },
+): Promise<BuyerProfileRecord | null> {
   if (!featureFlags.hasDatabase || !context.companyId || !context.userId) {
     return {
       firstName: "Ada",
@@ -67,12 +82,16 @@ export async function getBuyerProfileRecord(context: TenantContext): Promise<Buy
     };
   }
 
+  const buyerContext = await resolveBuyerTenantContextForKyc(context, {
+    email: options?.email,
+  });
+
   const user = (await findFirstForTenant(
     prisma.user as ScopedFindFirstDelegate,
-    context,
+    buyerContext,
     {
       where: {
-        id: context.userId,
+        id: buyerContext.userId,
       },
       select: {
         firstName: true,
@@ -119,7 +138,7 @@ export async function getBuyerProfileRecord(context: TenantContext): Promise<Buy
   const imageRows = await prisma.$queryRaw<Array<{ profileImageUrl: string | null }>>(Prisma.sql`
     SELECT "profileImageUrl"
     FROM "User"
-    WHERE "id" = ${context.userId}
+    WHERE "id" = ${buyerContext.userId}
       AND "companyId" = ${context.companyId}
     LIMIT 1
   `);
@@ -157,16 +176,17 @@ export async function saveBuyerProfileRecord(
     phone: string;
     profileImageUrl?: string;
     dateOfBirth?: string;
-    nationality: string;
-    addressLine1: string;
+    nationality?: string;
+    addressLine1?: string;
     addressLine2?: string;
-    city: string;
-    state: string;
+    city?: string;
+    state?: string;
     country: string;
-    occupation: string;
-    nextOfKinName: string;
-    nextOfKinPhone: string;
+    occupation?: string;
+    nextOfKinName?: string;
+    nextOfKinPhone?: string;
   },
+  options?: { email?: string | null },
 ) {
   rejectUnsafeCompanyIdInput(input);
 
@@ -176,9 +196,13 @@ export async function saveBuyerProfileRecord(
     };
   }
 
+  const buyerContext = await resolveBuyerTenantContextForKyc(context, {
+    email: options?.email,
+  });
+
   const updated = await prisma.user.update({
     where: {
-      id: context.userId,
+      id: buyerContext.userId!,
     },
     data: {
       firstName: input.firstName,
@@ -189,28 +213,28 @@ export async function saveBuyerProfileRecord(
         upsert: {
           update: {
             dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
-            nationality: input.nationality,
-            addressLine1: input.addressLine1,
+            nationality: input.nationality ?? "",
+            addressLine1: input.addressLine1 ?? "",
             addressLine2: input.addressLine2,
-            city: input.city,
-            state: input.state,
+            city: input.city ?? "",
+            state: input.state ?? "",
             country: input.country,
-            occupation: input.occupation,
-            nextOfKinName: input.nextOfKinName,
-            nextOfKinPhone: input.nextOfKinPhone,
+            occupation: input.occupation ?? "",
+            nextOfKinName: input.nextOfKinName ?? "",
+            nextOfKinPhone: input.nextOfKinPhone ?? "",
             profileCompleted: true,
           },
           create: {
             dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
-            nationality: input.nationality,
-            addressLine1: input.addressLine1,
+            nationality: input.nationality ?? "",
+            addressLine1: input.addressLine1 ?? "",
             addressLine2: input.addressLine2,
-            city: input.city,
-            state: input.state,
+            city: input.city ?? "",
+            state: input.state ?? "",
             country: input.country,
-            occupation: input.occupation,
-            nextOfKinName: input.nextOfKinName,
-            nextOfKinPhone: input.nextOfKinPhone,
+            occupation: input.occupation ?? "",
+            nextOfKinName: input.nextOfKinName ?? "",
+            nextOfKinPhone: input.nextOfKinPhone ?? "",
             profileCompleted: true,
           },
         },
@@ -230,16 +254,16 @@ export async function saveBuyerProfileRecord(
     SET
       "profileImageUrl" = ${input.profileImageUrl ?? null},
       "updatedAt" = NOW()
-    WHERE "id" = ${context.userId}
+    WHERE "id" = ${buyerContext.userId}
       AND "companyId" = ${context.companyId}
   `);
 
   await writeAuditLog({
     companyId: context.companyId,
-    actorUserId: context.userId,
+    actorUserId: buyerContext.userId ?? undefined,
     action: "UPDATE",
     entityType: "Profile",
-    entityId: context.userId,
+    entityId: buyerContext.userId!,
     summary: "Buyer profile updated",
   });
 
@@ -248,20 +272,31 @@ export async function saveBuyerProfileRecord(
   };
 }
 
-export async function getBuyerKycWorkspace(context: TenantContext) {
+export async function getBuyerKycWorkspace(
+  context: TenantContext,
+  options?: { email?: string | null },
+) {
   if (!featureFlags.hasDatabase || !context.companyId || !context.userId) {
+    const demoProfile = await getBuyerProfileRecord(context, options);
     return {
       overallStatus: "NOT_SUBMITTED",
+      profileReady: isBuyerProfileReadyForKyc(demoProfile),
+      profileChecklist: getBuyerProfileKycChecklist(demoProfile),
+      buyerCountry: demoProfile?.country ?? "Nigeria",
       submissions: [] as BuyerKycSubmissionListItem[],
     };
   }
 
+  const buyerContext = await resolveBuyerTenantContextForKyc(context, {
+    email: options?.email,
+  });
+
   const submissions = (await findManyForTenant(
     prisma.kYCSubmission as ScopedFindManyDelegate,
-    context,
+    buyerContext,
     {
       where: {
-        userId: context.userId,
+        userId: buyerContext.userId,
       },
       orderBy: {
         createdAt: "desc",
@@ -270,13 +305,18 @@ export async function getBuyerKycWorkspace(context: TenantContext) {
         id: true,
         status: true,
         notes: true,
+        rejectionReason: true,
+        requiredActions: true,
+        reviewedAt: true,
         createdAt: true,
         document: {
           select: {
             id: true,
             fileName: true,
             documentType: true,
+            metadata: true,
             storageKey: true,
+            mimeType: true,
             visibility: true,
             companyId: true,
             userId: true,
@@ -293,12 +333,17 @@ export async function getBuyerKycWorkspace(context: TenantContext) {
     id: string;
     status: string;
     notes: string | null;
+    rejectionReason: string | null;
+    requiredActions: string | null;
+    reviewedAt: Date | null;
     createdAt: Date;
     document: {
       id: string;
       fileName: string;
       documentType: string;
+      metadata: Prisma.JsonValue | null;
       storageKey: string;
+      mimeType: string | null;
       visibility: "PUBLIC" | "PRIVATE";
       companyId: string;
       userId: string | null;
@@ -309,13 +354,14 @@ export async function getBuyerKycWorkspace(context: TenantContext) {
   const safeSubmissions: BuyerKycSubmissionListItem[] = [];
 
   for (const submission of submissions) {
-    assertDocumentAccess(context, {
+    assertDocumentAccess(buyerContext, {
       id: submission.document.id,
       companyId: submission.document.companyId,
       userId: submission.document.userId,
       visibility: submission.document.visibility,
       fileName: submission.document.fileName,
       storageKey: submission.document.storageKey,
+      mimeType: submission.document.mimeType,
       transaction: submission.document.transaction,
     });
 
@@ -324,19 +370,35 @@ export async function getBuyerKycWorkspace(context: TenantContext) {
         ? `/api/documents/${submission.document.id}/download`
         : "#";
 
+    const metadata = submission.document.metadata as {
+      identityDocumentType?: string | null;
+      country?: string | null;
+    } | null;
+
     safeSubmissions.push({
       id: submission.id,
       documentType: submission.document.documentType,
+      identityDocumentType: metadata?.identityDocumentType ?? null,
+      country: metadata?.country ?? null,
       fileName: submission.document.fileName,
       status: submission.status,
       notes: submission.notes,
+      rejectionReason: submission.rejectionReason,
+      requiredActions: submission.requiredActions,
+      reviewedAt: submission.reviewedAt?.toISOString() ?? null,
       createdAt: submission.createdAt.toISOString(),
       downloadUrl,
+      unsupportedFormatMessage: getKycDocumentFormatMessage(submission.document.mimeType),
     });
   }
 
+  const profile = await getBuyerProfileRecord(context, options);
+
   return {
     overallStatus: deriveOverallKycStatus(safeSubmissions.map((item) => item.status)),
+    profileReady: isBuyerProfileReadyForKyc(profile),
+    profileChecklist: getBuyerProfileKycChecklist(profile),
+    buyerCountry: profile?.country ?? "Nigeria",
     submissions: safeSubmissions,
   };
 }
@@ -344,6 +406,7 @@ export async function getBuyerKycWorkspace(context: TenantContext) {
 export async function createBuyerKycSubmission(
   context: TenantContext,
   input: BuyerKycSubmissionInput & Record<string, unknown>,
+  options?: { email?: string | null },
 ) {
   rejectUnsafeCompanyIdInput(input);
 
@@ -355,27 +418,38 @@ export async function createBuyerKycSubmission(
     throw new Error("KYC document storage namespace mismatch.");
   }
 
+  const profile = await getBuyerProfileRecord(context, options);
+  if (!isBuyerProfileReadyForKyc(profile)) {
+    throw new Error("Complete your profile first before submitting KYC.");
+  }
+
   if (!featureFlags.hasDatabase) {
     return {
       status: "SUBMITTED",
     };
   }
 
+  const buyer = await resolveBuyerDbUserForKyc(context, {
+    email: options?.email,
+  });
+
   const created = await prisma.$transaction(async (tx) => {
     const document = await tx.document.create({
       data: {
         companyId: context.companyId!,
-        userId: context.userId!,
+        userId: buyer.id,
         fileName: input.fileName,
         storageKey: input.storageKey,
         mimeType: input.mimeType,
         sizeBytes: input.sizeBytes,
         documentType: input.documentType,
         visibility: "PRIVATE",
-        uploadedByUserId: context.userId!,
-        createdForUserId: context.userId!,
+        uploadedByUserId: buyer.id,
+        createdForUserId: buyer.id,
         metadata: {
           notes: input.notes,
+          country: input.country,
+          identityDocumentType: input.identityDocumentType,
         } as Prisma.InputJsonValue,
       },
       select: {
@@ -386,10 +460,13 @@ export async function createBuyerKycSubmission(
     const submission = await tx.kYCSubmission.create({
       data: {
         companyId: context.companyId!,
-        userId: context.userId!,
+        userId: buyer.id,
         documentId: document.id,
         status: "SUBMITTED",
         notes: input.notes,
+        rejectionReason: null,
+        requiredActions: null,
+        reviewedAt: null,
       },
       select: {
         id: true,
@@ -400,7 +477,7 @@ export async function createBuyerKycSubmission(
     const transaction = await tx.transaction.findFirst({
       where: {
         companyId: context.companyId!,
-        userId: context.userId!,
+        userId: buyer.id,
       },
       orderBy: {
         createdAt: "desc",
@@ -433,13 +510,15 @@ export async function createBuyerKycSubmission(
 
   await writeAuditLog({
     companyId: context.companyId,
-    actorUserId: context.userId,
+    actorUserId: buyer.id,
     action: "CREATE",
     entityType: "KYCSubmission",
     entityId: created.id,
     summary: `Submitted ${input.documentType} for KYC review`,
     payload: {
       documentType: input.documentType,
+      country: input.country,
+      identityDocumentType: input.identityDocumentType,
       fileName: input.fileName,
     } as Prisma.InputJsonValue,
   });
@@ -463,6 +542,9 @@ export async function getAdminKycReviewQueue(context: TenantContext) {
         id: true,
         status: true,
         notes: true,
+        rejectionReason: true,
+        requiredActions: true,
+        reviewedAt: true,
         updatedAt: true,
         user: {
           select: {
@@ -476,6 +558,7 @@ export async function getAdminKycReviewQueue(context: TenantContext) {
             id: true,
             fileName: true,
             documentType: true,
+            metadata: true,
             storageKey: true,
             companyId: true,
           },
@@ -486,6 +569,9 @@ export async function getAdminKycReviewQueue(context: TenantContext) {
     id: string;
     status: string;
     notes: string | null;
+    rejectionReason: string | null;
+    requiredActions: string | null;
+    reviewedAt: Date | null;
     updatedAt: Date;
     user: {
       firstName: string | null;
@@ -496,12 +582,19 @@ export async function getAdminKycReviewQueue(context: TenantContext) {
       id: string;
       fileName: string;
       documentType: string;
+      metadata: Prisma.JsonValue | null;
       storageKey: string;
       companyId: string;
     };
   }>;
 
-  return queue.map((item) => ({
+  return queue.map((item) => {
+    const metadata = item.document.metadata as {
+      identityDocumentType?: string | null;
+      country?: string | null;
+    } | null;
+
+    return {
     id: item.id,
     buyer:
       item.user.companyId === context.companyId
@@ -509,11 +602,17 @@ export async function getAdminKycReviewQueue(context: TenantContext) {
         : "Unknown",
     status: item.status,
     notes: item.notes,
+    rejectionReason: item.rejectionReason,
+    requiredActions: item.requiredActions,
+    reviewedAt: item.reviewedAt?.toISOString() ?? null,
     documentType: item.document.documentType,
+    identityDocumentType: metadata?.identityDocumentType ?? null,
+    country: metadata?.country ?? null,
     fileName: item.document.fileName,
     updatedAt: item.updatedAt.toISOString(),
     downloadUrl: `/api/documents/${item.document.id}/download`,
-  }));
+    };
+  });
 }
 
 export async function reviewKycSubmission(
@@ -565,7 +664,11 @@ export async function reviewKycSubmission(
     data: {
       status: input.status,
       notes: input.notes,
+      rejectionReason: input.rejectionReason,
+      requiredActions: input.requiredActions,
+      reviewedAt: new Date(),
       reviewedById: context.userId,
+      reviewedByUserId: context.userId,
     },
     select: {
       id: true,
@@ -612,6 +715,8 @@ export async function reviewKycSubmission(
       previousStatus: submission.status,
       nextStatus: input.status,
       notes: input.notes,
+      rejectionReason: input.rejectionReason,
+      requiredActions: input.requiredActions,
     } as Prisma.InputJsonValue,
   });
 

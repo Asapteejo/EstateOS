@@ -4,11 +4,13 @@ import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { requirePortalSession } from "@/lib/auth/guards";
+import { getAppSession } from "@/lib/auth/session";
 import { getBuyerDocumentsList } from "@/modules/portal/queries";
 
 export default async function PortalDocumentsPage() {
   const tenant = await requirePortalSession();
-  const documents = await getBuyerDocumentsList(tenant);
+  const session = await getAppSession("portal");
+  const documents = await getBuyerDocumentsList(tenant, { email: session?.email });
 
   return (
     <DashboardShell area="portal" title="Document Vault" subtitle="Receipts, agreements, KYC files, and downloadable transaction records.">

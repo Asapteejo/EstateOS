@@ -234,9 +234,25 @@ enum DocumentVisibility {
   PRIVATE
 }
 
+enum GeneratedContractStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  VOIDED
+  REGENERATED
+}
+
+enum ContractTemplateMode {
+  SYSTEM_TEMPLATE
+  UPLOADED_PDF_TEMPLATE
+}
+
 enum NotificationType {
   INQUIRY_RECEIVED
   INQUIRY_ASSIGNED
+  TESTIMONIAL_SUBMITTED
+  TESTIMONIAL_REVIEWED
+  TESTIMONIAL_PUBLISHED
   INSPECTION_BOOKED
   INSPECTION_UPDATED
   PROPERTY_VERIFICATION_DUE
@@ -261,6 +277,20 @@ enum NotificationChannel {
   EMAIL
   SMS
   WHATSAPP
+}
+
+enum TestimonialStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  PUBLISHED
+  UNPUBLISHED
+  DELETED
+}
+
+enum TestimonialSource {
+  BUYER_PORTAL
+  ADMIN_CREATED
 }
 
 enum CommunicationChannel {
@@ -418,6 +448,9 @@ model Company {
   paymentRequests PaymentRequest[]
   receipts        Receipt[]
   documents       Document[]
+  contractSettings CompanyContractSettings?
+  contractTemplates ContractTemplate[]
+  generatedContracts GeneratedContract[]
   kycSubmissions  KYCSubmission[]
   signedAgreements SignedAgreement[]
   documentAccessLogs DocumentAccessLog[]
@@ -882,9 +915,14 @@ model User {
   inquiries       Inquiry[]
   reservations    Reservation[]
   transactions    Transaction[]
+  buyerTestimonials Testimonial[] @relation("BuyerTestimonials")
+  reviewedTestimonials Testimonial[] @relation("ReviewedTestimonials")
   payments        Payment[]
   paymentRequests PaymentRequest[]
   documents       Document[]
+  createdContractTemplates ContractTemplate[] @relation("ContractTemplateCreator")
+  generatedContracts GeneratedContract[] @relation("BuyerGeneratedContracts")
+  generatedContractActions GeneratedContract[] @relation("GeneratedContractActor")
   inspectionBookings InspectionBooking[]
   notifications   Notification[]
   supportRequests SupportRequest[]
@@ -1025,6 +1063,8 @@ model Property {
   inspections        InspectionBooking[]
   reservations       Reservation[]
   transactions       Transaction[]
+  generatedContracts GeneratedContract[]
+  testimonials       Testimonial[]
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
@@ -1215,6 +1255,7 @@ model Reservation {
   marketer       TeamMember?       @relation("SelectedMarketerReservations", fields: [marketerId], references: [id])
   paymentPlan    PaymentPlan?      @relation(fields: [paymentPlanId], references: [id])
   transaction    Transaction?
+  testimonials   Testimonial[]
   paymentRequests PaymentRequest[]
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
@@ -1259,6 +1300,8 @@ model Transaction {
   paymentRequests    PaymentRequest[]
   receipts           Receipt[]
   documents          Document[]
+  generatedContracts GeneratedContract[]
+  testimonials       Testimonial[]
   commissionRecords  CommissionRecord[]
   marketerCommissions MarketerCommission[] @relation("TransactionMarketerCommissions")
   signedAgreement    SignedAgreement?
@@ -1359,6 +1402,7 @@ model Payment {
   marketer          TeamMember?   @relation("SelectedMarketerPayments", fields: [marketerId], references: [id])
   paymentRequest    PaymentRequest? @relation(fields: [paymentRequestId], references: [id])
   receipt              Receipt?
+  generatedContracts   GeneratedContract[]
   webhookEvents        WebhookEvent[]
   commissionRecord     CommissionRecord?
   splitSettlement      SplitSettlement?
@@ -1407,6 +1451,7 @@ model PaymentRequest {
   transaction           Transaction?                   @relation(fields: [transactionId], references: [id])
   installment           Installment?                   @relation(fields: [installmentId], references: [id])
   payments              Payment[]
+  generatedContracts    GeneratedContract[]
   createdAt             DateTime                       @default(now())
   updatedAt             DateTime                       @updatedAt
 
@@ -1456,12 +1501,107 @@ model Document {
   accessLogs         DocumentAccessLog[]
   kycSubmissions     KYCSubmission[]
   signedAgreement    SignedAgreement?
+  contractTemplates  ContractTemplate[]
+  generatedContract  GeneratedContract?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
   @@unique([companyId, storageKey])
   @@index([companyId, userId, documentType])
   @@index([companyId, transactionId])
+}
+
+model CompanyContractSettings {
+  id              String   @id @default(cuid())
+  companyId       String   @unique
+  ceoName         String
+  ceoTitle        String
+  signatureKey    String?
+  stampKey        String?
+  contractTerms   String?
+  footerLegalText String?
+  isConfigured    Boolean  @default(false)
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([companyId, isConfigured])
+}
+
+model ContractTemplate {
+  id                  String               @id @default(cuid())
+  companyId           String
+  mode                ContractTemplateMode @default(SYSTEM_TEMPLATE)
+  version             Int
+  isActive            Boolean              @default(false)
+  isConfigured        Boolean              @default(false)
+  documentId          String?
+  storageKey          String?
+  fieldMappings       Json?
+  ceoName             String
+  ceoTitle            String
+  signatureKey        String?
+  stampKey            String?
+  contractTerms       String?
+  footerLegalText     String?
+  replacedByTemplateId String?
+  archivedAt          DateTime?
+  createdByUserId     String?
+  notes               String?
+  company             Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  document            Document?            @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  replacedByTemplate  ContractTemplate?     @relation("ContractTemplateReplacement", fields: [replacedByTemplateId], references: [id], onDelete: SetNull)
+  replacesTemplates   ContractTemplate[]    @relation("ContractTemplateReplacement")
+  createdBy           User?                @relation("ContractTemplateCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  generatedContracts  GeneratedContract[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  @@unique([companyId, version])
+  @@index([companyId, isActive])
+  @@index([companyId, mode, isConfigured])
+  @@index([companyId, archivedAt])
+}
+
+model GeneratedContract {
+  id                String                  @id @default(cuid())
+  companyId         String
+  buyerUserId       String
+  propertyId        String?
+  transactionId     String?
+  paymentRequestId  String?
+  paymentId         String?
+  documentId        String                  @unique
+  templateId        String?
+  templateVersion   Int?
+  templateMode      ContractTemplateMode    @default(SYSTEM_TEMPLATE)
+  templateSnapshot  Json?
+  contractNumber    String                  @unique
+  status            GeneratedContractStatus @default(PENDING_REVIEW)
+  generatedAt       DateTime                @default(now())
+  generatedByUserId String?
+  regeneratedFromContractId String?
+  version           Int                     @default(1)
+  company           Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  buyer             User                    @relation("BuyerGeneratedContracts", fields: [buyerUserId], references: [id], onDelete: Cascade)
+  property          Property?               @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  transaction       Transaction?            @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  paymentRequest    PaymentRequest?         @relation(fields: [paymentRequestId], references: [id], onDelete: SetNull)
+  payment           Payment?                @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  document          Document                @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  template          ContractTemplate?       @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  generatedBy       User?                   @relation("GeneratedContractActor", fields: [generatedByUserId], references: [id], onDelete: SetNull)
+  regeneratedFrom   GeneratedContract?      @relation("GeneratedContractRegeneration", fields: [regeneratedFromContractId], references: [id], onDelete: SetNull)
+  regenerations     GeneratedContract[]     @relation("GeneratedContractRegeneration")
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  @@index([companyId, buyerUserId, status])
+  @@index([companyId, transactionId, status])
+  @@index([companyId, paymentId])
+  @@index([companyId, propertyId])
+  @@index([companyId, templateId])
+  @@index([companyId, regeneratedFromContractId])
 }
 
 model KYCSubmission {
@@ -1471,6 +1611,10 @@ model KYCSubmission {
   documentId   String
   status       KycStatus       @default(SUBMITTED)
   reviewedById String?
+  reviewedByUserId String?
+  reviewedAt   DateTime?
+  rejectionReason String?
+  requiredActions String?
   notes        String?
   company      Company         @relation(fields: [companyId], references: [id])
   user         User            @relation(fields: [userId], references: [id])
@@ -1538,19 +1682,46 @@ model BlogPost {
 }
 
 model Testimonial {
-  id          String   @id @default(cuid())
-  companyId   String
-  fullName    String
-  role        String?
-  companyName String?
-  quote       String
-  avatarUrl   String?
-  sortOrder   Int      @default(0)
-  isPublished Boolean  @default(true)
-  company     Company  @relation(fields: [companyId], references: [id])
-  createdAt   DateTime @default(now())
+  id               String            @id @default(cuid())
+  companyId        String
+  buyerUserId      String?
+  propertyId       String?
+  reservationId    String?
+  transactionId    String?
+  fullName         String
+  displayName      String
+  role             String?
+  companyName      String?
+  quote            String
+  title            String?
+  rating           Int               @default(5)
+  avatarUrl        String?
+  sortOrder        Int               @default(0)
+  isPublished      Boolean           @default(true)
+  status           TestimonialStatus @default(PENDING_REVIEW)
+  source           TestimonialSource @default(ADMIN_CREATED)
+  rejectionReason  String?
+  adminNote        String?
+  isVerifiedBuyer  Boolean           @default(false)
+  submittedAt      DateTime          @default(now())
+  reviewedAt       DateTime?
+  reviewedByUserId String?
+  publishedAt      DateTime?
+  unpublishedAt    DateTime?
+  deletedAt        DateTime?
+  company          Company           @relation(fields: [companyId], references: [id])
+  buyer            User?             @relation("BuyerTestimonials", fields: [buyerUserId], references: [id])
+  property         Property?         @relation(fields: [propertyId], references: [id])
+  reservation      Reservation?      @relation(fields: [reservationId], references: [id])
+  transaction      Transaction?      @relation(fields: [transactionId], references: [id])
+  reviewedBy       User?             @relation("ReviewedTestimonials", fields: [reviewedByUserId], references: [id])
+  createdAt        DateTime          @default(now())
 
   @@index([companyId, isPublished, sortOrder])
+  @@index([companyId, status, publishedAt])
+  @@index([companyId, buyerUserId, createdAt])
+  @@index([companyId, propertyId, status])
+  @@index([companyId, deletedAt])
 }
 
 model TeamMember {

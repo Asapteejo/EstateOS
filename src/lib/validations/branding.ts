@@ -8,7 +8,20 @@ import {
   textModes,
 } from "@/modules/branding/theme";
 
-const optionalUrl = z.string().trim().url().optional().or(z.literal("")).transform((value) => value || undefined);
+const optionalAssetRef = z.preprocess(
+  (value) => (value === null ? "" : value),
+  z.string().trim().optional().or(z.literal("")).transform((value) => value || undefined).refine((value) => {
+    if (!value) {
+      return true;
+    }
+
+    if (/^(https?:|data:|blob:)/i.test(value) || value.startsWith("/")) {
+      return true;
+    }
+
+    return !/[<>\\\r\n]/.test(value) && !/^[a-z][a-z0-9+.-]*:/i.test(value);
+  }, "Use a valid public asset URL or tenant storage key."),
+);
 const hexColor = z.string().trim().regex(/^#([0-9a-fA-F]{6})$/, "Use a full 6-digit hex color.");
 
 export const brandingConfigSchema = z.object({
@@ -19,9 +32,9 @@ export const brandingConfigSchema = z.object({
   backgroundColor: hexColor,
   surfaceColor: hexColor,
   textMode: z.enum(textModes),
-  logoUrl: optionalUrl,
-  faviconUrl: optionalUrl,
-  heroImageUrl: optionalUrl,
+  logoUrl: optionalAssetRef,
+  faviconUrl: optionalAssetRef,
+  heroImageUrl: optionalAssetRef,
   buttonStyle: z.enum(buttonStyles),
   cardStyle: z.enum(cardStyles),
   navStyle: z.enum(navStyles),

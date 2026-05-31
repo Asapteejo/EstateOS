@@ -6,6 +6,8 @@ import { requireTenantContext } from "@/lib/tenancy/context";
 import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import { completeUploadSchema } from "@/lib/validations/storage";
 import { featureFlags } from "@/lib/env";
+import { getAppSession } from "@/lib/auth/session";
+import { resolveBuyerDbUserForKyc } from "@/modules/kyc/buyer-user";
 import { getUploadPurposeConfig } from "@/modules/uploads/config";
 export const runtime = "nodejs";
 
@@ -54,18 +56,35 @@ export async function POST(request: Request) {
     );
   }
 
+  let portalBuyer: Awaited<ReturnType<typeof resolveBuyerDbUserForKyc>> | null = null;
+  if (body.data.surface === "portal") {
+    const session = await getAppSession("portal");
+    try {
+      portalBuyer = await resolveBuyerDbUserForKyc(tenant, {
+        email: session?.email,
+      });
+    } catch (error) {
+      return fail(
+        error instanceof Error
+          ? error.message
+          : "Buyer profile is not initialized. Please reload dev buyer session.",
+        400,
+      );
+    }
+  }
+
   const document = await prisma.document.create({
     data: {
       companyId: tenant.companyId,
-      userId: body.data.surface === "portal" ? tenant.userId : null,
+      userId: portalBuyer?.id ?? null,
       fileName: body.data.fileName,
       storageKey: body.data.storageKey,
       mimeType: body.data.mimeType,
       sizeBytes: body.data.sizeBytes,
       documentType: config.documentType,
       visibility: config.visibility,
-      uploadedByUserId: tenant.userId ?? undefined,
-      createdForUserId: body.data.surface === "portal" ? tenant.userId ?? undefined : undefined,
+      uploadedByUserId: portalBuyer?.id ?? tenant.userId ?? undefined,
+      createdForUserId: portalBuyer?.id ?? undefined,
       metadata: buildUploadDocumentMetadata(body.data.purpose),
     },
     select: {

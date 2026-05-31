@@ -4,6 +4,7 @@ import { AdminEmptyState, AdminMetricCard, AdminMetricGrid, AdminPanel, AdminToo
 import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Avatar } from "@/components/ui/avatar";
 import { requireAdminSession } from "@/lib/auth/guards";
 import { getAdminClientList } from "@/modules/clients/queries";
 
@@ -65,10 +66,13 @@ export default async function AdminClientsPage() {
           {clients.map((client) => (
             <AdminPanel key={client.id}>
               <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <h2 className="text-lg font-semibold tracking-[-0.02em] text-[var(--ink-950)]">{client.name}</h2>
-                  <p className="mt-1 truncate text-sm text-[var(--ink-500)]">{client.email}</p>
-                  {client.phone ? <p className="mt-1 text-sm text-[var(--ink-500)]">{client.phone}</p> : null}
+                <div className="flex min-w-0 items-start gap-3">
+                  <Avatar name={client.name} imageUrl={client.profileImageUrl} size="md" />
+                  <div className="min-w-0">
+                    <h2 className="text-lg font-semibold tracking-[-0.02em] text-[var(--ink-950)]">{client.name}</h2>
+                    <p className="mt-1 truncate text-sm text-[var(--ink-500)]">{client.email}</p>
+                    {client.phone ? <p className="mt-1 text-sm text-[var(--ink-500)]">{client.phone}</p> : null}
+                  </div>
                 </div>
                 <div className="flex flex-wrap justify-end gap-2">
                   <Badge>{client.kycStatus}</Badge>

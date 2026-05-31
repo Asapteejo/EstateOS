@@ -6,6 +6,8 @@ import {
   buildRuntimeReadinessSummary,
 } from "@/lib/ops/health";
 
+export const runtime = "nodejs";
+
 export async function GET() {
   return NextResponse.json(
     {

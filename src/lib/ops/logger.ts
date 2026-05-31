@@ -20,3 +20,25 @@ export function logWarn(message: string, context?: Record<string, unknown>) {
 export function logError(message: string, context?: Record<string, unknown>) {
   console.error(JSON.stringify(formatMessage("error", message, context)));
 }
+
+function redactConnectionCredentials(value: string) {
+  return value.replace(
+    /\b(postgres(?:ql)?):\/\/[^@\s]+@/gi,
+    "$1://[redacted]@",
+  );
+}
+
+export function buildSafeErrorLogContext(error: unknown) {
+  if (!(error instanceof Error)) {
+    return {
+      errorName: "UnknownError",
+      errorMessage: "Unknown error",
+    };
+  }
+
+  return {
+    errorName: error.name,
+    errorMessage: redactConnectionCredentials(error.message),
+    errorStack: error.stack ? redactConnectionCredentials(error.stack) : undefined,
+  };
+}

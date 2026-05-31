@@ -9,15 +9,26 @@ export const buyerProfileSchema = z.object({
   phone: z.string().trim().min(7),
   profileImageUrl: optionalTrimmedString,
   dateOfBirth: z.string().date().optional(),
-  nationality: z.string().trim().min(2),
-  addressLine1: z.string().trim().min(5),
+  nationality: optionalTrimmedString,
+  addressLine1: optionalTrimmedString,
   addressLine2: optionalTrimmedString,
-  city: z.string().trim().min(2),
-  state: z.string().trim().min(2),
+  city: optionalTrimmedString,
+  state: optionalTrimmedString,
   country: z.string().trim().min(2).default("Nigeria"),
-  occupation: z.string().trim().min(2),
-  nextOfKinName: z.string().trim().min(2),
-  nextOfKinPhone: z.string().trim().min(7),
+  occupation: optionalTrimmedString,
+  nextOfKinName: optionalTrimmedString,
+  nextOfKinPhone: optionalTrimmedString,
+}).superRefine((value, ctx) => {
+  const hasAddress = Boolean(value.addressLine1);
+  const hasCityState = Boolean(value.city && value.state);
+
+  if (!hasAddress && !hasCityState) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Enter an address or city and state.",
+      path: ["addressLine1"],
+    });
+  }
 });
 
 export type BuyerProfileInput = z.infer<typeof buyerProfileSchema>;

@@ -5,7 +5,7 @@ import { Toaster } from "sonner";
 
 import { PostHogClientReporter } from "@/components/providers/posthog-client-reporter";
 import { PostHogClerkIdentity } from "@/components/providers/posthog-clerk-identity";
-import { clientFlags } from "@/lib/public-env";
+import { clientFlags, publicEnv } from "@/lib/public-env";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   const content = (
@@ -21,7 +21,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <ClerkProvider>
+    <ClerkProvider publishableKey={publicEnv.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
       <PostHogClerkIdentity />
       {content}
     </ClerkProvider>

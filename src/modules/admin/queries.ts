@@ -1,3 +1,5 @@
+import type { Prisma } from "@prisma/client";
+
 import { featureFlags } from "@/lib/env";
 import { prisma } from "@/lib/db/prisma";
 import { aggregateForTenant, countForTenant, findManyForTenant } from "@/lib/tenancy/db";
@@ -77,10 +79,14 @@ export function buildSalesPipelineCards(input: {
 export type AdminNotificationListItem = {
   id: string;
   title: string;
+  body: string;
   channel: string;
   recipient: string;
   state: "Read" | "Unread";
   created: string;
+  actionUrl: string | null;
+  entityType: string | null;
+  entityId: string | null;
 };
 
 export async function getAdminPropertiesTable(context: TenantContext) {
@@ -591,10 +597,14 @@ export async function getAdminNotificationsList(
       {
         id: "demo-notification-1",
         title: "Payment confirmed",
+        body: "A buyer payment was confirmed.",
         channel: "IN_APP",
         recipient: "Ada Okafor",
         state: "Unread",
         created: "2026-03-28 14:20",
+        actionUrl: "/admin/payments",
+        entityType: null,
+        entityId: null,
       },
     ];
   }
@@ -610,8 +620,10 @@ export async function getAdminNotificationsList(
       select: {
         id: true,
         title: true,
+        body: true,
         channel: true,
         readAt: true,
+        metadata: true,
         createdAt: true,
         user: {
           select: {
@@ -626,8 +638,10 @@ export async function getAdminNotificationsList(
   )) as Array<{
     id: string;
     title: string;
+    body: string;
     channel: string;
     readAt: Date | null;
+    metadata: Prisma.JsonValue | null;
     createdAt: Date;
     user: {
       firstName: string | null;
@@ -636,18 +650,29 @@ export async function getAdminNotificationsList(
     };
   }>;
 
-  return notifications.map((notification) => ({
-    id: notification.id,
-    title: notification.title,
-    channel: notification.channel,
-    recipient:
-      notification.user.companyId === context.companyId
-        ? `${notification.user.firstName ?? ""} ${notification.user.lastName ?? ""}`.trim() ||
-          "Unknown"
-        : "Unknown",
-    state: notification.readAt ? "Read" : "Unread",
-    created: formatDate(notification.createdAt, "PPP p"),
-  }));
+  return notifications.map((notification) => {
+    const metadata =
+      notification.metadata && typeof notification.metadata === "object" && !Array.isArray(notification.metadata)
+        ? (notification.metadata as Record<string, unknown>)
+        : {};
+
+    return {
+      id: notification.id,
+      title: notification.title,
+      body: notification.body,
+      channel: notification.channel,
+      recipient:
+        notification.user.companyId === context.companyId
+          ? `${notification.user.firstName ?? ""} ${notification.user.lastName ?? ""}`.trim() ||
+            "Unknown"
+          : "Unknown",
+      state: notification.readAt ? "Read" : "Unread",
+      created: formatDate(notification.createdAt, "PPP p"),
+      actionUrl: typeof metadata.actionUrl === "string" ? metadata.actionUrl : null,
+      entityType: typeof metadata.entityType === "string" ? metadata.entityType : null,
+      entityId: typeof metadata.entityId === "string" ? metadata.entityId : null,
+    };
+  });
 }
 
 export async function getAdminTransactionsTable(context: TenantContext) {

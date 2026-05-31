@@ -1,9 +1,9 @@
 import { requireAdminSession } from "@/lib/auth/guards";
 import { fail, ok } from "@/lib/http";
-import { markAdminNotificationAsRead } from "@/modules/admin/mutations";
+import { setAdminNotificationReadState } from "@/modules/admin/mutations";
 
 export async function PATCH(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ notificationId: string }> },
 ) {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
@@ -16,7 +16,8 @@ export async function PATCH(
   const { notificationId } = await params;
 
   try {
-    const result = await markAdminNotificationAsRead(tenant, notificationId);
+    const body = (await request.json().catch(() => null)) as { read?: boolean } | null;
+    const result = await setAdminNotificationReadState(tenant, notificationId, body?.read ?? true);
     return ok(result);
   } catch (error) {
     return fail(

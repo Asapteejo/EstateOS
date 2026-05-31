@@ -3,7 +3,8 @@ import { Prisma } from "@prisma/client";
 
 import { env, featureFlags } from "@/lib/env";
 import { createLinearSupportIssue } from "@/lib/integrations/linear";
-import { captureServerEvent, captureServerException } from "@/lib/integrations/posthog";
+import { captureServerException } from "@/lib/integrations/posthog";
+import { getTenantOperatorRecipients, notifyManyUsers } from "@/lib/notifications/service";
 import { logError } from "@/lib/ops/logger";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { prisma } from "@/lib/db/prisma";
@@ -60,6 +61,36 @@ type CompanySnapshot = {
   revenueTier: RevenueTier;
   lastPaymentAt: Date | null;
 };
+
+export function buildTenantSupportNotification(input: {
+  companyName: string;
+  requestId: string;
+  category: SupportCategory;
+  subject: string;
+  message: string;
+  reporterName: string | null;
+  reporterEmail: string | null;
+  pageUrl?: string | null;
+}) {
+  return {
+    type: "SYSTEM" as const,
+    title: "Buyer support request",
+    body: `${input.reporterName ?? input.reporterEmail ?? "A buyer"} submitted: ${input.subject}`,
+    metadata: {
+      supportRequestId: input.requestId,
+      category: input.category,
+      pageUrl: input.pageUrl ?? null,
+    } as Prisma.InputJsonValue,
+    emailSubject: `Buyer support request - ${input.subject}`,
+    emailHtml: (recipientName: string) => `
+      <p>Hello ${recipientName},</p>
+      <p>A buyer submitted a support request for ${input.companyName}.</p>
+      <p><strong>${input.subject}</strong></p>
+      <p>${input.message}</p>
+      <p><a href="${buildInternalSupportUrl(input.requestId)}">Open support request</a></p>
+    `,
+  };
+}
 
 function toDbCategory(category: SupportCategory) {
   return category.toUpperCase();
@@ -137,17 +168,6 @@ function inferSupportPriority(input: {
   }
 
   return "LOW" as const;
-}
-
-function toSupportFailureSeverity(input: {
-  category: SupportCategory;
-  priority: SupportPriority;
-}) {
-  if (input.category === "billing" || input.priority === "HIGH") {
-    return "HIGH" as const;
-  }
-
-  return "MEDIUM" as const;
 }
 
 function buildInternalSupportUrl(requestId: string) {
@@ -537,117 +557,36 @@ export async function submitSupportRequest(
     lastPaymentAt: company.lastPaymentAt,
   });
 
-  if (!featureFlags.hasLinear) {
-    await updateSupportRequestSyncState({
-      requestId: record.id,
-      status: "SKIPPED",
-      error: "Linear integration is not configured.",
-      nextRetryAt: buildNextRetryAt(1),
-    });
+  const operators = await getTenantOperatorRecipients(context.tenant.companyId);
+  const supportNotification = buildTenantSupportNotification({
+    companyName: company.name,
+    requestId: record.id,
+    category: request.category,
+    subject: request.subject,
+    message: request.message,
+    reporterName: context.reporterName,
+    reporterEmail: context.reporterEmail,
+    pageUrl: request.pageUrl ?? null,
+  });
+  await notifyManyUsers(operators, {
+    companyId: context.tenant.companyId,
+    ...supportNotification,
+  });
 
-    return {
-      id: record.id,
-      syncStatus: "SKIPPED" as const,
-      linearIssueIdentifier: null,
-      linearIssueUrl: null,
-    };
-  }
+  await updateSupportRequestSyncState({
+    requestId: record.id,
+    status: "SKIPPED",
+    error: "Routed to tenant admins. Linear escalation is not used for normal buyer support.",
+    nextRetryAt: null,
+  });
 
-  try {
-    const issue = await createLinearIssueForRequest({
-      requestId: record.id,
-      request: {
-        category: request.category,
-        subject: request.subject,
-        message: request.message,
-        pageUrl: request.pageUrl ?? null,
-        browserInfo: request.browserInfo ?? null,
-      },
-      company,
-      reporterName: context.reporterName,
-      reporterEmail: context.reporterEmail,
-    });
+  return {
+    id: record.id,
+    syncStatus: "SKIPPED" as const,
+    linearIssueIdentifier: null,
+    linearIssueUrl: null,
+  };
 
-    await updateSupportRequestSyncState({
-      requestId: record.id,
-      status: "SYNCED",
-      linearIssueId: issue?.id ?? null,
-      linearIssueIdentifier: issue?.identifier ?? null,
-      linearIssueUrl: issue?.url ?? null,
-      nextRetryAt: null,
-    });
-
-    return {
-      id: record.id,
-      syncStatus: "SYNCED" as const,
-      linearIssueIdentifier: issue?.identifier ?? null,
-      linearIssueUrl: issue?.url ?? null,
-    };
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown Linear sync failure.";
-
-    await captureServerException(error, {
-      source: "support",
-      route: "/api/portal/support",
-      method: "POST",
-      companyId: context.tenant.companyId,
-      companySlug: context.tenant.companySlug,
-      userId: context.tenant.userId,
-      area: "portal",
-      statusCode: 500,
-    }, {
-      severity: toSupportFailureSeverity({
-        category: request.category,
-        priority,
-      }),
-      supportRequestId: record.id,
-    });
-    await captureServerEvent(
-      "support_request_linear_sync_failed",
-      {
-        category: request.category,
-        supportRequestId: record.id,
-        syncStatus: "FAILED",
-      },
-      {
-        source: "support",
-        route: "/api/portal/support",
-        method: "POST",
-        companyId: context.tenant.companyId,
-        companySlug: context.tenant.companySlug,
-        userId: context.tenant.userId,
-        area: "portal",
-      },
-      {
-        severity: toSupportFailureSeverity({
-          category: request.category,
-          priority,
-        }),
-        supportRequestId: record.id,
-      },
-    );
-
-    logError("Support request failed to sync to Linear.", {
-      requestId: record.id,
-      companyId: context.tenant.companyId,
-      error: message,
-    });
-
-    await updateSupportRequestSyncState({
-      requestId: record.id,
-      status: "FAILED",
-      error: message,
-      nextRetryAt: buildNextRetryAt(1),
-    });
-
-    return {
-      id: record.id,
-      syncStatus: "FAILED" as const,
-      linearIssueIdentifier: null,
-      linearIssueUrl: null,
-    };
-  }
 }
 
 export async function listSupportRequestsForCompany(

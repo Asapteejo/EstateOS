@@ -8,7 +8,13 @@ import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { r2 } from "@/lib/storage/r2";
 import { env } from "@/lib/env";
-import { createContract, sendContract } from "@/modules/contracts/service";
+import { namespaceTenantStorageKey } from "@/lib/storage/paths";
+import {
+  createContract,
+  generateContractForTransaction,
+  resolveContractActorDbUserId,
+  sendContract,
+} from "@/modules/contracts/service";
 
 // ─── Upload contract PDF and link to transaction ─────────────────────────────
 
@@ -31,8 +37,8 @@ export async function uploadContractAction(formData: FormData): Promise<void> {
   });
   if (!tx) return;
 
-  const ext = file.name.split(".").pop() ?? "pdf";
-  const storageKey = `contracts/${tenant.companyId}/${crypto.randomUUID()}.${ext}`;
+  const storageKey = namespaceTenantStorageKey(tenant, "contracts/uploaded", file.name, crypto.randomUUID());
+  const actorDbUserId = await resolveContractActorDbUserId(tenant);
 
   // Upload directly to R2 from the server action
   if (r2 && env.R2_BUCKET_NAME) {
@@ -57,7 +63,7 @@ export async function uploadContractAction(formData: FormData): Promise<void> {
       sizeBytes: file.size,
       documentType: "CONTRACT",
       visibility: "PRIVATE",
-      uploadedByUserId: tenant.userId,
+      uploadedByUserId: actorDbUserId ?? undefined,
     },
     select: { id: true },
   });
@@ -66,7 +72,7 @@ export async function uploadContractAction(formData: FormData): Promise<void> {
     companyId: tenant.companyId,
     transactionId,
     documentId: document.id,
-    actorUserId: tenant.userId,
+    actorUserId: actorDbUserId ?? undefined,
   });
 
   revalidatePath("/admin/contracts");
@@ -81,11 +87,39 @@ export async function sendContractAction(formData: FormData): Promise<void> {
   const signedAgreementId = (formData.get("signedAgreementId") as string | null)?.trim();
   if (!signedAgreementId) return;
 
+  const actorDbUserId = await resolveContractActorDbUserId(tenant);
+
   await sendContract({
     signedAgreementId,
     companyId: tenant.companyId,
-    actorUserId: tenant.userId,
+    actorUserId: actorDbUserId ?? undefined,
   });
 
   revalidatePath("/admin/contracts");
+}
+
+export async function generateContractAction(formData: FormData): Promise<void> {
+  const tenant = await requireAdminSession(["ADMIN", "LEGAL"]);
+  if (!tenant.companyId || !tenant.companySlug) return;
+
+  const transactionId = (formData.get("transactionId") as string | null)?.trim();
+  const forceRegenerate = formData.get("forceRegenerate") === "true";
+  const templateId = (formData.get("templateId") as string | null)?.trim() || null;
+  const regeneratedFromContractId = (formData.get("regeneratedFromContractId") as string | null)?.trim() || null;
+  if (!transactionId) return;
+
+  await generateContractForTransaction({
+    companyId: tenant.companyId,
+    companySlug: tenant.companySlug,
+    transactionId,
+    actorUserId: tenant.userId,
+    actorEmail: tenant.email,
+    actorIsSuperAdmin: tenant.isSuperAdmin,
+    forceRegenerate,
+    templateId,
+    regeneratedFromContractId,
+  });
+
+  revalidatePath("/admin/contracts");
+  revalidatePath("/portal/contracts");
 }

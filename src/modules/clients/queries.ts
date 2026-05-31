@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { findFirstForTenant, findManyForTenant } from "@/lib/tenancy/db";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { resolveTenantBrandAssetUrl } from "@/modules/branding/service";
 import { buildWishlistTimeLabel, buildWishlistWhatsAppHref, getWishlistLifecycleState } from "@/modules/wishlist/service";
 
 type ScopedFindManyDelegate = { findMany: (args?: unknown) => Promise<unknown> };
@@ -26,6 +27,7 @@ export type AdminClientListItem = {
   name: string;
   email: string;
   phone: string | null;
+  profileImageUrl: string | null;
   kycStatus: string;
   currentStage: string;
   wishlistCount: number;
@@ -38,9 +40,14 @@ export type AdminClientListItem = {
 
 export type AdminClientProfile = {
   id: string;
+  tenantName: string;
+  tenantLogoUrl: string | null;
   name: string;
   email: string;
   phone: string | null;
+  profileImageUrl: string | null;
+  country: string | null;
+  addressLine1: string | null;
   city: string | null;
   state: string | null;
   occupation: string | null;
@@ -101,6 +108,8 @@ export type AdminClientProfile = {
     fileName: string;
     type: string;
     href: string;
+    status: string | null;
+    rejectionReason: string | null;
   }>;
   timeline: Array<{
     title: string;
@@ -140,6 +149,7 @@ export async function getAdminClientList(context: TenantContext): Promise<AdminC
         lastName: true,
         email: true,
         phone: true,
+        profileImageUrl: true,
         savedProperties: {
           where: {
             status: {
@@ -192,6 +202,7 @@ export async function getAdminClientList(context: TenantContext): Promise<AdminC
     lastName: string | null;
     email: string;
     phone: string | null;
+    profileImageUrl: string | null;
     savedProperties: Array<{ id: string; createdAt: Date }>;
     reservations: Array<{ id: string; createdAt: Date; transaction: { currentStage: string; outstandingBalance: Decimalish } | null }>;
     payments: Array<{ id: string; createdAt: Date }>;
@@ -215,6 +226,7 @@ export async function getAdminClientList(context: TenantContext): Promise<AdminC
       name: displayName(client),
       email: client.email,
       phone: client.phone,
+      profileImageUrl: client.profileImageUrl,
       kycStatus: client.kycSubmissions[0]?.status ?? "NOT_SUBMITTED",
       currentStage: client.reservations[0]?.transaction?.currentStage ?? "No active deal",
       wishlistCount: client.savedProperties.length,
@@ -255,10 +267,13 @@ export async function getAdminClientProfile(
         lastName: true,
         email: true,
         phone: true,
+        profileImageUrl: true,
         profile: {
           select: {
             city: true,
             state: true,
+            country: true,
+            addressLine1: true,
             occupation: true,
           },
         },
@@ -266,9 +281,16 @@ export async function getAdminClientProfile(
           orderBy: {
             updatedAt: "desc",
           },
-          take: 1,
           select: {
             status: true,
+            rejectionReason: true,
+            document: {
+              select: {
+                id: true,
+                fileName: true,
+                documentType: true,
+              },
+            },
           },
         },
         savedProperties: {
@@ -398,17 +420,6 @@ export async function getAdminClientProfile(
             },
           },
         },
-        documents: {
-          orderBy: {
-            updatedAt: "desc",
-          },
-          take: 8,
-          select: {
-            id: true,
-            fileName: true,
-            documentType: true,
-          },
-        },
       },
     } as Parameters<typeof prisma.user.findFirst>[0],
   )) as {
@@ -417,8 +428,17 @@ export async function getAdminClientProfile(
     lastName: string | null;
     email: string;
     phone: string | null;
-    profile: { city: string | null; state: string | null; occupation: string | null } | null;
-    kycSubmissions: Array<{ status: string }>;
+    profileImageUrl: string | null;
+    profile: { city: string | null; state: string | null; country: string | null; addressLine1: string | null; occupation: string | null } | null;
+    kycSubmissions: Array<{
+      status: string;
+      rejectionReason: string | null;
+      document: {
+        id: string;
+        fileName: string;
+        documentType: string;
+      };
+    }>;
     savedProperties: Array<{
       id: string;
       createdAt: Date;
@@ -459,11 +479,6 @@ export async function getAdminClientProfile(
       status: string;
       method: string;
       receipt: { id: string } | null;
-    }>;
-    documents: Array<{
-      id: string;
-      fileName: string;
-      documentType: string;
     }>;
   } | null;
 
@@ -506,6 +521,19 @@ export async function getAdminClientProfile(
     },
   });
 
+  const company = await prisma.company.findUnique({
+    where: { id: context.companyId },
+    select: {
+      name: true,
+      logoUrl: true,
+      siteSetting: {
+        select: {
+          companyName: true,
+        },
+      },
+    },
+  });
+
   const timeline = [
     ...client.savedProperties.map((item) => ({
       title: "Wishlist activity",
@@ -536,9 +564,14 @@ export async function getAdminClientProfile(
 
   return {
     id: client.id,
+    tenantName: company?.siteSetting?.companyName ?? company?.name ?? "Tenant company",
+    tenantLogoUrl: resolveTenantBrandAssetUrl(company?.logoUrl),
     name: displayName(client),
     email: client.email,
     phone: client.phone,
+    profileImageUrl: client.profileImageUrl,
+    country: client.profile?.country ?? null,
+    addressLine1: client.profile?.addressLine1 ?? null,
     city: client.profile?.city ?? null,
     state: client.profile?.state ?? null,
     occupation: client.profile?.occupation ?? null,
@@ -609,11 +642,13 @@ export async function getAdminClientProfile(
       method: item.method,
       receiptHref: item.receipt ? `/api/receipts/${item.receipt.id}/download` : null,
     })),
-    documents: client.documents.map((item) => ({
-      id: item.id,
-      fileName: item.fileName,
-      type: item.documentType,
-      href: `/api/documents/${item.id}/download`,
+    documents: client.kycSubmissions.slice(0, 8).map((item) => ({
+      id: item.document.id,
+      fileName: item.document.fileName,
+      type: item.document.documentType,
+      href: `/api/documents/${item.document.id}/download`,
+      status: item.status,
+      rejectionReason: item.rejectionReason,
     })),
     timeline,
     followUpStaffOptions: followUpStaffOptions.map((user) => ({

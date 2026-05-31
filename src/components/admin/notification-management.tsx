@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -17,21 +18,23 @@ export function NotificationManagement({
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isMarkingAll, setIsMarkingAll] = useState(false);
 
-  async function markRead(notificationId: string) {
+  async function setReadState(notificationId: string, read: boolean) {
     setPendingId(notificationId);
 
     const response = await fetch(`/api/admin/notifications/${notificationId}/read`, {
       method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ read }),
     });
 
     setPendingId(null);
 
     if (!response.ok) {
-      toast.error("Unable to mark notification as read.");
+      toast.error("Unable to update notification.");
       return;
     }
 
-    toast.success("Notification marked as read.");
+    toast.success(read ? "Notification marked as read." : "Notification marked as unread.");
     router.refresh();
   }
 
@@ -74,28 +77,51 @@ export function NotificationManagement({
         {notifications.map((notification) => (
           <div
             key={notification.id}
-            className="grid gap-4 px-6 py-5 lg:grid-cols-[1.4fr_0.8fr_1fr_auto]"
+            className="grid gap-4 px-6 py-5 lg:grid-cols-[1.4fr_0.7fr_0.7fr_auto]"
           >
-            <div>
-              <div className="text-base font-semibold text-[var(--ink-950)]">
-                {notification.title}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                {notification.state === "Unread" ? (
+                  <span className="h-2 w-2 rounded-full bg-[var(--brand-700)]" aria-label="Unread" />
+                ) : null}
+                <div className="truncate text-base font-semibold text-[var(--ink-950)]">
+                  {notification.title}
+                </div>
               </div>
               <div className="mt-1 text-sm text-[var(--ink-500)]">
                 {notification.channel}  -  {notification.recipient}
               </div>
+              <p className="mt-2 line-clamp-2 text-sm leading-6 text-[var(--ink-600)]">{notification.body}</p>
+              {notification.entityType && notification.entityId ? (
+                <div className="mt-2 text-xs uppercase tracking-[0.16em] text-[var(--ink-400)]">
+                  {notification.entityType} - {notification.entityId}
+                </div>
+              ) : null}
             </div>
             <div className="text-sm text-[var(--ink-700)]">{notification.created}</div>
             <div className="text-sm font-medium text-[var(--brand-700)]">
               {notification.state}
             </div>
-            <div className="flex justify-end">
+            <div className="flex flex-wrap justify-end gap-2">
+              {notification.actionUrl ? (
+                <Link
+                  href={notification.actionUrl}
+                  className="admin-interactive admin-focus inline-flex h-9 items-center justify-center rounded-full border border-[var(--line)] px-4 text-sm font-semibold text-[var(--ink-900)] hover:bg-[var(--sand-100)]"
+                >
+                  View
+                </Link>
+              ) : null}
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => markRead(notification.id)}
-                disabled={pendingId === notification.id || notification.state === "Read"}
+                onClick={() => setReadState(notification.id, notification.state !== "Read")}
+                disabled={pendingId === notification.id}
               >
-                {pendingId === notification.id ? "Updating..." : "Mark read"}
+                {pendingId === notification.id
+                  ? "Updating..."
+                  : notification.state === "Read"
+                    ? "Mark unread"
+                    : "Mark read"}
               </Button>
             </div>
           </div>

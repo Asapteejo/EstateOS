@@ -36,7 +36,14 @@ export async function getPrivateUploadUrl(key: string, contentType: string) {
   };
 }
 
-export async function getPrivateDownloadUrl(key: string) {
+export async function getPrivateDownloadUrl(
+  key: string,
+  options?: {
+    fileName?: string | null;
+    contentType?: string | null;
+    disposition?: "inline" | "attachment";
+  },
+) {
   if (!r2 || !env.R2_BUCKET_NAME) {
     logWarn("R2 download requested without full R2 configuration. Returning demo download response.", {
       key,
@@ -47,6 +54,10 @@ export async function getPrivateDownloadUrl(key: string) {
   const command = new GetObjectCommand({
     Bucket: env.R2_BUCKET_NAME,
     Key: key,
+    ResponseContentType: options?.contentType ?? undefined,
+    ResponseContentDisposition: options?.fileName
+      ? `${options.disposition ?? "inline"}; filename="${options.fileName.replaceAll('"', "")}"`
+      : options?.disposition,
   });
 
   return getSignedUrl(r2, command, { expiresIn: 60 * 5 });

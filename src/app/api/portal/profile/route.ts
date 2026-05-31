@@ -1,4 +1,5 @@
 import { requireBuyerPortalSession } from "@/lib/auth/guards";
+import { getAppSession } from "@/lib/auth/session";
 import { fail, ok } from "@/lib/http";
 import { buyerProfileSchema } from "@/lib/validations/profile";
 import { saveBuyerProfileRecord } from "@/modules/kyc/service";
@@ -21,9 +22,12 @@ export async function PATCH(request: Request) {
   }
 
   try {
+    const session = await getAppSession("portal");
     const updated = await saveBuyerProfileRecord(tenant, {
       ...json,
       ...body.data,
+    }, {
+      email: session?.email,
     });
     return ok(updated);
   } catch (error) {

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -9,6 +10,8 @@ import { AdminAttentionBadge, AdminEmptyState, AdminStateBanner } from "@/compon
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Avatar } from "@/components/ui/avatar";
+import { PrintButton } from "@/components/shared/print-button";
 import { compareAttentionPriority, getAttentionTone, workflowVocabulary } from "@/modules/admin/workflow-vocabulary";
 import type { AdminClientProfile } from "@/modules/clients/queries";
 
@@ -93,6 +96,13 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
 
   return (
     <div className="space-y-8">
+      <div className="flex justify-end print:hidden">
+        <PrintButton label="Print Buyer Profile" />
+      </div>
+      <section className="hidden print:block">
+        <PrintableAdminBuyerProfile client={client} />
+      </section>
+      <div className="print:hidden">
       <div className="grid gap-4 md:grid-cols-5">
         {[
           ["Wishlist items", String(client.summary.wishlistCount)],
@@ -112,9 +122,12 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
         <Card className="rounded-[30px] border-[var(--line)] bg-white p-6">
           <h2 className="text-xl font-semibold text-[var(--ink-950)]">Client profile</h2>
           <div className="mt-5 space-y-4 text-sm text-[var(--ink-600)]">
-            <div>
-              <div className="text-xs uppercase tracking-[0.18em] text-[var(--ink-400)]">Client</div>
-              <div className="mt-1 text-lg font-semibold text-[var(--ink-950)]">{client.name}</div>
+            <div className="flex items-center gap-3">
+              <Avatar name={client.name} imageUrl={client.profileImageUrl} size="lg" />
+              <div>
+                <div className="text-xs uppercase tracking-[0.18em] text-[var(--ink-400)]">Client</div>
+                <div className="mt-1 text-lg font-semibold text-[var(--ink-950)]">{client.name}</div>
+              </div>
             </div>
             <div>{client.email}</div>
             {client.phone ? <div>{client.phone}</div> : null}
@@ -316,11 +329,76 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
         emptyTitle="No client documents available"
         rows={client.documents.map((item) => ({
           title: item.fileName,
-          subtitle: item.type,
-          meta: item.href,
+          subtitle: `${item.type}${item.status ? ` - ${item.status}` : ""}`,
+          meta: item.rejectionReason ?? "Private tenant document",
         }))}
       />
+      </div>
     </div>
+  );
+}
+
+function PrintableAdminBuyerProfile({ client }: { client: AdminClientProfile }) {
+  const generatedAt = new Date().toLocaleString();
+  const location = [client.addressLine1, client.city, client.state, client.country].filter(Boolean).join(", ");
+
+  return (
+    <div className="mx-auto max-w-4xl bg-white text-black">
+      <div className="flex items-center justify-between border-b border-black/20 pb-5">
+        <div>
+          <div className="text-2xl font-semibold">{client.tenantName}</div>
+          <div className="mt-1 text-sm">Tenant buyer profile</div>
+        </div>
+        {client.tenantLogoUrl ? (
+          <Image src={client.tenantLogoUrl} alt={client.tenantName} width={56} height={56} unoptimized className="h-14 w-14 object-contain" />
+        ) : null}
+      </div>
+      <div className="mt-6 grid gap-6 md:grid-cols-[0.35fr_0.65fr]">
+        <div className="space-y-3">
+          {client.profileImageUrl ? (
+            <Image src={client.profileImageUrl} alt={client.name} width={96} height={96} unoptimized className="h-24 w-24 rounded-full object-cover" />
+          ) : null}
+          <div>
+            <div className="text-xl font-semibold">{client.name}</div>
+            <div className="text-sm">{client.email}</div>
+            <div className="text-sm">{client.phone ?? "No phone on file"}</div>
+          </div>
+        </div>
+        <dl className="grid grid-cols-2 gap-x-8 gap-y-4">
+          {[
+            ["KYC status", client.kycStatus],
+            ["Location", location || "Not completed"],
+            ["Occupation", client.occupation ?? "Not completed"],
+            ["Assigned marketer", client.assignedMarketer ?? "Unassigned"],
+            ["Outstanding balance", client.summary.outstandingBalance],
+            ["Date generated", generatedAt],
+          ].map(([label, value]) => (
+            <div key={label} className="border-b border-black/10 pb-2">
+              <dt className="text-xs uppercase tracking-wide text-black/60">{label}</dt>
+              <dd className="mt-1 text-sm font-medium">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+      <PrintSummary title="Submitted documents" rows={client.documents.map((item) => `${item.fileName} - ${item.status ?? item.type}${item.rejectionReason ? ` - ${item.rejectionReason}` : ""}`)} />
+      <PrintSummary title="Reservations" rows={client.reservations.map((item) => `${item.reference} - ${item.propertyTitle} - ${item.status}`)} />
+      <PrintSummary title="Payments" rows={client.payments.map((item) => `${item.reference} - ${item.amount} - ${item.status}`)} />
+    </div>
+  );
+}
+
+function PrintSummary({ title, rows }: { title: string; rows: string[] }) {
+  return (
+    <section className="mt-8">
+      <h2 className="text-lg font-semibold">{title}</h2>
+      <div className="mt-3 space-y-2">
+        {rows.length > 0 ? rows.map((row) => (
+          <div key={`${title}-${row}`} className="border-b border-black/10 pb-2 text-sm">
+            {row}
+          </div>
+        )) : <div className="text-sm">None recorded.</div>}
+      </div>
+    </section>
   );
 }
 

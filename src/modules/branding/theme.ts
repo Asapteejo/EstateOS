@@ -358,9 +358,11 @@ export function buildTenantThemeStyles(
   const mutedColor = surface === "public" ? hexWithAlpha(textColor, 0.72) : "#475569";
   const { buttonRadius, cardRadius } = getRadius(normalized.buttonStyle, normalized.cardStyle);
   const brand500 = mixHexColors(normalized.primaryColor, "#FFFFFF", 0.08);
+  const brand100 = mixHexColors(normalized.primaryColor, "#FFFFFF", 0.88);
   const brand700 = normalized.secondaryColor;
   const brand800 = mixHexColors(normalized.secondaryColor, "#07111B", 0.16);
   const line = surface === "public" ? hexWithAlpha(textColor, 0.12) : "rgba(15, 23, 42, 0.08)";
+  const cardColor = normalized.surfaceColor;
   const sand100 = surface === "public" ? hexWithAlpha(normalized.surfaceColor, 0.88) : mixHexColors(normalized.backgroundColor, "#F7F4ED", 0.42);
   const navSurface =
     normalized.navStyle === "SOLID"
@@ -379,6 +381,7 @@ export function buildTenantThemeStyles(
 
   const style = {
     "--brand-500": brand500,
+    "--brand-100": brand100,
     "--brand-700": brand700,
     "--brand-800": brand800,
     "--ink-500": mutedColor,
@@ -390,12 +393,16 @@ export function buildTenantThemeStyles(
     "--sand-200": mixHexColors(normalized.surfaceColor, normalized.accentColor, 0.08),
     "--line": line,
     "--tenant-background": surface === "public" ? normalized.backgroundColor : mixHexColors(normalized.backgroundColor, "#F7F5EE", 0.42),
-    "--tenant-surface": normalized.surfaceColor,
+    "--tenant-card": cardColor,
+    "--tenant-surface": cardColor,
     "--tenant-foreground": headingColor,
     "--tenant-muted": mutedColor,
     "--tenant-accent": normalized.accentColor,
     "--tenant-primary": normalized.primaryColor,
+    "--tenant-primary-foreground": pickTextColor(normalized.primaryColor, "AUTO"),
     "--tenant-secondary": normalized.secondaryColor,
+    "--tenant-border": line,
+    "--tenant-ring": hexWithAlpha(normalized.primaryColor, 0.24),
     "--tenant-nav-surface": navSurface,
     "--tenant-nav-border": navBorder,
     "--tenant-nav-shadow": navShadow,

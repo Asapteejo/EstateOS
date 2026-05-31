@@ -19,6 +19,7 @@ import {
 
 export type TenantContext = {
   userId: string | null;
+  email?: string | null;
   companyId: string | null;
   companySlug: string | null;
   branchId: string | null;
@@ -196,6 +197,7 @@ export async function resolveTenantContext(
   if (!session) {
     return {
       userId: null,
+      email: null,
       companyId: resolvedCompany?.id ?? null,
       companySlug:
         resolvedCompany?.slug ??
@@ -225,6 +227,7 @@ export async function resolveTenantContext(
 
   return {
     userId: session.userId,
+    email: session.email || null,
     companyId: session.roles.includes("SUPER_ADMIN")
       ? session.companyId ?? resolvedCompany?.id ?? null
       : sessionCompany?.id ?? resolvedCompany?.id ?? session.companyId,

@@ -3,6 +3,7 @@ import type { AppRole, NotificationChannel, NotificationType, Prisma } from "@pr
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { sendTransactionalEmail } from "@/lib/notifications/email";
+import { publishRealtimeEvent } from "@/lib/realtime/events";
 
 type NotificationRecordInput = {
   companyId: string;
@@ -28,7 +29,7 @@ export async function createInAppNotification(input: NotificationRecordInput) {
     return { id: `demo-notification-${input.type.toLowerCase()}` };
   }
 
-  return prisma.notification.create({
+  const notification = await prisma.notification.create({
     data: {
       companyId: input.companyId,
       userId: input.userId,
@@ -39,6 +40,20 @@ export async function createInAppNotification(input: NotificationRecordInput) {
       metadata: input.metadata,
     },
   });
+
+  publishRealtimeEvent({
+    scope: "company",
+    companyId: input.companyId,
+    name: "notification.created",
+    summary: input.title,
+    metadata: {
+      notificationId: notification.id,
+      userId: input.userId,
+      type: input.type,
+    },
+  });
+
+  return notification;
 }
 
 export async function notifyManyUsers(

@@ -75,6 +75,9 @@ export default async function AdminSettingsPage() {
           <Link href="/admin/settings/branding">
             <Button variant="secondary">Open branding studio</Button>
           </Link>
+          <Link href="/admin/settings/contracts">
+            <Button variant="outline">Open contract settings</Button>
+          </Link>
         </div>
       </Card>
 

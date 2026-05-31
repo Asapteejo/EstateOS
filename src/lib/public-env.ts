@@ -1,4 +1,17 @@
 import { buildClientFlags, parsePublicEnv } from "@/lib/config";
 
-export const publicEnv = parsePublicEnv(process.env);
+export const publicEnv = parsePublicEnv({
+  NODE_ENV: process.env.NODE_ENV,
+  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  NEXT_PUBLIC_PLATFORM_BASE_URL: process.env.NEXT_PUBLIC_PLATFORM_BASE_URL,
+  NEXT_PUBLIC_PORTAL_BASE_URL: process.env.NEXT_PUBLIC_PORTAL_BASE_URL,
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+  NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN,
+  NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+  NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+  POSTHOG_DISABLED: process.env.POSTHOG_DISABLED,
+  POSTHOG_DEBUG: process.env.POSTHOG_DEBUG,
+  NEXT_PUBLIC_POSTHOG_CLIENT_EXCEPTION_SAMPLE_RATE:
+    process.env.NEXT_PUBLIC_POSTHOG_CLIENT_EXCEPTION_SAMPLE_RATE,
+});
 export const clientFlags = buildClientFlags(publicEnv);

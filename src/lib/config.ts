@@ -208,6 +208,7 @@ export type FeatureFlags = ReturnType<typeof buildFeatureFlags>;
 
 const productionRequiredKeys = [
   "DATABASE_URL",
+  "DIRECT_URL",
   "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
   "CLERK_SECRET_KEY",
   "CLERK_WEBHOOK_SECRET",
@@ -219,6 +220,28 @@ const productionRequiredKeys = [
   "R2_SECRET_ACCESS_KEY",
   "R2_BUCKET_NAME",
 ] as const;
+
+export function getDatabaseTopologyIssues(env: Pick<ServerEnv, "DATABASE_URL" | "DIRECT_URL">) {
+  const issues: string[] = [];
+  const runtime = sanitizeDatabaseEndpointForReadiness(env.DATABASE_URL);
+  const direct = sanitizeDatabaseEndpointForReadiness(env.DIRECT_URL);
+  const runtimeIsSupabasePooler = Boolean(runtime.host?.includes("pooler.supabase.com"));
+  const directIsSupabase = Boolean(direct.host?.includes("supabase.co"));
+
+  if (runtimeIsSupabasePooler && runtime.port !== "6543") {
+    issues.push("DATABASE_URL should use the Supabase transaction pooler on port 6543.");
+  }
+
+  if (runtimeIsSupabasePooler && !runtime.usesPooler) {
+    issues.push("DATABASE_URL should include pgbouncer=true for the Supabase runtime pooler.");
+  }
+
+  if (directIsSupabase && (direct.usesPooler || direct.port !== "5432")) {
+    issues.push("DIRECT_URL should use the direct Supabase database endpoint on port 5432, not a pooler.");
+  }
+
+  return issues;
+}
 
 const productionServiceRules = [
   {
@@ -405,6 +428,12 @@ export function getProductionReadinessIssues(env: ServerEnv) {
         `${rule.service} is not production-ready. Missing: ${missing.join(", ")}`,
       );
     }
+  }
+
+  issues.push(...getDatabaseTopologyIssues(env));
+
+  if (/^https?:\/\//i.test(env.PAYSTACK_WEBHOOK_SECRET ?? "")) {
+    issues.push("PAYSTACK_WEBHOOK_SECRET should be the signing secret, not a webhook URL.");
   }
 
   if (

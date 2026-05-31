@@ -27,6 +27,7 @@ import { publishRealtimeEvent } from "@/lib/realtime/events";
 import { syncTransactionMilestones, syncTransactionPaymentState } from "@/modules/transactions/mutations";
 import { buildSettlementQuote, getCompanyPlanStatus, recordBillingEvent } from "@/modules/billing/service";
 import { reconcilePaymentRequestFromPayment } from "@/modules/payment-requests/service";
+import { attemptGenerateContractForSuccessfulPayment } from "@/modules/contracts/service";
 import { calculateCommissionAmount, recordMarketerCommission } from "@/modules/commission/calculator";
 import { getApplicableCommissionRule } from "@/modules/commission/rules";
 import {
@@ -941,6 +942,14 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
           : undefined,
       status,
     });
+
+    if (status === "SUCCESS" && payment.id) {
+      await attemptGenerateContractForSuccessfulPayment({
+        companyId: company.id,
+        companySlug: company.slug,
+        paymentId: payment.id,
+      }).catch(() => null);
+    }
   }
 
   return {

@@ -6,8 +6,10 @@ import {
   buildRuntimeReadinessSummary,
 } from "@/lib/ops/health";
 
+export const runtime = "nodejs";
+
 export async function GET() {
-  const database = await checkDatabaseReadiness();
+  const database = await checkDatabaseReadiness({ route: "/api/readyz" });
   const runtime = buildRuntimeReadinessSummary();
   const ok = database.ok && runtime.ok;
 

@@ -6,6 +6,7 @@ import {
   buildDependencySummary,
   buildHealthSnapshot,
   buildRuntimeReadinessSummary,
+  getMissingExpectedMigrations,
 } from "@/lib/ops/health";
 
 test("health snapshot returns safe operational metadata", () => {
@@ -38,4 +39,22 @@ test("database readiness metadata stays sanitized", () => {
   assert.equal(typeof metadata.runtime.configured, "boolean");
   assert.equal(typeof metadata.direct.configured, "boolean");
   assert.equal(serialized.includes("@"), false);
+});
+
+test("migration readiness reports missing production contract migrations", () => {
+  assert.deepEqual(
+    getMissingExpectedMigrations([
+      "0033_buyer_testimonial_moderation",
+      "0034_contract_generation_mvp",
+    ]),
+    ["0035_contract_template_version_locking"],
+  );
+  assert.deepEqual(
+    getMissingExpectedMigrations([
+      "0033_buyer_testimonial_moderation",
+      "0034_contract_generation_mvp",
+      "0035_contract_template_version_locking",
+    ]),
+    [],
+  );
 });
