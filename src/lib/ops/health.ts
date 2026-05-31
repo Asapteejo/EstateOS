@@ -2,9 +2,11 @@ import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
 import {
   getProductionReadinessIssues,
+  getProductionReadinessWarnings,
   sanitizeDatabaseEndpointForReadiness,
 } from "@/lib/config";
 import { buildSafeErrorLogContext, logError } from "@/lib/ops/logger";
+import { parseSuperadminEmails } from "@/lib/auth/superadmin";
 
 export const EXPECTED_PRODUCTION_MIGRATIONS = [
   "0033_buyer_testimonial_moderation",
@@ -31,21 +33,28 @@ export function buildDependencySummary() {
   return {
     database: featureFlags.hasDatabase ? "configured" : "disabled",
     clerk: featureFlags.hasClerk ? "configured" : "demo-or-disabled",
+    clerkWebhook: featureFlags.hasClerkWebhook ? "configured" : "disabled",
     paystack: featureFlags.hasPaystack ? "configured" : "demo-or-disabled",
     r2: featureFlags.hasR2 ? "configured" : "demo-or-disabled",
     resend: featureFlags.hasResend ? "configured" : "disabled",
     redis: featureFlags.hasRedis ? "configured" : "disabled",
     inngest: featureFlags.hasInngest ? "configured" : "disabled",
     sentry: featureFlags.hasSentry ? "configured" : "disabled",
+    superadminAllowlist: {
+      configured: Boolean(env.SUPERADMIN_EMAILS),
+      count: parseSuperadminEmails(env.SUPERADMIN_EMAILS).size,
+    },
   };
 }
 
 export function buildRuntimeReadinessSummary() {
   const issues = getProductionReadinessIssues(env);
+  const warnings = getProductionReadinessWarnings(env);
 
   return {
     ok: issues.length === 0,
     issues,
+    warnings,
   };
 }
 

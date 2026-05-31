@@ -54,19 +54,73 @@ const optionalSampleRate = z.preprocess((value) => {
   return value;
 }, z.number().min(0).max(1).optional());
 
+const DEVELOPMENT_APP_URL = "http://localhost:3000";
+const PRODUCTION_APP_URL = "https://estateos.tech";
+
+function normalizeDeploymentBaseUrl(value: string | undefined, requireHttps: boolean) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const candidate = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+    if (
+      requireHttps &&
+      (candidate.protocol !== "https:" ||
+        candidate.hostname === "localhost" ||
+        candidate.hostname === "127.0.0.1" ||
+        candidate.hostname.endsWith(".localhost"))
+    ) {
+      return null;
+    }
+
+    return candidate.origin;
+  } catch {
+    return null;
+  }
+}
+
+export function resolveAppBaseUrl(input: {
+  nodeEnv?: "development" | "test" | "production";
+  explicitUrls?: Array<string | undefined>;
+  vercelProjectProductionUrl?: string;
+  vercelUrl?: string;
+}) {
+  const isProduction = input.nodeEnv === "production";
+  const requireHttps = isProduction;
+  const candidates = [
+    ...(input.explicitUrls ?? []),
+    input.vercelProjectProductionUrl,
+    input.vercelUrl,
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeDeploymentBaseUrl(candidate, requireHttps);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return isProduction ? PRODUCTION_APP_URL : DEVELOPMENT_APP_URL;
+}
+
 const serverEnvSchema = z
   .object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     DATABASE_URL: optionalString,
     DIRECT_URL: optionalString,
-    NEXT_PUBLIC_APP_URL: z.string().trim().url().default("http://localhost:3000"),
+    NEXT_PUBLIC_APP_URL: optionalUrl,
     NEXT_PUBLIC_PLATFORM_BASE_URL: optionalUrl,
     NEXT_PUBLIC_PORTAL_BASE_URL: optionalUrl,
+    APP_URL: optionalUrl,
     APP_BASE_URL: optionalUrl,
     PLATFORM_BASE_URL: optionalUrl,
     PORTAL_BASE_URL: optionalUrl,
+    VERCEL_PROJECT_PRODUCTION_URL: optionalString,
+    VERCEL_URL: optionalString,
     DEFAULT_COMPANY_SLUG: optionalSlug,
     ESTATEOS_ENABLE_DEV_BYPASS: optionalBoolean,
+    SUPERADMIN_EMAILS: optionalString,
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: optionalString,
     CLERK_SECRET_KEY: optionalString,
     CLERK_WEBHOOK_SECRET: optionalString,
@@ -131,7 +185,6 @@ const serverEnvSchema = z
     requireGroup("Clerk", [
       "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
       "CLERK_SECRET_KEY",
-      "CLERK_WEBHOOK_SECRET",
     ]);
     requireGroup("Cloudflare R2", [
       "R2_ACCOUNT_ID",
@@ -180,9 +233,11 @@ const serverEnvSchema = z
 
 const publicEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  NEXT_PUBLIC_APP_URL: z.string().trim().url().default("http://localhost:3000"),
+  NEXT_PUBLIC_APP_URL: optionalUrl,
   NEXT_PUBLIC_PLATFORM_BASE_URL: optionalUrl,
   NEXT_PUBLIC_PORTAL_BASE_URL: optionalUrl,
+  VERCEL_PROJECT_PRODUCTION_URL: optionalString,
+  VERCEL_URL: optionalString,
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: optionalString,
   NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: optionalString,
   NEXT_PUBLIC_POSTHOG_KEY: optionalString,
@@ -198,11 +253,14 @@ const instrumentationEnvSchema = z.object({
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema> & {
+  NEXT_PUBLIC_APP_URL: string;
   APP_BASE_URL: string;
   PLATFORM_BASE_URL: string;
   PORTAL_BASE_URL: string;
 };
-export type PublicEnv = z.infer<typeof publicEnvSchema>;
+export type PublicEnv = z.infer<typeof publicEnvSchema> & {
+  NEXT_PUBLIC_APP_URL: string;
+};
 export type InstrumentationEnv = z.infer<typeof instrumentationEnvSchema>;
 export type FeatureFlags = ReturnType<typeof buildFeatureFlags>;
 
@@ -211,7 +269,6 @@ const productionRequiredKeys = [
   "DIRECT_URL",
   "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
   "CLERK_SECRET_KEY",
-  "CLERK_WEBHOOK_SECRET",
   "PAYSTACK_SECRET_KEY",
   "PAYSTACK_PUBLIC_KEY",
   "PAYSTACK_WEBHOOK_SECRET",
@@ -253,7 +310,6 @@ const productionServiceRules = [
     required: [
       "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
       "CLERK_SECRET_KEY",
-      "CLERK_WEBHOOK_SECRET",
     ] as const,
   },
   {
@@ -277,24 +333,110 @@ const productionServiceRules = [
 
 export function parseServerEnv(raw: NodeJS.ProcessEnv): ServerEnv {
   const parsed = serverEnvSchema.parse(raw);
+  const appBaseUrl = resolveAppBaseUrl({
+    nodeEnv: parsed.NODE_ENV,
+    explicitUrls: [
+      parsed.APP_URL,
+      parsed.APP_BASE_URL,
+      parsed.NEXT_PUBLIC_APP_URL,
+    ],
+    vercelProjectProductionUrl: parsed.VERCEL_PROJECT_PRODUCTION_URL,
+    vercelUrl: parsed.VERCEL_URL,
+  });
+  const platformBaseUrl = resolveAppBaseUrl({
+    nodeEnv: parsed.NODE_ENV,
+    explicitUrls: [
+      parsed.PLATFORM_BASE_URL,
+      parsed.NEXT_PUBLIC_PLATFORM_BASE_URL,
+      appBaseUrl,
+    ],
+  });
+  const portalBaseUrl = resolveAppBaseUrl({
+    nodeEnv: parsed.NODE_ENV,
+    explicitUrls: [
+      parsed.PORTAL_BASE_URL,
+      parsed.NEXT_PUBLIC_PORTAL_BASE_URL,
+      appBaseUrl,
+    ],
+  });
+
   return {
     ...parsed,
-    APP_BASE_URL: parsed.APP_BASE_URL ?? parsed.NEXT_PUBLIC_APP_URL,
-    PLATFORM_BASE_URL:
-      parsed.PLATFORM_BASE_URL ??
-      parsed.NEXT_PUBLIC_PLATFORM_BASE_URL ??
-      parsed.APP_BASE_URL ??
-      parsed.NEXT_PUBLIC_APP_URL,
-    PORTAL_BASE_URL:
-      parsed.PORTAL_BASE_URL ??
-      parsed.NEXT_PUBLIC_PORTAL_BASE_URL ??
-      parsed.APP_BASE_URL ??
-      parsed.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_APP_URL: appBaseUrl,
+    APP_BASE_URL: appBaseUrl,
+    PLATFORM_BASE_URL: platformBaseUrl,
+    PORTAL_BASE_URL: portalBaseUrl,
   };
 }
 
+export function normalizeRuntimeServerEnv(raw: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const normalized = { ...raw };
+  const clearIncompleteGroup = (keys: string[]) => {
+    const present = keys.filter((key) => Boolean(normalized[key]?.trim()));
+    if (present.length > 0 && present.length < keys.length) {
+      for (const key of keys) {
+        delete normalized[key];
+      }
+    }
+  };
+
+  clearIncompleteGroup([
+    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+    "CLERK_SECRET_KEY",
+  ]);
+  clearIncompleteGroup([
+    "R2_ACCOUNT_ID",
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY",
+    "R2_BUCKET_NAME",
+  ]);
+  clearIncompleteGroup([
+    "UPSTASH_REDIS_REST_URL",
+    "UPSTASH_REDIS_REST_TOKEN",
+  ]);
+  clearIncompleteGroup([
+    "INNGEST_EVENT_KEY",
+    "INNGEST_SIGNING_KEY",
+  ]);
+  clearIncompleteGroup([
+    "LINEAR_API_KEY",
+    "LINEAR_TEAM_ID",
+  ]);
+  clearIncompleteGroup([
+    "NEXT_PUBLIC_POSTHOG_KEY",
+    "NEXT_PUBLIC_POSTHOG_HOST",
+  ]);
+  clearIncompleteGroup([
+    "MAPBOX_ACCESS_TOKEN",
+    "NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN",
+  ]);
+
+  if (normalized.TWILIO_ENABLED?.trim().toLowerCase() === "true") {
+    clearIncompleteGroup([
+      "TWILIO_ACCOUNT_SID",
+      "TWILIO_AUTH_TOKEN",
+      "TWILIO_WHATSAPP_FROM",
+    ]);
+  }
+
+  return normalized;
+}
+
+export function parseRuntimeServerEnv(raw: NodeJS.ProcessEnv): ServerEnv {
+  return parseServerEnv(normalizeRuntimeServerEnv(raw));
+}
+
 export function parsePublicEnv(raw: NodeJS.ProcessEnv): PublicEnv {
-  return publicEnvSchema.parse(raw);
+  const parsed = publicEnvSchema.parse(raw);
+  return {
+    ...parsed,
+    NEXT_PUBLIC_APP_URL: resolveAppBaseUrl({
+      nodeEnv: parsed.NODE_ENV,
+      explicitUrls: [parsed.NEXT_PUBLIC_APP_URL],
+      vercelProjectProductionUrl: parsed.VERCEL_PROJECT_PRODUCTION_URL,
+      vercelUrl: parsed.VERCEL_URL,
+    }),
+  };
 }
 
 export function parseInstrumentationEnv(raw: NodeJS.ProcessEnv): InstrumentationEnv {
@@ -311,8 +453,8 @@ export function buildFeatureFlags(env: ServerEnv) {
     hasDatabase: Boolean(env.DATABASE_URL),
     hasClerk:
       Boolean(env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) &&
-      Boolean(env.CLERK_SECRET_KEY) &&
-      Boolean(env.CLERK_WEBHOOK_SECRET),
+      Boolean(env.CLERK_SECRET_KEY),
+    hasClerkWebhook: Boolean(env.CLERK_WEBHOOK_SECRET),
     hasPaystack:
       Boolean(env.PAYSTACK_SECRET_KEY) &&
       Boolean(env.PAYSTACK_PUBLIC_KEY) &&
@@ -446,6 +588,40 @@ export function getProductionReadinessIssues(env: ServerEnv) {
   }
 
   return issues;
+}
+
+export function getProductionReadinessWarnings(env: ServerEnv) {
+  if (env.NODE_ENV !== "production") {
+    return [];
+  }
+
+  const warnings: string[] = [];
+
+  if (!env.CLERK_WEBHOOK_SECRET) {
+    warnings.push(
+      "CLERK_WEBHOOK_SECRET is not configured. Clerk webhook ingestion is disabled until the signing secret is added.",
+    );
+  }
+
+  if (!env.SUPERADMIN_EMAILS) {
+    warnings.push(
+      "SUPERADMIN_EMAILS is not configured. Superadmin access is disabled until an owner allowlist is added.",
+    );
+  }
+
+  if (env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith("pk_test")) {
+    warnings.push(
+      "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY uses a Clerk development key in production.",
+    );
+  }
+
+  if (env.CLERK_SECRET_KEY?.startsWith("sk_test")) {
+    warnings.push(
+      "CLERK_SECRET_KEY uses a Clerk development key in production.",
+    );
+  }
+
+  return warnings;
 }
 
 export function assertProductionRuntimeEnv(env: ServerEnv) {

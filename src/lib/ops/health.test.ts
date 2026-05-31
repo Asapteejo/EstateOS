@@ -22,7 +22,9 @@ test("dependency summary stays non-secret and status-oriented", () => {
 
   assert.equal(typeof summary.database, "string");
   assert.equal(typeof summary.paystack, "string");
-  assert.equal(Object.values(summary).every((value) => !value.includes("key")), true);
+  assert.equal(typeof summary.superadminAllowlist.configured, "boolean");
+  assert.equal(typeof summary.superadminAllowlist.count, "number");
+  assert.equal(JSON.stringify(summary).includes("key"), false);
 });
 
 test("runtime readiness summary remains safe and structured", () => {
@@ -30,6 +32,7 @@ test("runtime readiness summary remains safe and structured", () => {
 
   assert.equal(typeof summary.ok, "boolean");
   assert.equal(Array.isArray(summary.issues), true);
+  assert.equal(Array.isArray(summary.warnings), true);
 });
 
 test("database readiness metadata stays sanitized", () => {

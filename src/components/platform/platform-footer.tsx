@@ -14,10 +14,6 @@ export function PlatformFooter() {
     returnTo: "/admin",
     entry: "admin",
   });
-  const superadminHref = buildAuthRedirect(runtimeConfig, {
-    returnTo: "/superadmin",
-    entry: "superadmin",
-  });
 
   return (
     <footer className="border-t border-[var(--line)] bg-[var(--sand-50)]">
@@ -60,9 +56,6 @@ export function PlatformFooter() {
             </Link>
             <Link href="/platform/pricing" className="block">
               Pricing
-            </Link>
-            <Link href={superadminHref} className="block">
-              Superadmin
             </Link>
           </div>
         </div>

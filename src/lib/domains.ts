@@ -16,6 +16,22 @@ export type AuthEntryIntent =
   | "continue"
   | "superadmin";
 
+export function resolveAuthEntryIntent(
+  input: string | null | undefined,
+  options?: { allowSuperadmin?: boolean },
+): AuthEntryIntent | undefined {
+  if (
+    input === "admin" ||
+    input === "buyer" ||
+    input === "purchase" ||
+    input === "continue"
+  ) {
+    return input;
+  }
+
+  return input === "superadmin" && options?.allowSuperadmin ? input : undefined;
+}
+
 function normalizeBaseUrl(input: string) {
   return new URL(input.endsWith("/") ? input : `${input}/`);
 }
@@ -258,8 +274,11 @@ export function buildAuthRedirect(
     searchParams.set("host", tenantHost);
   }
 
-  if (input.entry) {
-    searchParams.set("entry", input.entry);
+  const entry = resolveAuthEntryIntent(input.entry, {
+    allowSuperadmin: !config.isProduction,
+  });
+  if (entry) {
+    searchParams.set("entry", entry);
   }
 
   return resolveCentralAuthUrl(config, "/sign-in", searchParams);
@@ -288,8 +307,11 @@ export function buildAuthCompletionUrl(
     searchParams.set("host", tenantHost);
   }
 
-  if (input.entry) {
-    searchParams.set("entry", input.entry);
+  const entry = resolveAuthEntryIntent(input.entry, {
+    allowSuperadmin: !config.isProduction,
+  });
+  if (entry) {
+    searchParams.set("entry", entry);
   }
 
   return resolveCentralAuthUrl(config, "/auth/complete", searchParams);

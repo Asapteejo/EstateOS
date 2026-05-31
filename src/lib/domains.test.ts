@@ -7,11 +7,13 @@ import {
   getCentralHosts,
   resolveTenantPublicUrl,
   resolveSafeRedirectUrl,
+  resolveAuthEntryIntent,
   resolveTenantSubdomainFromHost,
   sanitizeReturnPath,
   shouldAllowDefaultTenantFallback,
   type DomainRuntimeConfig,
 } from "@/lib/domains";
+import { parseServerEnv } from "@/lib/config";
 
 const config: DomainRuntimeConfig = {
   appBaseUrl: "https://estateos.com",
@@ -57,6 +59,30 @@ test("auth redirect preserves tenant hint and internal return path", () => {
   assert.equal(redirect.searchParams.get("returnTo"), "/properties/ikoyi-villas");
 });
 
+test("production auth redirect uses EstateOS production url instead of localhost", () => {
+  const env = parseServerEnv({
+    NODE_ENV: "production",
+    NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+    APP_URL: "https://estateos.tech",
+  });
+  const redirect = new URL(
+    buildAuthRedirect({
+      appBaseUrl: env.APP_BASE_URL,
+      platformBaseUrl: env.PLATFORM_BASE_URL,
+      portalBaseUrl: env.PORTAL_BASE_URL,
+      isProduction: true,
+    }, {
+      returnTo: "/app/onboarding",
+      tenantHost: "estateos.tech",
+      entry: "admin",
+    }),
+  );
+
+  assert.equal(redirect.origin, "https://estateos.tech");
+  assert.equal(redirect.pathname, "/sign-in");
+  assert.equal(redirect.searchParams.get("returnTo"), "/app/onboarding");
+});
+
 test("auth completion URL stays on central portal host", () => {
   const redirect = new URL(
     buildAuthCompletionUrl(config, {
@@ -69,6 +95,33 @@ test("auth completion URL stays on central portal host", () => {
   assert.equal(redirect.origin, "https://portal.estateos.com");
   assert.equal(redirect.pathname, "/auth/complete");
   assert.equal(redirect.searchParams.get("returnTo"), "/admin/payments");
+});
+
+test("production auth redirects discard public superadmin entry intent", () => {
+  const redirect = new URL(buildAuthRedirect(config, {
+    returnTo: "/superadmin",
+    entry: "superadmin",
+  }));
+
+  assert.equal(redirect.searchParams.has("entry"), false);
+  assert.equal(resolveAuthEntryIntent("superadmin"), undefined);
+});
+
+test("development auth redirects may retain private demo superadmin entry intent", () => {
+  const devConfig: DomainRuntimeConfig = {
+    ...config,
+    appBaseUrl: "http://localhost:3000",
+    platformBaseUrl: "http://localhost:3000",
+    portalBaseUrl: "http://localhost:3000",
+    isProduction: false,
+  };
+  const redirect = new URL(buildAuthRedirect(devConfig, {
+    returnTo: "/superadmin",
+    entry: "superadmin",
+  }));
+
+  assert.equal(redirect.searchParams.get("entry"), "superadmin");
+  assert.equal(resolveAuthEntryIntent("superadmin", { allowSuperadmin: true }), "superadmin");
 });
 
 test("unknown production custom domains do not fall back to default tenant", () => {

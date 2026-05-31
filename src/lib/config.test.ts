@@ -6,8 +6,11 @@ import {
   buildClientFlags,
   buildFeatureFlags,
   getProductionReadinessIssues,
+  getProductionReadinessWarnings,
   parsePublicEnv,
+  parseRuntimeServerEnv,
   parseServerEnv,
+  resolveAppBaseUrl,
   sanitizeDatabaseEndpointForReadiness,
 } from "@/lib/config";
 
@@ -21,6 +24,39 @@ test("server env requires complete grouped service config for storage", () => {
       }),
     /Cloudflare R2 configuration is incomplete/,
   );
+});
+
+test("runtime env disables incomplete Clerk and R2 groups instead of crashing public routes", () => {
+  const env = parseRuntimeServerEnv({
+    NODE_ENV: "production",
+    NEXT_PUBLIC_APP_URL: "https://estateos.example.com",
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_live_example",
+    R2_ACCOUNT_ID: "account-only",
+  });
+  const flags = buildFeatureFlags(env);
+  const issues = getProductionReadinessIssues(env);
+
+  assert.equal(flags.hasClerk, false);
+  assert.equal(flags.hasR2, false);
+  assert.equal(issues.some((issue) => issue.includes("clerk")), true);
+  assert.equal(issues.some((issue) => issue.includes("r2")), true);
+});
+
+test("Clerk auth stays enabled without a webhook secret and readiness reports a warning", () => {
+  const env = parseRuntimeServerEnv({
+    NODE_ENV: "production",
+    NEXT_PUBLIC_APP_URL: "https://estateos.example.com",
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_live_example",
+    CLERK_SECRET_KEY: "sk_live_example",
+  });
+  const flags = buildFeatureFlags(env);
+  const issues = getProductionReadinessIssues(env);
+  const warnings = getProductionReadinessWarnings(env);
+
+  assert.equal(flags.hasClerk, true);
+  assert.equal(flags.hasClerkWebhook, false);
+  assert.equal(issues.some((issue) => issue.includes("CLERK_WEBHOOK_SECRET")), false);
+  assert.equal(warnings.some((warning) => warning.includes("CLERK_WEBHOOK_SECRET")), true);
 });
 
 test("partial Paystack config does not fail parse and disables Paystack features", () => {
@@ -178,6 +214,63 @@ test("production env parse allows build-time config inspection", () => {
   });
 
   assert.equal(env.NODE_ENV, "production");
+});
+
+test("production base url never falls back to localhost", () => {
+  const env = parseServerEnv({
+    NODE_ENV: "production",
+    NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+    APP_BASE_URL: "http://localhost:3000",
+    PORTAL_BASE_URL: "http://localhost:3000",
+  });
+
+  assert.equal(env.APP_BASE_URL, "https://estateos.tech");
+  assert.equal(env.PORTAL_BASE_URL, "https://estateos.tech");
+  assert.equal(env.APP_BASE_URL.includes("localhost"), false);
+});
+
+test("development base url may fall back to localhost", () => {
+  assert.equal(
+    resolveAppBaseUrl({
+      nodeEnv: "development",
+    }),
+    "http://localhost:3000",
+  );
+});
+
+test("Vercel production url fallback is normalized to https", () => {
+  assert.equal(
+    resolveAppBaseUrl({
+      nodeEnv: "production",
+      explicitUrls: ["http://localhost:3000"],
+      vercelProjectProductionUrl: "estateos.tech",
+      vercelUrl: "estateos-preview.vercel.app",
+    }),
+    "https://estateos.tech",
+  );
+});
+
+test("production readiness warns when Clerk development keys are configured", () => {
+  const env = parseServerEnv({
+    NODE_ENV: "production",
+    NEXT_PUBLIC_APP_URL: "https://estateos.tech",
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_example",
+    CLERK_SECRET_KEY: "sk_test_example",
+  });
+  const warnings = getProductionReadinessWarnings(env);
+
+  assert.equal(warnings.some((warning) => warning.includes("publishable") || warning.includes("PUBLISHABLE")), true);
+  assert.equal(warnings.some((warning) => warning.includes("CLERK_SECRET_KEY")), true);
+});
+
+test("production readiness warns when the superadmin allowlist is empty", () => {
+  const env = parseServerEnv({
+    NODE_ENV: "production",
+    NEXT_PUBLIC_APP_URL: "https://estateos.tech",
+  });
+  const warnings = getProductionReadinessWarnings(env);
+
+  assert.equal(warnings.some((warning) => warning.includes("SUPERADMIN_EMAILS")), true);
 });
 
 test("production readiness reports missing critical services", () => {

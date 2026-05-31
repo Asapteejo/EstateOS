@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
 import { logWarn } from "@/lib/ops/logger";
+import { sanitizeSessionRoles } from "@/lib/auth/superadmin";
 
 export type AppSession = {
   userId: string;
@@ -361,12 +362,19 @@ export async function getAppSession(
     });
 
     if (user) {
+      const roles = sanitizeSessionRoles({
+        roles: user.roles.map((assignment) => assignment.role.name),
+        email: user.email,
+        isProduction: featureFlags.isProduction,
+        superadminEmails: env.SUPERADMIN_EMAILS,
+        source: "database",
+      });
       return {
         userId: session.userId,
         email: user.email,
         firstName: user.firstName ?? "",
         lastName: user.lastName ?? "",
-        roles: user.roles.map((assignment) => assignment.role.name),
+        roles,
         companyId: user.companyId ?? null,
         companySlug: user.company?.slug ?? null,
         branchId: user.branchId ?? null,
@@ -390,7 +398,13 @@ export async function getAppSession(
     email: (session.sessionClaims?.email as string | undefined) ?? "",
     firstName: (session.sessionClaims?.first_name as string | undefined) ?? "",
     lastName: (session.sessionClaims?.last_name as string | undefined) ?? "",
-    roles: metadata.roles ?? ["BUYER"],
+    roles: sanitizeSessionRoles({
+      roles: metadata.roles ?? ["BUYER"],
+      email: (session.sessionClaims?.email as string | undefined) ?? "",
+      isProduction: featureFlags.isProduction,
+      superadminEmails: env.SUPERADMIN_EMAILS,
+      source: "claims",
+    }),
     companyId: metadata.companyId ?? null,
     companySlug: metadata.companySlug ?? null,
     branchId: metadata.branchId ?? null,

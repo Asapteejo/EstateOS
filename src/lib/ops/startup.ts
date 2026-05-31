@@ -1,4 +1,7 @@
-import { getProductionReadinessIssues } from "@/lib/config";
+import {
+  getProductionReadinessIssues,
+  getProductionReadinessWarnings,
+} from "@/lib/config";
 import { env, featureFlags } from "@/lib/env";
 import { logInfo, logWarn } from "@/lib/ops/logger";
 
@@ -29,6 +32,13 @@ export function logStartupReadinessOnce() {
   if (readinessIssues.length > 0) {
     logWarn("EstateOS runtime is missing production-critical configuration.", {
       issues: readinessIssues,
+    });
+  }
+
+  const readinessWarnings = getProductionReadinessWarnings(env);
+  if (readinessWarnings.length > 0) {
+    logWarn("EstateOS runtime has non-blocking configuration warnings.", {
+      warnings: readinessWarnings,
     });
   }
 

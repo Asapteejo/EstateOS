@@ -3,6 +3,19 @@ import type { AppRole } from "@prisma/client";
 
 import { hasRequiredRole } from "@/lib/auth/roles";
 import { requireTenantContext } from "@/lib/tenancy/context";
+import { canAccessSuperadmin } from "@/lib/auth/superadmin";
+import { env, featureFlags } from "@/lib/env";
+
+export class SuperadminAccessError extends Error {
+  constructor() {
+    super("Superadmin access is required.");
+    this.name = "SuperadminAccessError";
+  }
+}
+
+export function isSuperadminAccessError(error: unknown): error is SuperadminAccessError {
+  return error instanceof SuperadminAccessError;
+}
 
 export async function requirePortalSession(options?: {
   redirectOnMissingAuth?: boolean;
@@ -54,7 +67,16 @@ export async function requireSuperAdminSession(options?: {
 }) {
   const session = await requireTenantContext("superadmin", options);
 
-  if (!hasRequiredRole(session.roles, ["SUPER_ADMIN"])) {
+  if (!canAccessSuperadmin({
+    roles: session.roles,
+    email: session.email,
+    isProduction: featureFlags.isProduction,
+    superadminEmails: env.SUPERADMIN_EMAILS,
+    mode: session.userId?.startsWith("demo-") ? "demo" : "clerk",
+  })) {
+    if (options?.redirectOnMissingAuth === false) {
+      throw new SuperadminAccessError();
+    }
     redirect("/portal");
   }
 

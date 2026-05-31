@@ -4,7 +4,7 @@ import { SignIn } from "@clerk/nextjs";
 import { Container } from "@/components/shared/container";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { buildAuthCompletionUrl, buildPublicDomainConfig, sanitizeReturnPath, sanitizeTenantHost, sanitizeTenantSlug } from "@/lib/domains";
+import { buildAuthCompletionUrl, buildPublicDomainConfig, resolveAuthEntryIntent, sanitizeReturnPath, sanitizeTenantHost, sanitizeTenantSlug } from "@/lib/domains";
 import { publicEnv } from "@/lib/public-env";
 import { featureFlags } from "@/lib/env";
 
@@ -22,10 +22,9 @@ export default async function SignInPage({
   const tenantHost = sanitizeTenantHost(typeof params.host === "string" ? params.host : null);
   const entry = typeof params.entry === "string" ? params.entry : "buyer";
   const domainConfig = buildPublicDomainConfig(publicEnv);
-  const resolvedEntry =
-    entry === "admin" || entry === "buyer" || entry === "purchase" || entry === "continue" || entry === "superadmin"
-      ? entry
-      : "buyer";
+  const resolvedEntry = resolveAuthEntryIntent(entry, {
+    allowSuperadmin: !featureFlags.isProduction,
+  }) ?? "buyer";
   const completionUrl = buildAuthCompletionUrl(domainConfig, {
     returnTo,
     tenantSlug: tenant,
@@ -44,12 +43,14 @@ export default async function SignInPage({
     tenantHost,
     entry: "admin",
   });
-  const superadminDemoCompletionUrl = buildAuthCompletionUrl(domainConfig, {
-    returnTo: "/superadmin",
-    tenantSlug: tenant,
-    tenantHost,
-    entry: "superadmin",
-  });
+  const superadminDemoCompletionUrl = featureFlags.allowDevBypass
+    ? buildAuthCompletionUrl(domainConfig, {
+        returnTo: "/superadmin",
+        tenantSlug: tenant,
+        tenantHost,
+        entry: "superadmin",
+      })
+    : null;
 
   return (
     <Container className="flex min-h-[70vh] items-center justify-center py-16">
@@ -75,9 +76,11 @@ export default async function SignInPage({
                 <Link href={`/api/dev/session?role=admin&redirectTo=${encodeURIComponent(adminDemoCompletionUrl)}`}>
                   <Button variant="outline">Open admin demo</Button>
                 </Link>
-                <Link href={`/api/dev/session?role=superadmin&redirectTo=${encodeURIComponent(superadminDemoCompletionUrl)}`}>
-                  <Button variant="outline">Open superadmin demo</Button>
-                </Link>
+                {superadminDemoCompletionUrl ? (
+                  <Link href={`/api/dev/session?role=superadmin&redirectTo=${encodeURIComponent(superadminDemoCompletionUrl)}`}>
+                    <Button variant="outline">Open superadmin demo</Button>
+                  </Link>
+                ) : null}
               </>
             ) : null}
           </div>

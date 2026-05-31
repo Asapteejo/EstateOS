@@ -4,7 +4,7 @@ import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { buildAuthRedirect, buildServerDomainConfig } from "@/lib/domains";
 import { env } from "@/lib/env";
 import type { TenantContext } from "@/lib/tenancy/context";
-import { getTenantPresentation } from "@/modules/branding/service";
+import { getPublicTenantPresentation } from "@/modules/branding/service";
 
 export async function TenantPublicShell({
   tenant,
@@ -13,7 +13,7 @@ export async function TenantPublicShell({
   tenant: TenantContext;
   children: React.ReactNode;
 }) {
-  const presentation = await getTenantPresentation(tenant);
+  const presentation = await getPublicTenantPresentation(tenant);
   const branding = presentation.branding;
   const runtimeConfig = buildServerDomainConfig(env);
   const buyerPortalHref = buildAuthRedirect(runtimeConfig, {

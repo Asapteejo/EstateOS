@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 import {
@@ -8,6 +8,7 @@ import {
   sanitizeReturnPath,
 } from "@/lib/domains";
 import { env, featureFlags } from "@/lib/env";
+import { logWarn } from "@/lib/ops/logger";
 
 const isPortalRoute = createRouteMatcher(["/portal(.*)"]);
 const isAppRoute = createRouteMatcher(["/app(.*)"]);
@@ -15,7 +16,10 @@ const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 const isSuperadminRoute = createRouteMatcher(["/superadmin(.*)"]);
 const isSignInRoute = createRouteMatcher(["/sign-in(.*)"]);
 
-const proxy = clerkMiddleware(async (auth, req) => {
+async function handleProxyRequest(
+  req: NextRequest,
+  protect?: () => Promise<unknown>,
+) {
   const runtimeConfig = buildServerDomainConfig(env);
   const isAuthSurface =
     isPortalRoute(req) ||
@@ -62,6 +66,9 @@ const proxy = clerkMiddleware(async (auth, req) => {
       !featureFlags.hasClerk &&
       (isPortalRoute(req) || isAdminRoute(req) || isSuperadminRoute(req))
     ) {
+      logWarn("Blocked authenticated route because Clerk is not configured.", {
+        route: req.nextUrl.pathname,
+      });
       return new NextResponse("Authentication is not configured for this deployment.", {
         status: 503,
         headers: {
@@ -74,11 +81,15 @@ const proxy = clerkMiddleware(async (auth, req) => {
   }
 
   if (isPortalRoute(req) || isAdminRoute(req) || isSuperadminRoute(req)) {
-    await auth.protect();
+    await protect?.();
   }
 
   return NextResponse.next();
-});
+}
+
+const proxy = featureFlags.hasClerk
+  ? clerkMiddleware(async (auth, req) => handleProxyRequest(req, () => auth.protect()))
+  : handleProxyRequest;
 
 export default proxy;
 

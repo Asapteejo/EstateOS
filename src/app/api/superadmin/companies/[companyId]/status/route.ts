@@ -1,4 +1,4 @@
-import { requireSuperAdminSession } from "@/lib/auth/guards";
+import { isSuperadminAccessError, requireSuperAdminSession } from "@/lib/auth/guards";
 import { fail, ok } from "@/lib/http";
 import { companyLifecycleUpdateSchema } from "@/lib/validations/superadmin";
 import { updateCompanyLifecycleStatus } from "@/modules/superadmin/company-lifecycle";
@@ -20,6 +20,9 @@ export async function PATCH(
     const result = await updateCompanyLifecycleStatus(tenant, companyId, body.data);
     return ok(result);
   } catch (error) {
+    if (isSuperadminAccessError(error)) {
+      return fail(error.message, 403);
+    }
     return fail(error instanceof Error ? error.message : "Unable to update company status.", 400);
   }
 }

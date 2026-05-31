@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { requireSuperAdminSession } from "@/lib/auth/guards";
+import { isSuperadminAccessError, requireSuperAdminSession } from "@/lib/auth/guards";
 import { fail, ok, validationFail } from "@/lib/http";
 import { adjustCompanyWallet } from "@/modules/communication/wallet";
 
@@ -37,6 +37,9 @@ export async function POST(
 
     return ok(result);
   } catch (error) {
+    if (isSuperadminAccessError(error)) {
+      return fail(error.message, 403);
+    }
     return fail(error instanceof Error ? error.message : "Unable to adjust wallet.", 400);
   }
 }

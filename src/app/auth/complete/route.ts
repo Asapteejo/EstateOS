@@ -7,6 +7,7 @@ import {
   buildAuthRedirect,
   buildServerDomainConfig,
   defaultReturnPathForEntry,
+  resolveAuthEntryIntent,
   sanitizeReturnPath,
   sanitizeTenantHost,
   sanitizeTenantSlug,
@@ -30,11 +31,10 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const entry = url.searchParams.get("entry");
-    const fallbackPath = defaultReturnPathForEntry(
-      entry === "admin" || entry === "buyer" || entry === "purchase" || entry === "continue" || entry === "superadmin"
-        ? entry
-        : undefined,
-    );
+    const resolvedEntry = resolveAuthEntryIntent(entry, {
+      allowSuperadmin: !featureFlags.isProduction,
+    });
+    const fallbackPath = defaultReturnPathForEntry(resolvedEntry);
     const returnTo = sanitizeReturnPath(url.searchParams.get("returnTo"), fallbackPath);
     const tenantSlug = sanitizeTenantSlug(url.searchParams.get("tenant"));
     const tenantHost = sanitizeTenantHost(url.searchParams.get("host"));
@@ -47,10 +47,7 @@ export async function GET(request: Request) {
           returnTo,
           tenantSlug,
           tenantHost,
-          entry:
-            entry === "admin" || entry === "buyer" || entry === "purchase" || entry === "continue" || entry === "superadmin"
-              ? entry
-              : "buyer",
+          entry: resolvedEntry ?? "buyer",
         }),
       );
     }

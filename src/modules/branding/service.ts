@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { writeAuditLog } from "@/lib/audit/service";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
+import { buildSafeErrorLogContext, logError } from "@/lib/ops/logger";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import { buildPublicAssetUrl } from "@/lib/uploads/assets";
@@ -151,8 +152,17 @@ export async function getTenantBrandingState(context: TenantContext) {
 }
 
 export async function getPublishedTenantBranding(context: TenantContext) {
-  const state = await getTenantBrandingState(context);
-  return state.published;
+  try {
+    const state = await getTenantBrandingState(context);
+    return state.published;
+  } catch (error) {
+    logError("Published tenant branding lookup failed; using default branding.", {
+      route: "public-marketing",
+      companyId: context.companyId,
+      ...buildSafeErrorLogContext(error),
+    });
+    return buildFallbackBranding();
+  }
 }
 
 export async function getTenantPresentation(context: TenantContext) {
@@ -203,6 +213,27 @@ export async function getTenantPresentation(context: TenantContext) {
     companyName: presentation.companyName,
     branding: presentation.branding,
   };
+}
+
+export async function getPublicTenantPresentation(context: TenantContext) {
+  try {
+    return await getTenantPresentation(context);
+  } catch (error) {
+    logError("Public tenant presentation lookup failed; using default branding.", {
+      route: "public-marketing",
+      companyId: context.companyId,
+      ...buildSafeErrorLogContext(error),
+    });
+    const presentation = resolveTenantBrandingPresentation({
+      companySlug: context.companySlug,
+      branding: defaultTenantBranding,
+      surface: "public",
+    });
+    return {
+      companyName: presentation.companyName,
+      branding: presentation.branding,
+    };
+  }
 }
 
 async function ensureSiteSettingsCompanyMeta(companyId: string) {

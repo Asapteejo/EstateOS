@@ -1,4 +1,9 @@
-import { requireSuperAdminSession, requireAdminSession, requirePortalSession } from "@/lib/auth/guards";
+import {
+  isSuperadminAccessError,
+  requireSuperAdminSession,
+  requireAdminSession,
+  requirePortalSession,
+} from "@/lib/auth/guards";
 import { fail } from "@/lib/http";
 import { subscribeRealtimeEvents, type PlatformRealtimeEvent } from "@/lib/realtime/events";
 
@@ -79,6 +84,9 @@ export async function GET(request: Request) {
       signal: request.signal,
     });
   } catch (error) {
-    return fail(error instanceof Error ? error.message : "Realtime stream unavailable.", 401);
+    return fail(
+      error instanceof Error ? error.message : "Realtime stream unavailable.",
+      isSuperadminAccessError(error) ? 403 : 401,
+    );
   }
 }

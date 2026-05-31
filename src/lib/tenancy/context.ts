@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { getAppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
-import { logInfo } from "@/lib/ops/logger";
+import { buildSafeErrorLogContext, logError, logInfo } from "@/lib/ops/logger";
 import {
   TENANT_HINT_COOKIE,
   buildAuthRedirect,
@@ -124,19 +124,55 @@ export async function resolveTenantContext(
   const cookieStore = await cookies();
   const tenantHintSlug = sanitizeTenantSlug(cookieStore.get(TENANT_HINT_COOKIE)?.value ?? null);
   const hostResolution = getHostResolution(host);
-  const session = await getAppSession(area);
+  let marketingLookupFailed = false;
+  const lookupCompanyForRequest = async (input: Parameters<typeof lookupCompany>[0]) => {
+    if (marketingLookupFailed && area === "marketing") {
+      return null;
+    }
+
+    try {
+      return await lookupCompany(input);
+    } catch (error) {
+      if (area !== "marketing") {
+        throw error;
+      }
+
+      marketingLookupFailed = true;
+      logError("Marketing tenant lookup failed; rendering platform fallback.", {
+        route: "/",
+        host,
+        ...buildSafeErrorLogContext(error),
+      });
+      return null;
+    }
+  };
+  let session;
+  try {
+    session = await getAppSession(area);
+  } catch (error) {
+    if (area !== "marketing") {
+      throw error;
+    }
+
+    logError("Marketing session resolution failed; continuing without a session.", {
+      route: "/",
+      host,
+      ...buildSafeErrorLogContext(error),
+    });
+    session = null;
+  }
   const runtimeConfig = buildServerDomainConfig(env);
   const fallbackSlug = shouldAllowDefaultTenantFallback(host, runtimeConfig)
     ? env.DEFAULT_COMPANY_SLUG ?? (!featureFlags.isProduction ? "acme-realty" : undefined)
     : undefined;
 
   const hostHintCompany = hostResolution.companySlug
-    ? await lookupCompany({
+    ? await lookupCompanyForRequest({
         companySlug: hostResolution.companySlug,
         host,
       })
     : normalizeHost(host) && !shouldAllowDefaultTenantFallback(host, runtimeConfig)
-      ? await lookupCompany({
+      ? await lookupCompanyForRequest({
           host,
         })
       : null;
@@ -144,13 +180,13 @@ export async function resolveTenantContext(
   const hintedCompany =
     hostHintCompany ??
     (tenantHintSlug
-      ? await lookupCompany({
+      ? await lookupCompanyForRequest({
           companySlug: tenantHintSlug,
         })
       : null);
 
   const sessionCompanyById = session?.companyId
-    ? await lookupCompany({
+    ? await lookupCompanyForRequest({
         companyId: session.companyId,
       })
     : null;
@@ -158,13 +194,13 @@ export async function resolveTenantContext(
   const sessionCompany =
     sessionCompanyById ??
     (session?.companySlug
-      ? await lookupCompany({
+      ? await lookupCompanyForRequest({
           companySlug: session.companySlug,
         })
       : null);
 
   const fallbackCompany = fallbackSlug
-    ? await lookupCompany({
+    ? await lookupCompanyForRequest({
         companySlug: fallbackSlug,
       })
     : null;

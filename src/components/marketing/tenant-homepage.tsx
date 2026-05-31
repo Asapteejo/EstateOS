@@ -11,8 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { buildAuthRedirect, buildServerDomainConfig } from "@/lib/domains";
 import { env } from "@/lib/env";
+import { buildSafeErrorLogContext, logError } from "@/lib/ops/logger";
 import type { TenantContext } from "@/lib/tenancy/context";
-import { getTenantPresentation } from "@/modules/branding/service";
+import { getPublicTenantPresentation } from "@/modules/branding/service";
 import { getPublicTestimonials } from "@/modules/cms/queries";
 import {
   getPublicProperties,
@@ -21,13 +22,45 @@ import {
 import { getTenantMarketerLeaderboard } from "@/modules/team/performance";
 
 export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
-  const presentation = await getTenantPresentation(tenant);
+  const featuredFilters = parsePropertySearchParams({ featured: "true", page: "1" });
+  const latestFilters = parsePropertySearchParams({ page: "1" });
+  const safelyReadPublicData = async <T,>(
+    source: string,
+    read: Promise<T>,
+    fallback: T,
+  ) => {
+    try {
+      return await read;
+    } catch (error) {
+      logError("Tenant homepage public data lookup failed; using fallback.", {
+        route: "/",
+        source,
+        companyId: tenant.companyId,
+        ...buildSafeErrorLogContext(error),
+      });
+      return fallback;
+    }
+  };
+
+  const presentation = await getPublicTenantPresentation(tenant);
   const runtimeConfig = buildServerDomainConfig(env);
   const [featuredInventory, latestInventory, testimonials, leaderboard] = await Promise.all([
-    getPublicProperties(tenant, parsePropertySearchParams({ featured: "true", page: "1" })),
-    getPublicProperties(tenant, parsePropertySearchParams({ page: "1" })),
-    getPublicTestimonials(tenant, {}, { limit: 6 }),
-    getTenantMarketerLeaderboard(tenant, new Date(), 3, "MONTHLY"),
+    safelyReadPublicData("featured-properties", getPublicProperties(tenant, featuredFilters), {
+      items: [],
+      filters: featuredFilters,
+      page: featuredFilters.page,
+      total: 0,
+      totalPages: 0,
+    }),
+    safelyReadPublicData("latest-properties", getPublicProperties(tenant, latestFilters), {
+      items: [],
+      filters: latestFilters,
+      page: latestFilters.page,
+      total: 0,
+      totalPages: 0,
+    }),
+    safelyReadPublicData("testimonials", getPublicTestimonials(tenant, {}, { limit: 6 }), []),
+    safelyReadPublicData("marketer-leaderboard", getTenantMarketerLeaderboard(tenant, new Date(), 3, "MONTHLY"), []),
   ]);
 
   const featuredProperties =

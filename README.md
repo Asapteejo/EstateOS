@@ -435,6 +435,12 @@ EstateOS now includes a tenant-scoped media library and final UX polish for imag
 - `SUPER_ADMIN` can operate across tenants.
 - Non-super-admin users are restricted to one resolved tenant.
 - `SUPER_ADMIN` platform routes live under `/superadmin` and are intentionally separate from tenant admin routes under `/admin`.
+- Production superadmin access is fail-closed. Configure the private `SUPERADMIN_EMAILS` environment variable with a comma-separated platform-owner allowlist, then run `npm run audit:superadmins` to report any existing `SUPER_ADMIN` assignment outside that allowlist.
+- Secure platform-owner setup:
+  Set `SUPERADMIN_EMAILS` in the production environment.
+  Sign in once normally with the allowlisted email so Clerk synchronization creates the EstateOS user.
+  Run `npm run grant:superadmin -- --email owner@example.com` from a trusted operator environment with production database access.
+  Run `npm run audit:superadmins`, then access `/superadmin`.
 - Tenant resolution currently supports:
   session-based app usage
   central platform and portal hosts
@@ -569,11 +575,12 @@ Production-critical services are reported through startup logs and `/api/readyz`
 - `DATABASE_URL`
 - `DIRECT_URL` for Prisma migrations and deploy workflows
 - `NEXT_PUBLIC_APP_URL`
+- `APP_URL` (`https://estateos.tech` in production)
 - `APP_BASE_URL`
 - `DEFAULT_COMPANY_SLUG`
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `CLERK_SECRET_KEY`
-- `CLERK_WEBHOOK_SECRET`
+- `SUPERADMIN_EMAILS` with the private comma-separated platform-owner allowlist
 - `PAYSTACK_SECRET_KEY`
 - `PAYSTACK_PUBLIC_KEY`
 - `PAYSTACK_WEBHOOK_SECRET`
@@ -584,6 +591,7 @@ Production-critical services are reported through startup logs and `/api/readyz`
 
 ### Optional But Supported
 
+- `CLERK_WEBHOOK_SECRET` for verified `/api/webhooks/clerk` ingestion
 - `R2_PUBLIC_BASE_URL`
 - `MAPBOX_ACCESS_TOKEN`
 - `NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN`
@@ -1264,7 +1272,6 @@ EstateOS now includes a tenant-scoped operating-system layer aimed at daily use 
 - `DEFAULT_COMPANY_SLUG`
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `CLERK_SECRET_KEY`
-- `CLERK_WEBHOOK_SECRET`
 - `PAYSTACK_SECRET_KEY`
 - `PAYSTACK_PUBLIC_KEY`
 - `PAYSTACK_WEBHOOK_SECRET`
@@ -1276,6 +1283,7 @@ EstateOS now includes a tenant-scoped operating-system layer aimed at daily use 
 - `PLATFORM_BASE_URL`
 - `CRON_SECRET` if scheduled automation is enabled
 - `RESEND_API_KEY` and `EMAIL_FROM` for live transactional email
+- `CLERK_WEBHOOK_SECRET` for verified Clerk webhook ingestion
 
 ### First-Tenant Onboarding Checklist
 1. Create the tenant company with correct slug, public domain, and billing settings.

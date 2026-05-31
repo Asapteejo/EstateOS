@@ -9,14 +9,26 @@ import { captureException } from "@/lib/sentry";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  if (!featureFlags.hasDatabase || !env.CLERK_WEBHOOK_SECRET) {
-    return ok({ skipped: true });
+  if (!env.CLERK_WEBHOOK_SECRET) {
+    logWarn("Rejected Clerk webhook because its signing secret is not configured.");
+    return fail("Clerk webhook is not configured.", 503);
+  }
+
+  if (!featureFlags.hasDatabase) {
+    logWarn("Rejected Clerk webhook because database access is not configured.");
+    return fail("Clerk webhook is temporarily unavailable.", 503);
   }
 
   const payload = await request.text();
   const headers = request.headers;
 
-  const wh = new Webhook(env.CLERK_WEBHOOK_SECRET);
+  let wh: Webhook;
+  try {
+    wh = new Webhook(env.CLERK_WEBHOOK_SECRET);
+  } catch {
+    logWarn("Rejected Clerk webhook because its signing secret is invalid.");
+    return fail("Clerk webhook is not configured.", 503);
+  }
 
   let event: {
     type: string;

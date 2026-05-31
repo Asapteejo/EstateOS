@@ -35,6 +35,10 @@ export async function GET(
     return fail("Invitation not found.", 404);
   }
 
+  if (invitation.role === "SUPER_ADMIN") {
+    return fail("This invitation is not valid.", 403);
+  }
+
   if (invitation.status === "ACCEPTED") {
     return fail("This invitation has already been accepted.", 409);
   }
@@ -93,6 +97,10 @@ export async function POST(
 
   if (!invitation) {
     return fail("Invitation not found.", 404);
+  }
+
+  if (invitation.role === "SUPER_ADMIN") {
+    return fail("This invitation is not valid.", 403);
   }
 
   if (invitation.status !== "PENDING") {
