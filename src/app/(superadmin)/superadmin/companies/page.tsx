@@ -6,7 +6,14 @@ import { SuperadminRangeTabs } from "@/components/superadmin/superadmin-range-ta
 import { SuperadminShell } from "@/components/superadmin/superadmin-shell";
 import { Card } from "@/components/ui/card";
 import { requireSuperAdminSession } from "@/lib/auth/guards";
-import { getSuperadminCompaniesData, parseCompanySort, parseSuperadminRange } from "@/modules/superadmin/queries";
+import {
+  getSuperadminCompaniesData,
+  parseCompanyHealthFilter,
+  parseCompanyQuickFilter,
+  parseCompanySort,
+  parseSuperadminRange,
+  readSuperadminSearchParam,
+} from "@/modules/superadmin/queries";
 
 export default async function SuperadminCompaniesPage({
   searchParams,
@@ -15,12 +22,12 @@ export default async function SuperadminCompaniesPage({
 }) {
   await requireSuperAdminSession();
 
-  const resolvedSearchParams = ((await searchParams) ?? {}) as Record<string, string | undefined>;
-  const range = parseSuperadminRange(resolvedSearchParams.range);
-  const sort = parseCompanySort(resolvedSearchParams.sort);
-  const search = resolvedSearchParams.search ?? "";
-  const health = resolvedSearchParams.health ?? "all";
-  const filter = resolvedSearchParams.filter ?? "all";
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const range = parseSuperadminRange(readSuperadminSearchParam(resolvedSearchParams.range));
+  const sort = parseCompanySort(readSuperadminSearchParam(resolvedSearchParams.sort));
+  const search = readSuperadminSearchParam(resolvedSearchParams.search) ?? "";
+  const health = parseCompanyHealthFilter(readSuperadminSearchParam(resolvedSearchParams.health));
+  const filter = parseCompanyQuickFilter(readSuperadminSearchParam(resolvedSearchParams.filter));
 
   const dashboard = await getSuperadminCompaniesData({
     range,
@@ -115,7 +122,7 @@ export default async function SuperadminCompaniesPage({
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--line)]">
-              {dashboard.rows.map((company) => (
+              {dashboard.rows.length ? dashboard.rows.map((company) => (
                 <tr key={company.companyId} className={company.companyStatus === "SUSPENDED" ? "bg-rose-50/40" : undefined}>
                   <td className="px-6 py-4">
                     <div className="flex flex-wrap items-center gap-3">
@@ -150,7 +157,13 @@ export default async function SuperadminCompaniesPage({
                     </Link>
                   </td>
                 </tr>
-              ))}
+              )) : (
+                <tr>
+                  <td colSpan={9} className="px-6 py-10 text-center text-[var(--ink-500)]">
+                    No companies match the selected filters.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

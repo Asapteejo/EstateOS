@@ -42,7 +42,7 @@ export default async function SuperadminSettingsPage() {
             </p>
           </div>
           <div className="divide-y divide-[var(--line)]">
-            {controls.plans.map((plan) => (
+            {controls.plans.length ? controls.plans.map((plan) => (
               <div key={plan.id} className="grid gap-3 px-6 py-4 lg:grid-cols-[1fr_auto_auto] lg:items-center">
                 <div>
                   <div className="font-semibold text-[var(--ink-950)]">{plan.name} {plan.interval.toLowerCase()}</div>
@@ -51,7 +51,9 @@ export default async function SuperadminSettingsPage() {
                 <div className="text-sm text-[var(--ink-700)]">{formatCurrency(plan.priceAmount, plan.currency)}</div>
                 <div className="text-sm text-[var(--ink-500)]">{plan.subscriberCount} subscribers</div>
               </div>
-            ))}
+            )) : (
+              <div className="px-6 py-8 text-sm text-[var(--ink-500)]">No platform plans are available.</div>
+            )}
           </div>
         </Card>
 
@@ -63,7 +65,7 @@ export default async function SuperadminSettingsPage() {
             </p>
           </div>
           <div className="divide-y divide-[var(--line)]">
-            {controls.companiesNeedingAttention.map((company) => (
+            {controls.companiesNeedingAttention.length ? controls.companiesNeedingAttention.map((company) => (
               <div key={company.companyId} className="px-6 py-4 text-sm">
                 <Link href={`/superadmin/companies/${company.companyId}`} className="font-semibold text-[var(--ink-950)] hover:underline">
                   {company.companyName}
@@ -73,7 +75,9 @@ export default async function SuperadminSettingsPage() {
                   Overdue {company.overdueFormatted}  -  EstateOS revenue {company.platformRevenueFormatted}
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="px-6 py-8 text-sm text-[var(--ink-500)]">No companies currently need intervention.</div>
+            )}
           </div>
         </Card>
       </div>

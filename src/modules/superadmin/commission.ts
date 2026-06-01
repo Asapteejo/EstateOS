@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
+import { buildSafeErrorLogContext, logError } from "@/lib/ops/logger";
 import type { TenantContext } from "@/lib/tenancy/context";
 
 const PLATFORM_COMMISSION_CODE = "superadmin-platform-default";
@@ -13,6 +14,14 @@ function decimalToNumber(value: { toNumber?: () => number } | number | null | un
 
 export function canManagePlatformCommission(context: Pick<TenantContext, "roles">) {
   return context.roles.includes("SUPER_ADMIN");
+}
+
+export function buildDefaultPlatformCommissionControl() {
+  return {
+    commissionPercentage: 0,
+    fixedFee: 0,
+    notes: "",
+  };
 }
 
 export async function getPlatformCommissionControl(companyId: string) {
@@ -50,6 +59,21 @@ export async function getPlatformCommissionControl(companyId: string) {
         : 0,
     notes: settings?.defaultCommissionRule?.notes ?? settings?.notes ?? "",
   };
+}
+
+export async function getSafePlatformCommissionControl(companyId: string) {
+  try {
+    return await getPlatformCommissionControl(companyId);
+  } catch (error) {
+    logError("Superadmin company commission lookup failed; using empty state.", {
+      route: `/superadmin/companies/${companyId}`,
+      component: "SuperadminCompanyOverviewPage",
+      queryName: "platformCommissionControl",
+      companyId,
+      ...buildSafeErrorLogContext(error),
+    });
+    return buildDefaultPlatformCommissionControl();
+  }
 }
 
 export async function updatePlatformCommissionFromSuperadmin(

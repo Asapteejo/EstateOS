@@ -3,7 +3,7 @@ import { SuperadminMetricCard } from "@/components/superadmin/superadmin-metric-
 import { SuperadminRangeTabs } from "@/components/superadmin/superadmin-range-tabs";
 import { SuperadminShell } from "@/components/superadmin/superadmin-shell";
 import { requireSuperAdminSession } from "@/lib/auth/guards";
-import { getSuperadminActivityData, parseSuperadminRange } from "@/modules/superadmin/queries";
+import { getSuperadminActivityData, parseSuperadminRange, readSuperadminSearchParam } from "@/modules/superadmin/queries";
 
 export default async function SuperadminActivityPage({
   searchParams,
@@ -12,8 +12,8 @@ export default async function SuperadminActivityPage({
 }) {
   await requireSuperAdminSession();
 
-  const resolvedSearchParams = ((await searchParams) ?? {}) as Record<string, string | undefined>;
-  const range = parseSuperadminRange(resolvedSearchParams.range);
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const range = parseSuperadminRange(readSuperadminSearchParam(resolvedSearchParams.range));
   const activity = await getSuperadminActivityData(range);
 
   return (

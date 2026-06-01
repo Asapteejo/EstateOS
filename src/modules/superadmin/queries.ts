@@ -17,6 +17,7 @@ export type CompanySort =
   | "newest"
   | "most_active"
   | "highest_inflow";
+export type CompanyQuickFilter = "all" | "inactive" | "collections-risk" | "payout-missing";
 
 type PlanSummaryInput = {
   companyName: string;
@@ -171,6 +172,85 @@ async function runSuperadminOverviewQuery<T>(
       ...buildSafeErrorLogContext(error),
     });
     return fallback;
+  }
+}
+
+function buildEmptyPlatformAnalytics(range: SuperadminRange) {
+  const window = getRangeWindow(range);
+  return {
+    generatedAt: new Date(),
+    range: window,
+    companies: [] as CompanyMetricRow[],
+    overview: {
+      totalCompanies: 0,
+      activeCompanies: 0,
+      newCompaniesThisMonth: 0,
+      totalPlatformInflow: 0,
+      subscriptionRevenue: 0,
+      commissionRevenue: 0,
+      totalPlatformRevenue: 0,
+      totalSuccessfulPayments: 0,
+      overdueAmount: 0,
+      totalDeals: 0,
+      inflowTrend: "No platform activity available",
+      revenueTrend: "No platform activity available",
+    },
+    recentActivity: [] as ActivityFeedItem[],
+    plans: [] as Array<{
+      id: string;
+      name: string;
+      interval: BillingInterval;
+      priceAmount: number;
+      currency: string;
+      subscriberCount: number;
+      isActive: boolean;
+    }>,
+    trendSeries: [] as Array<{
+      label: string;
+      inflow: number;
+      platformRevenue: number;
+      subscriptionRevenue: number;
+      commissionRevenue: number;
+      signups: number;
+      overdueExposure: number;
+    }>,
+    controls: {
+      missingPayoutSetup: 0,
+      inactiveCompanies: 0,
+      collectionsRiskCompanies: 0,
+      recentWebhookIssues: [] as Array<{
+        id: string;
+        companyName: string;
+        eventType: string;
+        createdAt: string;
+        provider: string;
+      }>,
+      recentJobFailures: [] as Array<{
+        id: string;
+        companyName: string;
+        jobName: string;
+        error: string;
+        createdAt: string;
+      }>,
+    },
+  };
+}
+
+async function loadPlatformAnalyticsForRoute(
+  range: SuperadminRange,
+  route: string,
+  component: string,
+) {
+  try {
+    return await loadPlatformAnalytics(range);
+  } catch (error) {
+    logError("Superadmin route analytics failed; rendering empty state.", {
+      route,
+      component,
+      queryName: "loadPlatformAnalytics",
+      ...buildSafeErrorLogContext(error),
+    });
+    return buildEmptyPlatformAnalytics(range);
   }
 }
 
@@ -360,6 +440,58 @@ function buildPublicDomain(record: CompanyBaseRecord) {
   return `${record.slug}.estateos.com`;
 }
 
+export function buildEmptyCompanyMetricRow(record: {
+  id: string;
+  name: string;
+  slug: string;
+  status: "ACTIVE" | "SUSPENDED" | "DISABLED";
+  suspendedAt: Date | null;
+  suspensionReason: string | null;
+  customDomain: string | null;
+  subdomain: string | null;
+  createdAt: Date;
+}): CompanyMetricRow {
+  return {
+    companyId: record.id,
+    companyName: record.name,
+    companySlug: record.slug,
+    companyStatus: record.status,
+    suspendedAt: record.suspendedAt,
+    suspensionReason: record.suspensionReason,
+    publicDomain: record.customDomain ?? (record.subdomain ? `${record.subdomain}.estateos.com` : `${record.slug}.estateos.com`),
+    createdAt: record.createdAt,
+    subscriptionStatus: "NO_PLAN",
+    subscriptionPlan: "No plan",
+    subscriptionInterval: "n/a",
+    planLabel: "No valid plan",
+    payoutReadiness: "Payout setup missing",
+    platformRevenue: 0,
+    platformRevenueFormatted: formatCurrency(0),
+    inflowProcessed: 0,
+    inflowFormatted: formatCurrency(0),
+    successfulPayments: 0,
+    paymentRequestsSent: 0,
+    overdueAmount: 0,
+    overdueFormatted: formatCurrency(0),
+    totalDeals: 0,
+    propertiesCount: 0,
+    teamCount: 0,
+    lastActiveAt: null,
+    lastActiveLabel: "No activity yet",
+    health: "onboarding_incomplete",
+    healthReason: "Optional company analytics are temporarily unavailable.",
+    subscriptionRevenue: 0,
+    commissionRevenue: 0,
+    currentPlanPrice: 0,
+    defaultCurrency: "NGN",
+    currentPlanId: null,
+    currentSubscriptionId: null,
+    billingProvider: "PAYSTACK",
+    commissionRuleLabel: "No default fee rule",
+    providerReadinessLabel: "Payout setup missing",
+  };
+}
+
 function buildCommissionRuleLabel(record: CompanyBaseRecord) {
   const rule = record.billingSettings?.defaultCommissionRule;
 
@@ -441,6 +573,32 @@ export function parseCompanySort(input?: string | null): CompanySort {
   return "highest_revenue";
 }
 
+export function readSuperadminSearchParam(input: string | string[] | undefined) {
+  return typeof input === "string" ? input : undefined;
+}
+
+export function parseCompanyHealthFilter(input?: string | null): CompanyHealth | "all" {
+  if (
+    input === "healthy" ||
+    input === "collections_risk" ||
+    input === "inactive" ||
+    input === "onboarding_incomplete" ||
+    input === "high_value"
+  ) {
+    return input;
+  }
+
+  return "all";
+}
+
+export function parseCompanyQuickFilter(input?: string | null): CompanyQuickFilter {
+  if (input === "inactive" || input === "collections-risk" || input === "payout-missing") {
+    return input;
+  }
+
+  return "all";
+}
+
 export function classifyCompanyHealth(input: {
   totalDeals: number;
   propertiesCount: number;
@@ -489,63 +647,7 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
   const window = getRangeWindow(range);
 
   if (!featureFlags.hasDatabase) {
-    return {
-      generatedAt: new Date(),
-      range: window,
-      companies: [] as CompanyMetricRow[],
-      overview: {
-        totalCompanies: 0,
-        activeCompanies: 0,
-        newCompaniesThisMonth: 0,
-        totalPlatformInflow: 0,
-        subscriptionRevenue: 0,
-        commissionRevenue: 0,
-        totalPlatformRevenue: 0,
-        totalSuccessfulPayments: 0,
-        overdueAmount: 0,
-        totalDeals: 0,
-        inflowTrend: "Database not configured",
-        revenueTrend: "Database not configured",
-      },
-      recentActivity: [] as ActivityFeedItem[],
-      plans: [] as Array<{
-        id: string;
-        name: string;
-        interval: BillingInterval;
-        priceAmount: number;
-        currency: string;
-        subscriberCount: number;
-        isActive: boolean;
-      }>,
-      trendSeries: [] as Array<{
-        label: string;
-        inflow: number;
-        platformRevenue: number;
-        subscriptionRevenue: number;
-        commissionRevenue: number;
-        signups: number;
-        overdueExposure: number;
-      }>,
-      controls: {
-        missingPayoutSetup: 0,
-        inactiveCompanies: 0,
-        collectionsRiskCompanies: 0,
-        recentWebhookIssues: [] as Array<{
-          id: string;
-          companyName: string;
-          eventType: string;
-          createdAt: string;
-          provider: string;
-        }>,
-        recentJobFailures: [] as Array<{
-          id: string;
-          companyName: string;
-          jobName: string;
-          error: string;
-          createdAt: string;
-        }>,
-      },
-    };
+    return buildEmptyPlatformAnalytics(range);
   }
 
   const timeWhere = window.from ? { gte: window.from } : undefined;
@@ -990,7 +1092,7 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
       timestamp: payment.paidAt ?? payment.createdAt,
       type: "payment_completed" as const,
       companyId: payment.companyId,
-      companyName: payment.company.name,
+      companyName: payment.company?.name ?? "Unknown company",
       title: "Payment completed",
       summary: payment.providerReference,
       amount: decimalToNumber(payment.amount),
@@ -1002,7 +1104,7 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
       timestamp: request.sentAt ?? request.createdAt,
       type: "payment_request_sent" as const,
       companyId: request.companyId,
-      companyName: request.company.name,
+      companyName: request.company?.name ?? "Unknown company",
       title: "Payment request sent",
       summary: `${request.title}  -  ${request.status.toLowerCase()}`,
       amount: decimalToNumber(request.amount),
@@ -1031,7 +1133,7 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
             ? ("company_created" as const)
             : ("company_onboarded" as const),
       companyId: event.companyId,
-      companyName: event.company.name,
+      companyName: event.company?.name ?? "Unknown company",
       title:
         event.eventName === "payment.overdue_detected"
           ? "Overdue payment detected"
@@ -1152,7 +1254,7 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
 }
 
 export async function getSuperadminOverviewData(range: SuperadminRange) {
-  const analytics = await loadPlatformAnalytics(range);
+  const analytics = await loadPlatformAnalyticsForRoute(range, "/superadmin", "SuperadminDashboardPage");
 
   const topRevenueCompanies = [...analytics.companies]
     .sort((left, right) => right.platformRevenue - left.platformRevenue)
@@ -1225,7 +1327,7 @@ export async function getSuperadminOverviewData(range: SuperadminRange) {
 }
 
 export async function getSuperadminRevenueData(range: SuperadminRange) {
-  const analytics = await loadPlatformAnalytics(range);
+  const analytics = await loadPlatformAnalyticsForRoute(range, "/superadmin/revenue", "SuperadminRevenuePage");
   const companies = [...analytics.companies].sort((left, right) => right.platformRevenue - left.platformRevenue);
 
   return {
@@ -1255,10 +1357,10 @@ export async function getSuperadminCompaniesData(input: {
   filter?: string | null;
   sort?: CompanySort;
 }) {
-  const analytics = await loadPlatformAnalytics(input.range);
-  const searchValue = input.search?.trim().toLowerCase() ?? "";
-  const healthFilter = input.health && input.health !== "all" ? (input.health as CompanyHealth) : null;
-  const quickFilter = input.filter?.trim().toLowerCase() ?? "all";
+  const analytics = await loadPlatformAnalyticsForRoute(input.range, "/superadmin/companies", "SuperadminCompaniesPage");
+  const searchValue = typeof input.search === "string" ? input.search.trim().toLowerCase() : "";
+  const healthFilter = parseCompanyHealthFilter(input.health);
+  const quickFilter = parseCompanyQuickFilter(input.filter);
 
   let rows = [...analytics.companies];
 
@@ -1271,7 +1373,7 @@ export async function getSuperadminCompaniesData(input: {
     );
   }
 
-  if (healthFilter) {
+  if (healthFilter !== "all") {
     rows = rows.filter((row) => row.health === healthFilter);
   }
 
@@ -1283,7 +1385,7 @@ export async function getSuperadminCompaniesData(input: {
     rows = rows.filter((row) => row.providerReadinessLabel !== "Payout ready");
   }
 
-  const sort = input.sort ?? "highest_revenue";
+  const sort = parseCompanySort(input.sort);
   rows.sort((left, right) => {
     if (sort === "highest_overdue") {
       return right.overdueAmount - left.overdueAmount || right.platformRevenue - left.platformRevenue;
@@ -1321,8 +1423,34 @@ export async function getSuperadminCompaniesData(input: {
 }
 
 export async function getSuperadminCompanyOverview(companyId: string, range: SuperadminRange = "30d") {
-  const analytics = await loadPlatformAnalytics(range);
-  const company = analytics.companies.find((entry) => entry.companyId === companyId);
+  const analytics = await loadPlatformAnalyticsForRoute(
+    range,
+    `/superadmin/companies/${companyId}`,
+    "SuperadminCompanyOverviewPage",
+  );
+  let company = analytics.companies.find((entry) => entry.companyId === companyId);
+
+  if (!company && featureFlags.hasDatabase) {
+    const fallback = await runSuperadminOverviewQuery("companyDetail.companyFallback", null, () =>
+      prisma.company.findUnique({
+        where: { id: companyId },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          status: true,
+          suspendedAt: true,
+          suspensionReason: true,
+          customDomain: true,
+          subdomain: true,
+          createdAt: true,
+        },
+      }), {
+        route: `/superadmin/companies/${companyId}`,
+        component: "SuperadminCompanyOverviewPage",
+      });
+    company = fallback ? buildEmptyCompanyMetricRow(fallback) : undefined;
+  }
 
   if (!company || !featureFlags.hasDatabase) {
     throw new Error("Company not found.");
@@ -1463,8 +1591,8 @@ export async function getSuperadminCompanyOverview(companyId: string, range: Sup
     recentTransactions: transactions.map((item) => ({
       id: item.id,
       buyerName:
-        [item.user.firstName, item.user.lastName].filter(Boolean).join(" ") || item.user.email || "Unnamed buyer",
-      propertyTitle: item.property.title,
+        [item.user?.firstName, item.user?.lastName].filter(Boolean).join(" ") || item.user?.email || "Unnamed buyer",
+      propertyTitle: item.property?.title ?? "Property unavailable",
       totalValue: formatCurrency(decimalToNumber(item.totalValue), company.defaultCurrency),
       outstanding: formatCurrency(decimalToNumber(item.outstandingBalance), company.defaultCurrency),
       paymentStatus: item.paymentStatus,
@@ -1518,7 +1646,7 @@ export async function getSuperadminCompanyOverview(companyId: string, range: Sup
     })),
     subscriptions: subscriptions.map((item) => ({
       id: item.id,
-      label: `${item.plan.name} ${item.interval.toLowerCase()}`,
+      label: `${item.plan?.name ?? "Plan unavailable"} ${item.interval.toLowerCase()}`,
       status: item.status,
       startsAt: formatDate(item.startsAt, "PPP"),
       endsAt: item.endsAt ? formatDate(item.endsAt, "PPP") : "Open-ended",
@@ -1526,9 +1654,7 @@ export async function getSuperadminCompanyOverview(companyId: string, range: Sup
   };
 }
 
-export async function getSuperadminActivityData(range: SuperadminRange) {
-  const analytics = await loadPlatformAnalytics(range);
-
+function buildSuperadminActivityData(analytics: ReturnType<typeof buildEmptyPlatformAnalytics>) {
   return {
     generatedAtLabel: formatDate(analytics.generatedAt, "PPP p"),
     range: analytics.range,
@@ -1546,9 +1672,7 @@ export async function getSuperadminActivityData(range: SuperadminRange) {
   };
 }
 
-export async function getSuperadminControlsData() {
-  const analytics = await loadPlatformAnalytics("30d");
-
+function buildSuperadminControlsData(analytics: ReturnType<typeof buildEmptyPlatformAnalytics>) {
   return {
     generatedAtLabel: formatDate(analytics.generatedAt, "PPP p"),
     controls: analytics.controls,
@@ -1558,6 +1682,24 @@ export async function getSuperadminControlsData() {
       .sort((left, right) => right.overdueAmount - left.overdueAmount)
       .slice(0, 10),
   };
+}
+
+export function buildEmptySuperadminActivityData(range: SuperadminRange = "30d") {
+  return buildSuperadminActivityData(buildEmptyPlatformAnalytics(range));
+}
+
+export function buildEmptySuperadminControlsData() {
+  return buildSuperadminControlsData(buildEmptyPlatformAnalytics("30d"));
+}
+
+export async function getSuperadminActivityData(range: SuperadminRange) {
+  const analytics = await loadPlatformAnalyticsForRoute(range, "/superadmin/activity", "SuperadminActivityPage");
+  return buildSuperadminActivityData(analytics);
+}
+
+export async function getSuperadminControlsData() {
+  const analytics = await loadPlatformAnalyticsForRoute("30d", "/superadmin/settings", "SuperadminSettingsPage");
+  return buildSuperadminControlsData(analytics);
 }
 
 export async function getSuperadminDashboardData(range: SuperadminRange = "30d") {

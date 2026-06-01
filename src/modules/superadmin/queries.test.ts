@@ -4,9 +4,15 @@ import assert from "node:assert/strict";
 import {
   buildCompaniesByPlanSummary,
   buildCompanyAlertBuckets,
+  buildEmptyCompanyMetricRow,
+  buildEmptySuperadminActivityData,
+  buildEmptySuperadminControlsData,
   classifyCompanyHealth,
+  parseCompanyHealthFilter,
+  parseCompanyQuickFilter,
   parseCompanySort,
   parseSuperadminRange,
+  readSuperadminSearchParam,
 } from "@/modules/superadmin/queries";
 
 test("superadmin plan summary groups companies by current plan label", () => {
@@ -69,7 +75,60 @@ test("superadmin range parsing falls back to 30d", () => {
 
 test("superadmin company sort parsing defaults to highest revenue", () => {
   assert.equal(parseCompanySort("highest_overdue"), "highest_overdue");
+  assert.equal(parseCompanySort("most_active"), "most_active");
   assert.equal(parseCompanySort("unknown"), "highest_revenue");
+});
+
+test("superadmin company quick filters accept supported dashboard links and reject unknown values", () => {
+  assert.equal(parseCompanyQuickFilter("payout-missing"), "payout-missing");
+  assert.equal(parseCompanyQuickFilter("inactive"), "inactive");
+  assert.equal(parseCompanyQuickFilter("collections-risk"), "collections-risk");
+  assert.equal(parseCompanyQuickFilter("unknown"), "all");
+});
+
+test("superadmin company health filters and repeated query parameters fall back safely", () => {
+  assert.equal(parseCompanyHealthFilter("collections_risk"), "collections_risk");
+  assert.equal(parseCompanyHealthFilter("unknown"), "all");
+  assert.equal(readSuperadminSearchParam(["inactive", "unexpected"]), undefined);
+});
+
+test("company detail fallback tolerates missing optional relations", () => {
+  const row = buildEmptyCompanyMetricRow({
+    id: "company_1",
+    name: "Acme Realty",
+    slug: "acme-realty",
+    status: "ACTIVE",
+    suspendedAt: null,
+    suspensionReason: null,
+    customDomain: null,
+    subdomain: null,
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+  });
+
+  assert.equal(row.subscriptionStatus, "NO_PLAN");
+  assert.equal(row.providerReadinessLabel, "Payout setup missing");
+  assert.equal(row.platformRevenue, 0);
+  assert.equal(row.lastActiveLabel, "No activity yet");
+});
+
+test("settings fallback renders zero-state controls when optional configuration is missing", () => {
+  const controls = buildEmptySuperadminControlsData();
+
+  assert.equal(controls.controls.missingPayoutSetup, 0);
+  assert.deepEqual(controls.plans, []);
+  assert.deepEqual(controls.companiesNeedingAttention, []);
+});
+
+test("activity fallback renders an empty feed when no activity events exist", () => {
+  const activity = buildEmptySuperadminActivityData();
+
+  assert.deepEqual(activity.items, []);
+  assert.deepEqual(activity.counts, {
+    payments: 0,
+    paymentRequests: 0,
+    onboarding: 0,
+    risk: 0,
+  });
 });
 
 test("company health flags collections risk before normal health", () => {

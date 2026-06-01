@@ -11,8 +11,8 @@ import { SuperadminShell } from "@/components/superadmin/superadmin-shell";
 import { Card } from "@/components/ui/card";
 import { requireSuperAdminSession } from "@/lib/auth/guards";
 import { formatCurrency } from "@/lib/utils";
-import { getPlatformCommissionControl } from "@/modules/superadmin/commission";
-import { getSuperadminCompanyOverview, parseSuperadminRange } from "@/modules/superadmin/queries";
+import { getSafePlatformCommissionControl } from "@/modules/superadmin/commission";
+import { getSuperadminCompanyOverview, parseSuperadminRange, readSuperadminSearchParam } from "@/modules/superadmin/queries";
 import {
   overrideSuperadminSubscriptionAction,
   updatePlatformCommissionAction,
@@ -28,13 +28,13 @@ export default async function SuperadminCompanyOverviewPage({
   await requireSuperAdminSession();
 
   const { companyId } = await params;
-  const resolvedSearchParams = ((await searchParams) ?? {}) as Record<string, string | undefined>;
-  const range = parseSuperadminRange(resolvedSearchParams.range);
-  const error = resolvedSearchParams.error;
-  const created = resolvedSearchParams.created === "1";
-  const subscriptionUpdated = resolvedSearchParams.subscription === "updated";
-  const mockCreated = resolvedSearchParams.mock === "created";
-  const commissionUpdated = resolvedSearchParams.commission === "updated";
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const range = parseSuperadminRange(readSuperadminSearchParam(resolvedSearchParams.range));
+  const error = readSuperadminSearchParam(resolvedSearchParams.error);
+  const created = readSuperadminSearchParam(resolvedSearchParams.created) === "1";
+  const subscriptionUpdated = readSuperadminSearchParam(resolvedSearchParams.subscription) === "updated";
+  const mockCreated = readSuperadminSearchParam(resolvedSearchParams.mock) === "created";
+  const commissionUpdated = readSuperadminSearchParam(resolvedSearchParams.commission) === "updated";
 
   let company: Awaited<ReturnType<typeof getSuperadminCompanyOverview>>;
   try {
@@ -42,7 +42,7 @@ export default async function SuperadminCompanyOverviewPage({
   } catch {
     notFound();
   }
-  const platformCommission = await getPlatformCommissionControl(companyId);
+  const platformCommission = await getSafePlatformCommissionControl(companyId);
 
   return (
     <SuperadminShell
@@ -292,7 +292,7 @@ export default async function SuperadminCompanyOverviewPage({
             </p>
           </div>
           <div className="divide-y divide-[var(--line)]">
-            {company.recentTransactions.map((transaction) => (
+            {company.recentTransactions.length ? company.recentTransactions.map((transaction) => (
               <div key={transaction.id} className="grid gap-3 px-6 py-4 lg:grid-cols-[1.1fr_0.9fr_0.8fr] lg:items-center">
                 <div>
                   <div className="font-semibold text-[var(--ink-950)]">{transaction.buyerName}</div>
@@ -307,7 +307,9 @@ export default async function SuperadminCompanyOverviewPage({
                   <div className="mt-1 text-[var(--ink-500)]">{transaction.nextAction}</div>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="px-6 py-8 text-sm text-[var(--ink-500)]">No recent transactions are available.</div>
+            )}
           </div>
         </Card>
       </div>
@@ -316,13 +318,15 @@ export default async function SuperadminCompanyOverviewPage({
         <Card className="overflow-hidden">
           <div className="border-b border-[var(--line)] px-6 py-5"><h2 className="text-lg font-semibold text-[var(--ink-950)]">Recent payment requests</h2></div>
           <div className="divide-y divide-[var(--line)]">
-            {company.recentPaymentRequests.map((item) => (
+            {company.recentPaymentRequests.length ? company.recentPaymentRequests.map((item) => (
               <div key={item.id} className="px-6 py-4 text-sm">
                 <div className="font-semibold text-[var(--ink-950)]">{item.title}</div>
                 <div className="mt-1 text-[var(--ink-600)]">{item.amount}</div>
                 <div className="mt-1 text-[var(--ink-500)]">{item.status}  -  Due {item.dueAt}</div>
               </div>
-            ))}
+            )) : (
+              <div className="px-6 py-8 text-sm text-[var(--ink-500)]">No payment requests are available.</div>
+            )}
           </div>
         </Card>
         <Card className="overflow-hidden">
@@ -342,18 +346,23 @@ export default async function SuperadminCompanyOverviewPage({
                 <div className="mt-1 text-[var(--ink-500)]">{item.startsAt} → {item.endsAt}</div>
               </div>
             ))}
+            {!company.providerAccounts.length && !company.subscriptions.length ? (
+              <div className="px-6 py-8 text-sm text-[var(--ink-500)]">No provider accounts or subscriptions are configured.</div>
+            ) : null}
           </div>
         </Card>
         <Card className="overflow-hidden">
           <div className="border-b border-[var(--line)] px-6 py-5"><h2 className="text-lg font-semibold text-[var(--ink-950)]">Billing and payment timeline</h2></div>
           <div className="divide-y divide-[var(--line)]">
-            {company.recentBilling.map((item) => (
+            {company.recentBilling.length ? company.recentBilling.map((item) => (
               <div key={item.id} className="px-6 py-4 text-sm">
                 <div className="font-semibold text-[var(--ink-950)]">{item.type}</div>
                 <div className="mt-1 text-[var(--ink-600)]">{item.summary}</div>
                 <div className="mt-1 text-[var(--ink-500)]">{item.amount ?? "No amount"}  -  {item.createdAt}</div>
               </div>
-            ))}
+            )) : (
+              <div className="px-6 py-8 text-sm text-[var(--ink-500)]">No billing events are available.</div>
+            )}
           </div>
         </Card>
       </div>
