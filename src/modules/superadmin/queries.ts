@@ -18,6 +18,14 @@ export type CompanySort =
   | "most_active"
   | "highest_inflow";
 export type CompanyQuickFilter = "all" | "inactive" | "collections-risk" | "payout-missing";
+export const SUPERADMIN_COMPANY_QUERY_LIMIT = 250;
+export const SUPERADMIN_COMPANY_TABLE_LIMIT = 100;
+export const SUPERADMIN_ACTIVITY_FEED_LIMIT = 28;
+export const SUPERADMIN_SNAPSHOT_QUERY_LIMIT = 5_000;
+
+export function limitSuperadminRows<T>(rows: T[], limit: number) {
+  return rows.slice(0, limit);
+}
 
 type PlanSummaryInput = {
   companyName: string;
@@ -349,6 +357,7 @@ async function loadCompanySnapshotMetrics(range: SuperadminRange, from: Date | n
       ...(from ? { bucketDate: { gte: startOfDay(from) } } : {}),
     },
     orderBy: [{ companyId: "asc" }, { bucketDate: "desc" }],
+    take: SUPERADMIN_SNAPSHOT_QUERY_LIMIT,
     select: {
       companyId: true,
       bucketDate: true,
@@ -684,6 +693,7 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
   const [companies, latestActivities, latestPayments, latestRequests, latestTransactions, plans] = await Promise.all([
     runSuperadminOverviewQuery("companies", [], () => prisma.company.findMany({
       orderBy: { createdAt: "desc" },
+      take: SUPERADMIN_COMPANY_QUERY_LIMIT,
       select: {
         id: true,
         name: true,
@@ -1190,7 +1200,7 @@ async function loadPlatformAnalytics(range: SuperadminRange) {
     })),
   ]
     .sort((left, right) => right.timestamp.getTime() - left.timestamp.getTime())
-    .slice(0, 28);
+    .slice(0, SUPERADMIN_ACTIVITY_FEED_LIMIT);
 
   const trendSeries = platformReport.trendSeries.map((item) => ({
     label: item.label,
@@ -1409,7 +1419,8 @@ export async function getSuperadminCompaniesData(input: {
   return {
     generatedAt: analytics.generatedAt,
     range: analytics.range,
-    rows,
+    rows: limitSuperadminRows(rows, SUPERADMIN_COMPANY_TABLE_LIMIT),
+    totalMatchingRows: rows.length,
     activeFilter: quickFilter,
     healthCounts: {
       healthy: analytics.companies.filter((company) => company.health === "healthy").length,

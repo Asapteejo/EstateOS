@@ -1,5 +1,4 @@
-import Link from "next/link";
-
+import { SuperadminNavLink } from "@/components/superadmin/superadmin-nav-link";
 import { cn } from "@/lib/utils";
 import type { SuperadminRange } from "@/modules/superadmin/queries";
 
@@ -32,7 +31,7 @@ export function SuperadminRangeTabs({
         }
 
         return (
-          <Link
+          <SuperadminNavLink
             key={option.value}
             href={`${pathname}?${params.toString()}`}
             className={cn(
@@ -41,7 +40,7 @@ export function SuperadminRangeTabs({
             )}
           >
             {option.label}
-          </Link>
+          </SuperadminNavLink>
         );
       })}
     </div>

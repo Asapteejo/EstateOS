@@ -146,6 +146,7 @@ const serverEnvSchema = z
     CRON_SECRET: optionalString,
     UPSTASH_REDIS_REST_URL: optionalUrl,
     UPSTASH_REDIS_REST_TOKEN: optionalString,
+    REALTIME_TRANSPORT: z.enum(["polling", "sse", "auto"]).default("polling"),
     RESEND_API_KEY: optionalString,
     EMAIL_FROM: z.string().trim().min(3).default("Acme Realty <no-reply@example.com>"),
     LINEAR_API_KEY: optionalString,

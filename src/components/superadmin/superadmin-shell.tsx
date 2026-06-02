@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { LiveSurfaceSync } from "@/components/realtime/live-surface-sync";
 import { Container } from "@/components/shared/container";
+import { SuperadminNavLink } from "@/components/superadmin/superadmin-nav-link";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -44,7 +44,7 @@ export function SuperadminShell({
           {links.map(([label, href]) => {
             const active = pathname === href || (href !== "/superadmin" && pathname.startsWith(href));
             return (
-              <Link
+              <SuperadminNavLink
                 key={href}
                 href={href}
                 className={cn(
@@ -53,7 +53,7 @@ export function SuperadminShell({
                 )}
               >
                 {label}
-              </Link>
+              </SuperadminNavLink>
             );
           })}
         </div>

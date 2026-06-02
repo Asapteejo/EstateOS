@@ -614,6 +614,9 @@ Production-critical services are reported through startup logs and `/api/readyz`
 - `INNGEST_BASE_URL`
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
+- `REALTIME_TRANSPORT=polling`
+
+Realtime defaults to polling in production. The current SSE implementation uses a process-local event emitter only; Redis pub/sub is not wired yet. Set `REALTIME_TRANSPORT=sse` only for controlled environments where process-local delivery is acceptable.
 - `RESEND_API_KEY`
 - `EMAIL_FROM`
 - `SENTRY_DSN`

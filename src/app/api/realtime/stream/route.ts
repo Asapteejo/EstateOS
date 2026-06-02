@@ -6,6 +6,8 @@ import {
 } from "@/lib/auth/guards";
 import { fail } from "@/lib/http";
 import { subscribeRealtimeEvents, type PlatformRealtimeEvent } from "@/lib/realtime/events";
+import { env, featureFlags } from "@/lib/env";
+import { resolveRealtimeRuntimeStatus } from "@/lib/realtime/config";
 
 export const runtime = "nodejs";
 
@@ -63,6 +65,15 @@ function createSseResponse(input: {
 }
 
 export async function GET(request: Request) {
+  const realtime = resolveRealtimeRuntimeStatus({
+    configuredTransport: env.REALTIME_TRANSPORT,
+    nodeEnv: env.NODE_ENV,
+    redisConfigured: featureFlags.hasRedis,
+  });
+  if (realtime.realtimeTransport !== "sse") {
+    return fail("Realtime SSE transport is disabled. Polling is active.", 503);
+  }
+
   const { searchParams } = new URL(request.url);
   const channel = searchParams.get("channel");
   const surface = searchParams.get("surface");

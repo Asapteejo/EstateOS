@@ -174,6 +174,8 @@ export async function getCompanyWalletOverview(companyId: string, options?: { ta
   };
 }
 
+export const COMPANY_WALLET_SUMMARY_LIMIT = 250;
+
 export async function listCompanyWalletSummaries() {
   if (!featureFlags.hasDatabase) {
     return [];
@@ -181,16 +183,26 @@ export async function listCompanyWalletSummaries() {
 
   const companies = await prisma.company.findMany({
     orderBy: { name: "asc" },
+    take: COMPANY_WALLET_SUMMARY_LIMIT,
     select: {
       id: true,
       name: true,
       communicationWallet: true,
-      communicationCreditLedger: {
-        where: { type: "USAGE" },
-        select: { amount: true },
-      },
     },
   });
+  const usageRows = companies.length > 0
+    ? await prisma.communicationCreditLedger.groupBy({
+        by: ["companyId"],
+        where: {
+          companyId: { in: companies.map((company) => company.id) },
+          type: "USAGE",
+        },
+        _sum: { amount: true },
+      })
+    : [];
+  const usageByCompany = new Map(
+    usageRows.map((row) => [row.companyId, Math.abs(row._sum.amount ?? 0)]),
+  );
 
   return companies.map((company) => ({
     companyId: company.id,
@@ -198,9 +210,7 @@ export async function listCompanyWalletSummaries() {
     balance: company.communicationWallet?.balance ?? 0,
     currency: company.communicationWallet?.currency ?? DEFAULT_WALLET_CURRENCY,
     lastUpdatedAt: company.communicationWallet?.updatedAt ?? null,
-    totalUsage: Math.abs(
-      company.communicationCreditLedger.reduce((sum, entry) => sum + entry.amount, 0),
-    ),
+    totalUsage: usageByCompany.get(company.id) ?? 0,
   }));
 }
 

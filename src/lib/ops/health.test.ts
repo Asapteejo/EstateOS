@@ -22,6 +22,9 @@ test("dependency summary stays non-secret and status-oriented", () => {
 
   assert.equal(typeof summary.database, "string");
   assert.equal(typeof summary.paystack, "string");
+  assert.equal(typeof summary.redisConfigured, "boolean");
+  assert.equal(typeof summary.realtimeTransport, "string");
+  assert.equal(typeof summary.realtimeBackplane, "string");
   assert.equal(typeof summary.superadminAllowlist.configured, "boolean");
   assert.equal(typeof summary.superadminAllowlist.count, "number");
   assert.equal(JSON.stringify(summary).includes("key"), false);

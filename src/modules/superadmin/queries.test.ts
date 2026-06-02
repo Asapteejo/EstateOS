@@ -8,11 +8,14 @@ import {
   buildEmptySuperadminActivityData,
   buildEmptySuperadminControlsData,
   classifyCompanyHealth,
+  limitSuperadminRows,
   parseCompanyHealthFilter,
   parseCompanyQuickFilter,
   parseCompanySort,
   parseSuperadminRange,
   readSuperadminSearchParam,
+  SUPERADMIN_ACTIVITY_FEED_LIMIT,
+  SUPERADMIN_COMPANY_TABLE_LIMIT,
 } from "@/modules/superadmin/queries";
 
 test("superadmin plan summary groups companies by current plan label", () => {
@@ -76,7 +79,15 @@ test("superadmin range parsing falls back to 30d", () => {
 test("superadmin company sort parsing defaults to highest revenue", () => {
   assert.equal(parseCompanySort("highest_overdue"), "highest_overdue");
   assert.equal(parseCompanySort("most_active"), "most_active");
+  assert.equal(parseCompanySort("highest_inflow"), "highest_inflow");
   assert.equal(parseCompanySort("unknown"), "highest_revenue");
+});
+
+test("superadmin company and activity tables stay bounded", () => {
+  const rows = Array.from({ length: 300 }, (_, index) => index);
+
+  assert.equal(limitSuperadminRows(rows, SUPERADMIN_COMPANY_TABLE_LIMIT).length, 100);
+  assert.equal(limitSuperadminRows(rows, SUPERADMIN_ACTIVITY_FEED_LIMIT).length, 28);
 });
 
 test("superadmin company quick filters accept supported dashboard links and reject unknown values", () => {

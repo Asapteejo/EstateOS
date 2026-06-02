@@ -8,6 +8,7 @@ import {
 import { buildSafeErrorLogContext, logError } from "@/lib/ops/logger";
 import { parseSuperadminEmails } from "@/lib/auth/superadmin";
 import { getProductionDatabaseSafetyStatus } from "@/lib/db/production-db-guard";
+import { resolveRealtimeRuntimeStatus } from "@/lib/realtime/config";
 
 export const EXPECTED_PRODUCTION_MIGRATIONS = [
   "0030_communication_wallet_ledger",
@@ -35,6 +36,11 @@ export function buildHealthSnapshot() {
 
 export function buildDependencySummary() {
   const databaseSafety = getProductionDatabaseSafetyStatus(env);
+  const realtime = resolveRealtimeRuntimeStatus({
+    configuredTransport: env.REALTIME_TRANSPORT,
+    nodeEnv: env.NODE_ENV,
+    redisConfigured: featureFlags.hasRedis,
+  });
   return {
     database: featureFlags.hasDatabase ? "configured" : "disabled",
     clerk: featureFlags.hasClerk ? "configured" : "demo-or-disabled",
@@ -43,6 +49,9 @@ export function buildDependencySummary() {
     r2: featureFlags.hasR2 ? "configured" : "demo-or-disabled",
     resend: featureFlags.hasResend ? "configured" : "disabled",
     redis: featureFlags.hasRedis ? "configured" : "disabled",
+    redisConfigured: realtime.redisConfigured,
+    realtimeTransport: realtime.realtimeTransport,
+    realtimeBackplane: realtime.realtimeBackplane,
     inngest: featureFlags.hasInngest ? "configured" : "disabled",
     sentry: featureFlags.hasSentry ? "configured" : "disabled",
     superadminAllowlist: {
