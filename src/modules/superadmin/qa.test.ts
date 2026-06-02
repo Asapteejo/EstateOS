@@ -76,3 +76,17 @@ test("missing R2 env fails upload readiness without exposing values", () => {
   assert.equal(upload?.status, "FAIL");
   assert.equal(JSON.stringify(checks).includes("account-id"), false);
 });
+
+test("missing R2 public base url warns without failing private upload readiness", () => {
+  const checks = buildStorageQaChecks({
+    r2: {
+      R2_ACCOUNT_ID: "Configured",
+      R2_ACCESS_KEY_ID: "Configured",
+      R2_SECRET_ACCESS_KEY: "Configured",
+      R2_BUCKET_NAME: "Configured",
+      R2_PUBLIC_BASE_URL: "Missing",
+    },
+  });
+  assert.equal(checks.find((check) => check.label === "Upload testing")?.status, "PASS");
+  assert.equal(checks.find((check) => check.label === "R2_PUBLIC_BASE_URL")?.status, "WARN");
+});

@@ -1,8 +1,7 @@
 import { Webhook } from "svix";
 
 import { ok, fail } from "@/lib/http";
-import { syncAuthenticatedClerkUser } from "@/lib/auth/clerk-user-sync";
-import { prisma } from "@/lib/db/prisma";
+import { selectClerkIdentitySyncInput, syncAuthenticatedClerkUser } from "@/lib/auth/clerk-user-sync";
 import { env, featureFlags } from "@/lib/env";
 import { captureServerException } from "@/lib/integrations/posthog";
 import { logError, logWarn } from "@/lib/ops/logger";
@@ -39,10 +38,6 @@ export async function POST(request: Request) {
       first_name?: string | null;
       last_name?: string | null;
       phone_numbers?: { phone_number: string }[];
-      public_metadata?: {
-        companyId?: string;
-        branchId?: string;
-      };
     };
   };
 
@@ -58,51 +53,18 @@ export async function POST(request: Request) {
   }
 
   if (event.type === "user.created" || event.type === "user.updated") {
-    const primaryEmail = event.data.email_addresses?.[0]?.email_address;
-
-    if (!primaryEmail) {
-      return fail("Missing primary email.");
-    }
-
-    const companyId =
-      event.data.public_metadata?.companyId &&
-      (await prisma.company.findUnique({
-        where: {
-          id: event.data.public_metadata.companyId,
-        },
-        select: {
-          id: true,
-        },
-      }))?.id;
-
-    const branchId =
-      event.data.public_metadata?.branchId && companyId
-        ? (await prisma.branch.findFirst({
-            where: {
-              id: event.data.public_metadata.branchId,
-              companyId,
-            },
-            select: {
-              id: true,
-            },
-          }))?.id
-        : null;
-
     try {
-      await syncAuthenticatedClerkUser({
-        clerkUserId: event.data.id,
-        email: primaryEmail,
+      await syncAuthenticatedClerkUser(selectClerkIdentitySyncInput({
+        id: event.data.id,
+        emailAddresses: event.data.email_addresses?.map((address) => ({
+          emailAddress: address.email_address,
+        })),
         firstName: event.data.first_name,
         lastName: event.data.last_name,
-        phone: event.data.phone_numbers?.[0]?.phone_number,
-      });
-      await prisma.user.update({
-        where: { clerkUserId: event.data.id },
-        data: {
-          companyId: companyId ?? null,
-          branchId,
-        },
-      });
+        phoneNumbers: event.data.phone_numbers?.map((phone) => ({
+          phoneNumber: phone.phone_number,
+        })),
+      }));
     } catch (error) {
       await captureServerException(error, {
         source: "webhook",

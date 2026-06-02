@@ -9,7 +9,7 @@ export async function POST(
   _request: Request,
   { params }: { params: Promise<{ inquiryId: string }> },
 ) {
-  const tenant = await requireAdminSession();
+  const tenant = await requireAdminSession(["ADMIN", "STAFF"]);
   const { inquiryId } = await params;
 
   if (!featureFlags.hasGeminiAi) {

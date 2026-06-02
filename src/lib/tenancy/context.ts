@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { getAppSession } from "@/lib/auth/session";
+import { getAppSession, resolveTenantSessionIdentity } from "@/lib/auth/session";
 import { resolveAuthenticatedSetupRedirect } from "@/lib/auth/access";
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
@@ -17,9 +17,11 @@ import {
   sanitizeTenantSlug,
   shouldAllowDefaultTenantFallback,
 } from "@/lib/domains";
+import { selectAuthenticatedCompany } from "@/lib/tenancy/authenticated-company";
 
 export type TenantContext = {
   userId: string | null;
+  clerkUserId?: string | null;
   email?: string | null;
   companyId: string | null;
   companySlug: string | null;
@@ -218,7 +220,11 @@ export async function resolveTenantContext(
   const resolvedCompany =
     area === "marketing"
       ? hostHintCompany
-      : sessionCompany ?? hintedCompany ?? fallbackCompany;
+      : selectAuthenticatedCompany({
+          sessionCompany,
+          hintedCompany,
+          fallbackCompany,
+        });
 
   if (!featureFlags.isProduction && area === "marketing") {
     logInfo("Marketing tenant resolution.", {
@@ -243,6 +249,7 @@ export async function resolveTenantContext(
   if (!session) {
     return {
       userId: null,
+      clerkUserId: null,
       email: null,
       companyId: resolvedCompany?.id ?? null,
       companySlug:
@@ -271,16 +278,18 @@ export async function resolveTenantContext(
     };
   }
 
+  const identity = resolveTenantSessionIdentity(session);
   const context: TenantContext = {
-    userId: session.userId,
+    userId: identity.userId,
+    clerkUserId: identity.clerkUserId,
     email: session.email || null,
     companyId: session.roles.includes("SUPER_ADMIN")
       ? session.companyId ?? resolvedCompany?.id ?? null
-      : sessionCompany?.id ?? resolvedCompany?.id ?? session.companyId,
+      : sessionCompany?.id ?? null,
     companySlug:
       (area === "marketing"
         ? hostHintCompany?.slug ?? hostResolution.companySlug
-        : sessionCompany?.slug ?? hintedCompany?.slug) ??
+        : sessionCompany?.slug) ??
       resolvedCompany?.slug ??
       session.companySlug ??
       fallbackSlug ??
@@ -326,7 +335,7 @@ export async function requireTenantContext(
 ) {
   const context = await resolveTenantContext(area);
 
-  if (!context.userId) {
+  if (!context.clerkUserId) {
     if (options?.redirectOnMissingAuth === false) {
       throw new Error("Authentication required.");
     }
@@ -429,8 +438,11 @@ export function tenantWhere<T extends Record<string, unknown>>(
   context: TenantContext,
   where: T,
 ) {
-  if (context.isSuperAdmin || !context.companyId) {
+  if (context.isSuperAdmin) {
     return where;
+  }
+  if (!context.companyId) {
+    throw new Error("Tenant context is required for scoped query.");
   }
 
   return {

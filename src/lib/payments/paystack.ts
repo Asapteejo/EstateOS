@@ -27,6 +27,27 @@ export type PaystackTransferInstructions = {
   expiresAt: string | null;
 };
 
+export function isPaystackDemoResponseAllowed(input: {
+  nodeEnv: string;
+  paymentsDemoMode?: boolean;
+}) {
+  return input.nodeEnv !== "production" || input.paymentsDemoMode === true;
+}
+
+function assertPaystackAvailable(operation: string) {
+  if (
+    featureFlags.hasPaystack ||
+    isPaystackDemoResponseAllowed({
+      nodeEnv: env.NODE_ENV,
+      paymentsDemoMode: env.PAYMENTS_DEMO_MODE,
+    })
+  ) {
+    return;
+  }
+
+  throw new Error(`${operation} is unavailable until live Paystack credentials are configured.`);
+}
+
 export function extractTransferInstructions(payload: Record<string, unknown> | null | undefined): PaystackTransferInstructions | null {
   if (!payload || typeof payload !== "object") {
     return null;
@@ -79,6 +100,7 @@ export function extractTransferInstructions(payload: Record<string, unknown> | n
 
 export async function initializePayment(input: PaymentInitializationInput) {
   if (!featureFlags.hasPaystack) {
+    assertPaystackAvailable("Payment initialization");
     logWarn("Paystack initialize called without full Paystack configuration. Returning demo response.");
     return {
       provider: "PAYSTACK",
@@ -149,6 +171,7 @@ export async function initializePayment(input: PaymentInitializationInput) {
 
 export async function verifyPayment(reference: string) {
   if (!featureFlags.hasPaystack) {
+    assertPaystackAvailable("Payment verification");
     logWarn("Paystack verify called without full Paystack configuration. Returning demo verification.");
     return {
       status: "SUCCESS" as PaymentStatus,
@@ -218,6 +241,7 @@ export type PaystackBank = {
 
 export async function fetchPaystackBanks(): Promise<PaystackBank[]> {
   if (!featureFlags.hasPaystack) {
+    assertPaystackAvailable("Paystack bank lookup");
     return [
       { name: "Access Bank", code: "044" },
       { name: "First Bank of Nigeria", code: "011" },
@@ -264,6 +288,7 @@ export type SubaccountResult = {
 
 export async function createPaystackSubaccount(input: SubaccountInput): Promise<SubaccountResult> {
   if (!featureFlags.hasPaystack) {
+    assertPaystackAvailable("Paystack subaccount creation");
     return {
       subaccountCode: `ACCT_demo_${Date.now()}`,
       accountNumber: input.accountNumber,
@@ -311,6 +336,7 @@ export async function updatePaystackSubaccount(
   input: Partial<SubaccountInput>,
 ): Promise<SubaccountResult> {
   if (!featureFlags.hasPaystack) {
+    assertPaystackAvailable("Paystack subaccount update");
     return {
       subaccountCode,
       accountNumber: input.accountNumber ?? "",

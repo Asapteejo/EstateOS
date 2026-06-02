@@ -3,6 +3,7 @@ import type { AppRole } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
 import type { DemoSessionRole } from "@/lib/auth/session";
+import { assertProductionDatabaseWriteAllowed } from "@/lib/db/production-db-guard";
 
 const devUsers: Record<
   DemoSessionRole,
@@ -81,6 +82,10 @@ export async function ensureDevSessionUser(role: DemoSessionRole) {
   if (!featureFlags.hasDatabase || featureFlags.isProduction) {
     return null;
   }
+  assertProductionDatabaseWriteAllowed({
+    operation: `Create or update ${role} development session user`,
+    allowExplicitOverride: true,
+  });
 
   const devUser = devUsers[role];
   const company = await resolveDevCompany();

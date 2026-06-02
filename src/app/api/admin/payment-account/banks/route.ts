@@ -5,7 +5,7 @@ import { fetchPaystackBanks } from "@/lib/payments/paystack";
 
 export async function GET() {
   try {
-    await requireAdminSession(undefined, { redirectOnMissingAuth: false });
+    await requireAdminSession(["ADMIN", "FINANCE"], { redirectOnMissingAuth: false });
   } catch {
     return fail("Authentication required.", 401);
   }

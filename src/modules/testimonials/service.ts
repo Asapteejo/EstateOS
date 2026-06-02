@@ -481,7 +481,7 @@ export async function resubmitBuyerTestimonial(
   });
 
   const updated = await prisma.testimonial.update({
-    where: { id: existing.id },
+    where: { id: existing.id, companyId: context.companyId },
     data: {
       propertyId: connection.property?.id ?? null,
       reservationId: connection.reservationId,
@@ -712,7 +712,7 @@ export async function moderateTestimonialForAdmin(
                 };
 
   const updated = await prisma.testimonial.update({
-    where: { id: existing.id },
+    where: { id: existing.id, companyId: context.companyId },
     data,
     select: {
       id: true,

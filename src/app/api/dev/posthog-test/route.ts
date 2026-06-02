@@ -1,12 +1,21 @@
 import { featureFlags } from "@/lib/env";
 import { fail, ok } from "@/lib/http";
 import { captureServerEvent, captureServerException } from "@/lib/integrations/posthog";
+import { assertProductionDatabaseWriteAllowed } from "@/lib/db/production-db-guard";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   if (!featureFlags.allowDevBypass) {
     return fail("Not found.", 404);
+  }
+  try {
+    assertProductionDatabaseWriteAllowed({
+      operation: "Run development PostHog test",
+      allowExplicitOverride: true,
+    });
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "Development write blocked.", 403);
   }
 
   const url = new URL(request.url);

@@ -212,20 +212,10 @@ export const notificationFunctions = [
       const companies = await step.run("find-briefing-companies", async () => {
         if (!featureFlags.hasDatabase) return [];
 
-        // Only include companies that have at least one active ADMIN with an email.
+        // Recipient membership is validated in the company-scoped dispatch query.
         return prisma.company.findMany({
           where: {
             status: "ACTIVE",
-            users: {
-              some: {
-                isActive: true,
-                roles: {
-                  some: {
-                    role: { name: "ADMIN" satisfies AppRole },
-                  },
-                },
-              },
-            },
           },
           select: { id: true },
         });
@@ -283,7 +273,8 @@ export const notificationFunctions = [
             isActive: true,
             roles: {
               some: {
-                role: { name: "ADMIN" satisfies AppRole },
+                companyId,
+                role: { companyId, name: "ADMIN" satisfies AppRole },
               },
             },
           },

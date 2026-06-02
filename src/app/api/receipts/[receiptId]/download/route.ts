@@ -6,7 +6,7 @@ async function resolveViewer() {
   try {
     return await requirePortalSession({ redirectOnMissingAuth: false });
   } catch {
-    return requireAdminSession(undefined, { redirectOnMissingAuth: false });
+    return requireAdminSession(["ADMIN", "STAFF", "LEGAL", "FINANCE"], { redirectOnMissingAuth: false });
   }
 }
 

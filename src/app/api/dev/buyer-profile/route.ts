@@ -10,6 +10,7 @@ import {
   buildDevBuyerUserUpdate,
   selectDevBuyerUser,
 } from "@/modules/dev/buyer-profile";
+import { assertProductionDatabaseWriteAllowed } from "@/lib/db/production-db-guard";
 export const runtime = "nodejs";
 
 export async function POST() {
@@ -27,6 +28,14 @@ export async function POST() {
 
   if (!featureFlags.hasDatabase || !tenant.companyId || !tenant.userId) {
     return ok({ created: false, reason: "Database not configured." });
+  }
+  try {
+    assertProductionDatabaseWriteAllowed({
+      operation: "Create development buyer profile",
+      allowExplicitOverride: true,
+    });
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "Development write blocked.", 403);
   }
 
   const session = await getAppSession("portal");

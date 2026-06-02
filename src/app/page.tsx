@@ -9,6 +9,8 @@ import { logInfo } from "@/lib/ops/logger";
 import { resolveTenantContext } from "@/lib/tenancy/context";
 import { getPublishedTenantBranding } from "@/modules/branding/service";
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata(): Promise<Metadata> {
   const tenant = await resolveTenantContext("marketing");
 

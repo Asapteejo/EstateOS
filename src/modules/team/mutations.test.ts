@@ -6,6 +6,7 @@ import { canTenantAdminManageTeamProfiles } from "@/modules/team/mutations";
 
 const baseContext: TenantContext = {
   userId: "user-1",
+  clerkUserId: "clerk-user-1",
   companyId: "company-1",
   companySlug: "acme-realty",
   branchId: null,

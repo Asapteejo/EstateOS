@@ -10,6 +10,7 @@ import {
 import { buildServerDomainConfig, resolveSafeRedirectUrl } from "@/lib/domains";
 import { env, featureFlags } from "@/lib/env";
 import { ensureDevSessionUser } from "@/lib/auth/dev-users";
+import { assertProductionDatabaseWriteAllowed } from "@/lib/db/production-db-guard";
 
 const ALLOWED_ROLES = new Set<DemoSessionRole>(["buyer", "admin", "superadmin"]);
 
@@ -38,7 +39,16 @@ export async function GET(request: Request) {
   }
 
   if (role && ALLOWED_ROLES.has(role as DemoSessionRole)) {
-    const devIdentity = await ensureDevSessionUser(role as DemoSessionRole);
+    let devIdentity: Awaited<ReturnType<typeof ensureDevSessionUser>>;
+    try {
+      assertProductionDatabaseWriteAllowed({
+        operation: `Start ${role} development session`,
+        allowExplicitOverride: true,
+      });
+      devIdentity = await ensureDevSessionUser(role as DemoSessionRole);
+    } catch {
+      return response;
+    }
 
     response.cookies.set(DEV_SESSION_COOKIE, role, {
       httpOnly: true,

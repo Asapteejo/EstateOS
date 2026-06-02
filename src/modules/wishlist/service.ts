@@ -265,7 +265,7 @@ export async function toggleWishlistPropertyForBuyer(
 
   if (existing?.status === "ACTIVE") {
     await prisma.savedProperty.update({
-      where: { id: existing.id },
+      where: { id: existing.id, companyId: context.companyId },
       data: {
         status: "REMOVED",
         removedAt: new Date(),
@@ -290,7 +290,7 @@ export async function toggleWishlistPropertyForBuyer(
 
   const saved = existing
     ? await prisma.savedProperty.update({
-        where: { id: existing.id },
+        where: { id: existing.id, companyId: context.companyId },
         data: {
           status: "ACTIVE",
           createdAt: now,
@@ -540,6 +540,7 @@ export async function updateWishlistFollowUpForAdmin(
   const updated = await prisma.savedProperty.update({
     where: {
       id: wishlistId,
+      companyId: context.companyId,
     },
     data: {
       assignedStaffId: input.assignedStaffId ?? null,
@@ -691,6 +692,7 @@ export async function sendWishlistReminder(savedPropertyId: string) {
   await prisma.savedProperty.update({
     where: {
       id: savedPropertyId,
+      companyId: wishlist.companyId,
     },
     data: {
       reminderSentAt: new Date(),

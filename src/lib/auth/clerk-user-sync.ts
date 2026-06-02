@@ -46,6 +46,27 @@ export type ClerkUserSyncResult = {
   outcome: "created" | "linked" | "updated";
 };
 
+export function selectClerkIdentitySyncInput(input: {
+  id: string;
+  emailAddresses?: { emailAddress: string }[];
+  firstName?: string | null;
+  lastName?: string | null;
+  phoneNumbers?: { phoneNumber: string }[];
+}) {
+  const email = input.emailAddresses?.[0]?.emailAddress;
+  if (!email) {
+    throw new Error("Missing primary email.");
+  }
+
+  return {
+    clerkUserId: input.id,
+    email,
+    firstName: input.firstName,
+    lastName: input.lastName,
+    phone: input.phoneNumbers?.[0]?.phoneNumber,
+  };
+}
+
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
@@ -100,4 +121,3 @@ export async function syncAuthenticatedClerkUser(
     outcome: existing.clerkUserId === input.clerkUserId ? "updated" : "linked",
   };
 }
-

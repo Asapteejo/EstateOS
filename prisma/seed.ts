@@ -2,10 +2,15 @@ import { PrismaClient } from "@prisma/client";
 
 import { blogPosts, faqs, teamMembers, testimonials } from "../src/modules/cms/demo-data";
 import { properties } from "../src/modules/properties/demo-data";
+import { assertProductionDatabaseWriteAllowed } from "../src/lib/db/production-db-guard";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  assertProductionDatabaseWriteAllowed({
+    operation: "Run destructive Prisma seed",
+    destructive: true,
+  });
   await prisma.billingEvent.deleteMany();
   await prisma.splitSettlement.deleteMany();
   await prisma.commissionRecord.deleteMany();

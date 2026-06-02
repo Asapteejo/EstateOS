@@ -4,6 +4,7 @@ import test from "node:test";
 import { renderContractPdf } from "@/modules/contracts/pdf";
 import {
   assertTemplateCanBeMutated,
+  assertTenantContractAssetKeys,
   buildContractSettingsReadiness,
   buildTemplateSnapshot,
   resolveContractActorDbUserId,
@@ -33,6 +34,29 @@ test("contract settings readiness requires signatory, private assets, and terms"
   });
 
   assert.equal(complete.isConfigured, true);
+});
+
+test("contract settings reject stamp and signature keys from another tenant", () => {
+  assert.doesNotThrow(() =>
+    assertTenantContractAssetKeys(
+      { companyId: "company-1", companySlug: "acme" },
+      {
+        signatureKey: "acme/contract-assets/signature.png",
+        stampKey: "acme/contract-assets/stamp.png",
+      },
+    ),
+  );
+  assert.throws(
+    () =>
+      assertTenantContractAssetKeys(
+        { companyId: "company-1", companySlug: "acme" },
+        {
+          signatureKey: "other-tenant/contract-assets/signature.png",
+          stampKey: "acme/contract-assets/stamp.png",
+        },
+      ),
+    /resolved tenant/i,
+  );
 });
 
 test("payment-trigger guard requires successful full payment and configured settings", () => {

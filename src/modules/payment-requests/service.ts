@@ -545,7 +545,7 @@ export async function syncPaymentRequestStatuses(db: DbClient, input?: { company
 
   for (const request of expirable) {
     await db.paymentRequest.update({
-      where: { id: request.id },
+      where: { id: request.id, companyId: request.companyId },
       data: { status: "EXPIRED" },
     });
 
@@ -620,6 +620,7 @@ export async function reconcilePaymentRequestFromPayment(input: {
   const updated = await prisma.paymentRequest.update({
     where: {
       id: paymentRequest.id,
+      companyId: input.companyId,
     },
     data: {
       status: nextStatus,
@@ -632,7 +633,7 @@ export async function reconcilePaymentRequestFromPayment(input: {
   });
 
   await prisma.payment.update({
-    where: { id: input.paymentId },
+    where: { id: input.paymentId, companyId: input.companyId },
     data: {
       paymentRequestId: paymentRequest.id,
     },

@@ -134,7 +134,9 @@ export async function getAdminClientList(context: TenantContext): Promise<AdminC
       where: {
         roles: {
           some: {
+            companyId: context.companyId,
             role: {
+              companyId: context.companyId,
               name: "BUYER",
             },
           },
@@ -152,6 +154,7 @@ export async function getAdminClientList(context: TenantContext): Promise<AdminC
         profileImageUrl: true,
         savedProperties: {
           where: {
+            companyId: context.companyId,
             status: {
               in: ["ACTIVE", "EXPIRED"],
             },
@@ -165,6 +168,9 @@ export async function getAdminClientList(context: TenantContext): Promise<AdminC
           },
         },
         reservations: {
+          where: {
+            companyId: context.companyId,
+          },
           select: {
             id: true,
             createdAt: true,
@@ -177,6 +183,9 @@ export async function getAdminClientList(context: TenantContext): Promise<AdminC
           },
         },
         payments: {
+          where: {
+            companyId: context.companyId,
+          },
           orderBy: {
             createdAt: "desc",
           },
@@ -186,6 +195,9 @@ export async function getAdminClientList(context: TenantContext): Promise<AdminC
           },
         },
         kycSubmissions: {
+          where: {
+            companyId: context.companyId,
+          },
           orderBy: {
             updatedAt: "desc",
           },
@@ -255,7 +267,9 @@ export async function getAdminClientProfile(
         id: clientId,
         roles: {
           some: {
+            companyId: context.companyId,
             role: {
+              companyId: context.companyId,
               name: "BUYER",
             },
           },
@@ -278,6 +292,9 @@ export async function getAdminClientProfile(
           },
         },
         kycSubmissions: {
+          where: {
+            companyId: context.companyId,
+          },
           orderBy: {
             updatedAt: "desc",
           },
@@ -295,6 +312,7 @@ export async function getAdminClientProfile(
         },
         savedProperties: {
           where: {
+            companyId: context.companyId,
             status: {
               in: ["ACTIVE", "EXPIRED"],
             },
@@ -326,6 +344,9 @@ export async function getAdminClientProfile(
           },
         },
         inquiries: {
+          where: {
+            companyId: context.companyId,
+          },
           orderBy: {
             createdAt: "desc",
           },
@@ -352,6 +373,9 @@ export async function getAdminClientProfile(
           },
         },
         inspectionBookings: {
+          where: {
+            companyId: context.companyId,
+          },
           orderBy: {
             scheduledFor: "desc",
           },
@@ -378,6 +402,9 @@ export async function getAdminClientProfile(
           },
         },
         reservations: {
+          where: {
+            companyId: context.companyId,
+          },
           orderBy: {
             createdAt: "desc",
           },
@@ -404,6 +431,9 @@ export async function getAdminClientProfile(
           },
         },
         payments: {
+          where: {
+            companyId: context.companyId,
+          },
           orderBy: {
             createdAt: "desc",
           },
@@ -502,7 +532,9 @@ export async function getAdminClientProfile(
       isActive: true,
       roles: {
         some: {
+          companyId: context.companyId,
           role: {
+            companyId: context.companyId,
             name: {
               in: ["ADMIN", "STAFF", "FINANCE", "LEGAL"],
             },

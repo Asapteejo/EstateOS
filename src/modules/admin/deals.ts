@@ -470,6 +470,7 @@ export async function createAdminDeal(
       await tx.propertyUnit.update({
         where: {
           id: propertyUnit.id,
+          companyId: context.companyId!,
         },
         data: {
           status: "RESERVED",
@@ -479,6 +480,7 @@ export async function createAdminDeal(
       await tx.property.update({
         where: {
           id: property.id,
+          companyId: context.companyId!,
         },
         data: {
           status: "RESERVED",

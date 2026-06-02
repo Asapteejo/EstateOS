@@ -34,7 +34,7 @@ type RuleDelegate = {
   findMany: (args?: unknown) => Promise<unknown>;
   findFirst: (args?: unknown) => Promise<unknown>;
   create: (args?: unknown) => Promise<unknown>;
-  update: (args?: unknown) => Promise<unknown>;
+  updateMany: (args?: unknown) => Promise<{ count: number }>;
 };
 
 function getRuleDelegate(): RuleDelegate | null {
@@ -183,6 +183,21 @@ export async function createCommissionRule(input: {
   const delegate = getRuleDelegate();
   if (!delegate) throw new Error("Commission rules not available");
 
+  if (input.propertyId) {
+    const property = await prisma.property.findFirst({
+      where: {
+        id: input.propertyId,
+        companyId: input.companyId,
+      },
+      select: {
+        id: true,
+      },
+    });
+    if (!property) {
+      throw new Error("Property not found for this tenant.");
+    }
+  }
+
   return (await delegate.create({
     data: {
       companyId: input.companyId,
@@ -201,10 +216,8 @@ export async function deactivateCommissionRule(id: string, companyId: string): P
   const delegate = getRuleDelegate();
   if (!delegate) return;
 
-  await delegate.update({
-    where: { id },
+  await delegate.updateMany({
+    where: { id, companyId },
     data: { isActive: false },
   });
-
-  void companyId; // used by caller to verify ownership before calling
 }

@@ -182,7 +182,9 @@ export async function getAdminControlCenter(context: TenantContext) {
         where: {
           roles: {
             some: {
+              companyId: context.companyId,
               role: {
+                companyId: context.companyId,
                 name: "BUYER",
               },
             },
@@ -194,6 +196,7 @@ export async function getAdminControlCenter(context: TenantContext) {
           lastName: true,
           savedProperties: {
             where: {
+              companyId: context.companyId,
               status: "ACTIVE",
             },
             orderBy: {
@@ -211,6 +214,7 @@ export async function getAdminControlCenter(context: TenantContext) {
           },
           inquiries: {
             where: {
+              companyId: context.companyId,
               status: {
                 in: ["NEW", "CONTACTED", "QUALIFIED", "INSPECTION_BOOKED"],
               },

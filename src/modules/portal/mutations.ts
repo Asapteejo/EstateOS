@@ -273,6 +273,7 @@ export async function createReservationForBuyer(
       await tx.propertyUnit.update({
         where: {
           id: propertyUnitId,
+          companyId: context.companyId!,
         },
         data: {
           status: "RESERVED",
@@ -282,6 +283,7 @@ export async function createReservationForBuyer(
       await tx.property.update({
         where: {
           id: property.id,
+          companyId: context.companyId!,
         },
         data: {
           status: "RESERVED",

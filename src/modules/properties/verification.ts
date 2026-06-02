@@ -275,7 +275,9 @@ async function getAdminRecipients(companyId: string) {
       isActive: true,
       roles: {
         some: {
+          companyId,
           role: {
+            companyId,
             name: "ADMIN",
           },
         },
@@ -407,6 +409,7 @@ export async function syncPropertyVerificationStates(input?: {
       await prisma.property.update({
         where: {
           id: property.id,
+          companyId: property.companyId,
         },
         data: payload,
       });

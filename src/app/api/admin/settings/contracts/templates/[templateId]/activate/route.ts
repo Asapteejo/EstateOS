@@ -1,5 +1,5 @@
 import { fail, ok } from "@/lib/http";
-import { requireTenantContext } from "@/lib/tenancy/context";
+import { requireAdminSession } from "@/lib/auth/guards";
 import { activateContractTemplateVersion } from "@/modules/contracts/service";
 
 export const runtime = "nodejs";
@@ -8,9 +8,9 @@ export async function POST(
   _request: Request,
   { params }: { params: Promise<{ templateId: string }> },
 ) {
-  let tenant: Awaited<ReturnType<typeof requireTenantContext>>;
+  let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
   try {
-    tenant = await requireTenantContext("admin", { redirectOnMissingAuth: false });
+    tenant = await requireAdminSession(["ADMIN", "LEGAL"], { redirectOnMissingAuth: false });
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }

@@ -6,6 +6,10 @@ import { persistInitializedPayment } from "@/lib/payments/reconciliation";
 import { namespacePaymentReference } from "@/lib/payments/references";
 import { paymentInitializeSchema } from "@/lib/validations/payments";
 import { buildSettlementQuote, requireCompanyPlanAccess } from "@/modules/billing/service";
+import { prisma } from "@/lib/db/prisma";
+import { env, featureFlags } from "@/lib/env";
+import { getAppSession } from "@/lib/auth/session";
+import { resolveBuyerDbUserForKyc } from "@/modules/kyc/buyer-user";
 
 export async function POST(request: Request) {
   let tenant: Awaited<ReturnType<typeof requireTenantContext>>;
@@ -25,6 +29,72 @@ export async function POST(request: Request) {
   if (!body.success) {
     return fail("Invalid payment initialization payload.");
   }
+  if (featureFlags.isProduction && !body.data.paymentRequestId) {
+    return fail("A tenant-issued payment request is required for live checkout.", 400);
+  }
+
+  const session = await getAppSession("portal");
+  const buyer = await resolveBuyerDbUserForKyc(tenant, {
+    email: session?.email,
+  }).catch(() => null);
+  if (!buyer) {
+    return fail("Buyer profile is not initialized for this tenant.", 403);
+  }
+
+  const paymentRequest = body.data.paymentRequestId
+    ? await prisma.paymentRequest.findFirst({
+        where: {
+          id: body.data.paymentRequestId,
+          companyId: tenant.companyId!,
+          userId: buyer.id,
+          status: { in: ["SENT", "AWAITING_PAYMENT"] },
+        },
+        select: {
+          id: true,
+          userId: true,
+          amount: true,
+          currency: true,
+          transactionId: true,
+          installmentId: true,
+          reservation: { select: { reference: true } },
+          user: { select: { email: true } },
+        },
+      })
+    : null;
+  if (body.data.paymentRequestId && !paymentRequest) {
+    return fail("Payment request not found or no longer payable.", 404);
+  }
+
+  const checkout = paymentRequest
+    ? {
+        email: paymentRequest.user.email,
+        amount: paymentRequest.amount.toNumber(),
+        currency: paymentRequest.currency,
+        reference: `request-${paymentRequest.id}`,
+        callbackUrl: `${env.PORTAL_BASE_URL}/portal/payments`,
+        paymentRequestId: paymentRequest.id,
+        transactionId: paymentRequest.transactionId ?? undefined,
+        installmentId: paymentRequest.installmentId ?? undefined,
+        reservationReference: paymentRequest.reservation?.reference ?? undefined,
+        marketerId: undefined,
+        metadata: {
+          paymentRequestId: paymentRequest.id,
+          source: "TENANT_PAYMENT_REQUEST",
+        },
+      }
+    : {
+        email: body.data.email!,
+        amount: body.data.amount!,
+        currency: body.data.currency,
+        reference: body.data.reference!,
+        callbackUrl: body.data.callbackUrl!,
+        paymentRequestId: undefined,
+        transactionId: body.data.transactionId,
+        installmentId: body.data.installmentId,
+        reservationReference: body.data.reservationReference,
+        marketerId: body.data.marketerId,
+        metadata: undefined,
+      };
 
   try {
     await requireCompanyPlanAccess(tenant, "TRANSACTIONS");
@@ -42,7 +112,7 @@ export async function POST(request: Request) {
   if (tenant.companyId) {
     settlementQuote = await buildSettlementQuote({
       companyId: tenant.companyId,
-      amount: body.data.amount,
+      amount: checkout.amount,
       currency: "NGN",
     });
 
@@ -59,8 +129,8 @@ export async function POST(request: Request) {
   }
 
   const payment = await initializePayment({
-    ...body.data,
-    reference: namespacePaymentReference(tenant, body.data.reference),
+    ...checkout,
+    reference: namespacePaymentReference(tenant, checkout.reference),
     splitConfig:
       settlementQuote?.settlement.ready && settlementQuote.settlement.providerPayload.paystack
         ? {
@@ -74,12 +144,12 @@ export async function POST(request: Request) {
           }
         : undefined,
     metadata: {
-      ...body.data.metadata,
+      ...checkout.metadata,
       companyId: tenant.companyId,
       companySlug: tenant.companySlug,
       userId: tenant.userId,
-      installmentId: body.data.installmentId,
-      marketerId: body.data.marketerId,
+      installmentId: checkout.installmentId,
+      marketerId: checkout.marketerId,
       settlementQuote: settlementQuote
         ? {
             provider: settlementQuote.provider,
@@ -92,21 +162,22 @@ export async function POST(request: Request) {
 
   if (tenant.companyId && tenant.userId) {
     await persistInitializedPayment({
-      ...body.data,
+      ...checkout,
       reference: payment.reference,
       companyId: tenant.companyId,
-      userId: tenant.userId,
-      transactionId: body.data.transactionId,
-      installmentId: body.data.installmentId,
-      marketerId: body.data.marketerId,
-      reservationReference: body.data.reservationReference,
+      userId: buyer.id,
+      transactionId: checkout.transactionId,
+      paymentRequestId: checkout.paymentRequestId,
+      installmentId: checkout.installmentId,
+      marketerId: checkout.marketerId,
+      reservationReference: checkout.reservationReference,
       metadata: {
-        ...body.data.metadata,
+        ...checkout.metadata,
         companyId: tenant.companyId,
         companySlug: tenant.companySlug,
-        userId: tenant.userId,
-        installmentId: body.data.installmentId,
-        marketerId: body.data.marketerId,
+        userId: buyer.id,
+        installmentId: checkout.installmentId,
+        marketerId: checkout.marketerId,
         settlementQuote: settlementQuote
           ? {
               provider: settlementQuote.provider,

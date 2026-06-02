@@ -810,7 +810,7 @@ export async function updateDevelopmentCalculation(
 
   await prisma.$transaction(async (tx) => {
     await tx.developmentCalculation.update({
-      where: { id: existing.id },
+      where: { id: existing.id, companyId: context.companyId! },
       data: buildPersistenceData(context, rawInput),
     });
 

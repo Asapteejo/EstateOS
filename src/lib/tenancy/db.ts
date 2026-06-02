@@ -45,8 +45,11 @@ export function scopeTenantWhere<T extends Record<string, unknown>>(
   where?: T,
   options?: TenantScopeOptions,
 ) {
-  if (context.isSuperAdmin || !context.companyId) {
+  if (context.isSuperAdmin) {
     return where;
+  }
+  if (!context.companyId) {
+    throw new Error("Tenant context is required for scoped query.");
   }
 
   const strategy = options?.strategy ?? resolveTenantScopeStrategy(options?.modelName);
@@ -90,8 +93,11 @@ export function scopeTenantQueryArgs<T extends { where?: Record<string, unknown>
   args?: T,
   options?: TenantScopeOptions,
 ) {
-  if (context.isSuperAdmin || !context.companyId) {
+  if (context.isSuperAdmin) {
     return args;
+  }
+  if (!context.companyId) {
+    throw new Error("Tenant context is required for scoped query.");
   }
 
   return {

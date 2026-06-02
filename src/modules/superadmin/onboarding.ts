@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 
 import { writeAuditLog } from "@/lib/audit/service";
 import { prisma } from "@/lib/db/prisma";
+import { assertProductionDatabaseWriteAllowed } from "@/lib/db/production-db-guard";
 import { featureFlags } from "@/lib/env";
 import type { TenantContext } from "@/lib/tenancy/context";
 import type {
@@ -503,6 +504,10 @@ export async function createMockCompanyFromSuperadmin(context: TenantContext) {
   if (featureFlags.isProduction) {
     throw new Error("Mock company creation is disabled in production.");
   }
+  assertProductionDatabaseWriteAllowed({
+    operation: "Create mock superadmin company",
+    allowExplicitOverride: true,
+  });
 
   const suffix = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
   const slug = normalizeCompanySlug(`mock-estates-${suffix}`);

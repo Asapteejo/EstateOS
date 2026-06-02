@@ -44,15 +44,15 @@ export async function POST(
   const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
 
   const updated = await prisma.teamMemberInvitation.update({
-    where: { id },
+    where: { id, companyId: tenant.companyId },
     data: { token, expiresAt, status: "PENDING" },
   });
 
   const [company, inviter] = await Promise.all([
     prisma.company.findUnique({ where: { id: tenant.companyId }, select: { name: true } }),
-    tenant.userId
+    tenant.clerkUserId
       ? prisma.user.findUnique({
-          where: { clerkUserId: tenant.userId },
+          where: { clerkUserId: tenant.clerkUserId },
           select: { firstName: true, lastName: true },
         })
       : null,

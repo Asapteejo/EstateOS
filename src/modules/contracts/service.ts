@@ -24,7 +24,7 @@ import {
   notifyManyUsers,
 } from "@/lib/notifications/service";
 import { r2 } from "@/lib/storage/r2";
-import { namespaceTenantStorageKey } from "@/lib/storage/paths";
+import { assertTenantStorageKey, namespaceTenantStorageKey } from "@/lib/storage/paths";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import type { ContractSettingsInput } from "@/lib/validations/contracts";
@@ -236,6 +236,35 @@ export async function createContract(input: {
   documentId: string;
   actorUserId?: string;
 }): Promise<SignedAgreementRow> {
+  const [transaction, document] = await Promise.all([
+    prisma.transaction.findFirst({
+      where: {
+        id: input.transactionId,
+        companyId: input.companyId,
+      },
+      select: {
+        id: true,
+      },
+    }),
+    prisma.document.findFirst({
+      where: {
+        id: input.documentId,
+        companyId: input.companyId,
+        documentType: "CONTRACT",
+      },
+      select: {
+        id: true,
+        transactionId: true,
+      },
+    }),
+  ]);
+  if (!transaction) {
+    throw new Error("Transaction not found for this tenant.");
+  }
+  if (!document || (document.transactionId && document.transactionId !== transaction.id)) {
+    throw new Error("Contract document not found for this tenant transaction.");
+  }
+
   const created = await saCreate({
     data: {
       companyId: input.companyId,
@@ -290,7 +319,7 @@ export async function sendContract(input: {
   const updated = await hydrateAgreementRow(
     input.companyId,
     await saUpdate({
-      where: { id: input.signedAgreementId },
+      where: { id: input.signedAgreementId, companyId: input.companyId },
       data: { status: "ACTIVE", sentAt: new Date() },
       select: agreementSelect,
     }),
@@ -362,7 +391,7 @@ export async function acceptContract(input: {
   const updated = await hydrateAgreementRow(
     input.companyId,
     await saUpdate({
-      where: { id: input.signedAgreementId },
+      where: { id: input.signedAgreementId, companyId: input.companyId },
       data: {
         status: "COMPLETED",
         acceptedAt: now,
@@ -614,6 +643,14 @@ export function buildContractSettingsReadiness(settings: {
   return readiness;
 }
 
+export function assertTenantContractAssetKeys(
+  context: Pick<TenantContext, "companyId" | "companySlug">,
+  settings: Pick<ContractSettingsInput, "signatureKey" | "stampKey">,
+) {
+  assertTenantStorageKey(context, settings.signatureKey);
+  assertTenantStorageKey(context, settings.stampKey);
+}
+
 function withReadiness(row: Omit<ContractSettingsRow, "readiness">): ContractSettingsRow {
   const readiness = buildContractSettingsReadiness(row);
   return { ...row, isConfigured: readiness.isConfigured, readiness };
@@ -777,6 +814,28 @@ export async function createContractTemplateVersion(input: {
   if (!featureFlags.hasDatabase || !contractTemplateDelegate) return null;
 
   const mode = input.mode ?? "SYSTEM_TEMPLATE";
+  const templateDocument = input.documentId
+    ? await prisma.document.findFirst({
+        where: {
+          id: input.documentId,
+          companyId: input.companyId,
+        },
+        select: {
+          id: true,
+          storageKey: true,
+        },
+      })
+    : null;
+  if (input.documentId && !templateDocument) {
+    throw new Error("Contract template document not found for this tenant.");
+  }
+  if (input.storageKey && !templateDocument) {
+    throw new Error("Contract template storage requires a tenant-owned document.");
+  }
+  if (input.storageKey && templateDocument?.storageKey !== input.storageKey) {
+    throw new Error("Contract template storage key does not match its document.");
+  }
+  const templateStorageKey = templateDocument?.storageKey ?? null;
   const nextTemplateData = {
     mode,
     ceoName: input.ceoName,
@@ -786,7 +845,7 @@ export async function createContractTemplateVersion(input: {
     contractTerms: input.contractTerms ?? null,
     footerLegalText: input.footerLegalText ?? null,
     documentId: input.documentId ?? null,
-    storageKey: input.storageKey ?? null,
+    storageKey: templateStorageKey,
     fieldMappings: input.fieldMappings ?? null,
   };
   const active = await getActiveContractTemplate(input.companyId);
@@ -825,7 +884,7 @@ export async function createContractTemplateVersion(input: {
         isActive: true,
         isConfigured: readiness.isConfigured,
         documentId: input.documentId ?? null,
-        storageKey: input.storageKey ?? null,
+        storageKey: templateStorageKey,
         fieldMappings: input.fieldMappings ?? undefined,
         ceoName: input.ceoName,
         ceoTitle: input.ceoTitle,
@@ -921,7 +980,7 @@ export async function archiveContractTemplateVersion(input: {
   }
 
   const archived = await contractTemplateDelegate.update({
-    where: { id: template.id },
+    where: { id: template.id, companyId: input.companyId },
     data: {
       isActive: false,
       archivedAt: template.archivedAt ?? new Date(),
@@ -1008,7 +1067,7 @@ export async function activateContractTemplateVersion(input: {
     });
 
     return contractTemplate.update({
-      where: { id: template.id },
+      where: { id: template.id, companyId: input.companyId },
       data: { isActive: true, archivedAt: null },
       select: {
         id: true,
@@ -1087,6 +1146,7 @@ export async function upsertCompanyContractSettings(
   if (!context.companyId) {
     throw new Error("Tenant context is required.");
   }
+  assertTenantContractAssetKeys(context, rawInput);
   if (!featureFlags.hasDatabase || !contractSettingsDelegate) {
     return withReadiness({
       id: "demo-contract-settings",
@@ -1287,6 +1347,21 @@ export async function generateContractForTransaction(input: {
   if (existing && !input.forceRegenerate) {
     return existing;
   }
+  if (input.regeneratedFromContractId) {
+    const regeneratedFrom = await generatedContractDelegate.findFirst({
+      where: {
+        id: input.regeneratedFromContractId,
+        companyId: input.companyId,
+        transactionId: input.transactionId,
+      },
+      select: {
+        id: true,
+      },
+    });
+    if (!regeneratedFrom) {
+      throw new Error("Original generated contract not found for this tenant transaction.");
+    }
+  }
 
   const [settings, transaction, priorLatest, explicitTemplate, activeTemplate] = await Promise.all([
     contractSettingsDelegate.findUnique({
@@ -1396,6 +1471,13 @@ export async function generateContractForTransaction(input: {
     transaction.property.location?.state,
     transaction.property.location?.country,
   ].filter(Boolean);
+  assertTenantContractAssetKeys(
+    {
+      companyId: input.companyId,
+      companySlug: transaction.company.slug,
+    },
+    renderSource,
+  );
   const [signatureImage, stampImage] = await Promise.all([
     loadPrivateContractImage(renderSource.signatureKey),
     loadPrivateContractImage(renderSource.stampKey),
@@ -1450,14 +1532,8 @@ export async function generateContractForTransaction(input: {
 
   const storageKey = namespaceTenantStorageKey(
     {
-      userId: input.actorUserId ?? null,
       companyId: input.companyId,
       companySlug: input.companySlug,
-      branchId: null,
-      roles: [],
-      isSuperAdmin: false,
-      host: null,
-      resolutionSource: "session",
     },
     "contracts/generated",
     `${contractNumber}.pdf`,

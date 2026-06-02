@@ -1,9 +1,32 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  selectClerkIdentitySyncInput,
   syncAuthenticatedClerkUser,
   type ClerkUserSyncInput,
 } from "@/lib/auth/clerk-user-sync";
+
+test("Clerk webhook identity sync ignores membership metadata", () => {
+  assert.deepEqual(
+    selectClerkIdentitySyncInput({
+      id: "clerk-user-1",
+      emailAddresses: [{ emailAddress: "owner@example.com" }],
+      publicMetadata: {
+        companyId: "attacker-selected-company",
+        branchId: "attacker-selected-branch",
+      },
+    } as Parameters<typeof selectClerkIdentitySyncInput>[0] & {
+      publicMetadata: { companyId: string; branchId: string };
+    }),
+    {
+      clerkUserId: "clerk-user-1",
+      email: "owner@example.com",
+      firstName: undefined,
+      lastName: undefined,
+      phone: undefined,
+    },
+  );
+});
 
 function createDelegate(existing: { id: string; clerkUserId: string } | null = null) {
   const calls = { create: 0, update: 0 };
@@ -74,4 +97,3 @@ test("refuses to overwrite an email linked to another Clerk identity", async () 
   assert.equal(calls.create, 0);
   assert.equal(calls.update, 0);
 });
-

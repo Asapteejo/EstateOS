@@ -28,6 +28,13 @@ test("scopeTenantWhere adds companyId for non-super-admin users", () => {
   });
 });
 
+test("scopeTenantWhere fails closed when tenant company context is missing", () => {
+  assert.throws(
+    () => scopeTenantWhere({ ...tenantContext, companyId: null }, { status: "ACTIVE" }),
+    /Tenant context is required for scoped query/,
+  );
+});
+
 test("scopeTenantQueryArgs preserves filters while enforcing companyId", () => {
   assert.deepEqual(
     scopeTenantQueryArgs(tenantContext, {

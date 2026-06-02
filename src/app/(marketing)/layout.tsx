@@ -5,6 +5,8 @@ import { TenantPublicShell } from "@/components/marketing/tenant-public-shell";
 import { getPublishedTenantBranding } from "@/modules/branding/service";
 import { requirePublicTenantContext } from "@/lib/tenancy/context";
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata(): Promise<Metadata> {
   try {
     const tenant = await requirePublicTenantContext();

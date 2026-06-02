@@ -72,6 +72,14 @@ test("payment initialization requires transaction or reservation linkage for ins
   assert.equal(valid.success, true);
 });
 
+test("tenant payment request is sufficient for server-derived checkout initialization", () => {
+  const valid = paymentInitializeSchema.safeParse({
+    paymentRequestId: "request_1",
+  });
+
+  assert.equal(valid.success, true);
+});
+
 test("reservation creation payload accepts optional marketer and payment plan selection", () => {
   const reservationPayload = {
     propertyId: "property_1",

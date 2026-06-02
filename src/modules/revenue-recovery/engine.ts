@@ -138,6 +138,17 @@ export async function runRevenueRecoverySweep(input?: {
         companyId: true,
         email: true,
         firstName: true,
+        roles: {
+          select: {
+            companyId: true,
+            role: {
+              select: {
+                companyId: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
     }),
   ]);
@@ -149,6 +160,13 @@ export async function runRevenueRecoverySweep(input?: {
     Record<string, Array<{ userId: string; email: string | null; firstName: string | null }>>
   >((acc, u) => {
     if (!u.companyId) return acc;
+    const isActiveCompanyAdmin = u.roles.some(
+      (assignment) =>
+        assignment.companyId === u.companyId &&
+        assignment.role.companyId === u.companyId &&
+        assignment.role.name === "ADMIN",
+    );
+    if (!isActiveCompanyAdmin) return acc;
     if (!acc[u.companyId]) acc[u.companyId] = [];
     acc[u.companyId].push({ userId: u.id, email: u.email, firstName: u.firstName });
     return acc;
@@ -282,7 +300,7 @@ export async function runRevenueRecoverySweep(input?: {
 
     // ── Advance stage + track event ───────────────────────────────────────
     await prisma.transaction.update({
-      where: { id: tx.id },
+      where: { id: tx.id, companyId: tx.companyId },
       data: { overdueReminderStage: targetStage },
     });
 

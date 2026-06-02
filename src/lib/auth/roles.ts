@@ -6,7 +6,6 @@ export const adminRoles: AppRole[] = [
   "ADMIN",
   "LEGAL",
   "FINANCE",
-  "SUPER_ADMIN",
 ];
 
 export function hasRequiredRole(

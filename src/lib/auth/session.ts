@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
 import { syncAuthenticatedClerkUser } from "@/lib/auth/clerk-user-sync";
+import { filterSessionRoleAssignments } from "@/lib/auth/membership";
 import { sanitizeSessionRoles } from "@/lib/auth/superadmin";
 import { buildSafeErrorLogContext, logError, logInfo, logWarn } from "@/lib/ops/logger";
 
@@ -12,6 +13,7 @@ export type AppArea = "marketing" | "portal" | "admin" | "superadmin";
 
 export type AppSession = {
   userId: string;
+  dbUserId: string | null;
   email: string;
   firstName: string;
   lastName: string;
@@ -36,6 +38,7 @@ const demoCompany = {
 
 const demoBuyer: AppSession = {
   userId: "demo-buyer",
+  dbUserId: "demo-buyer",
   email: "buyer@acmerealty.dev",
   firstName: "Ada",
   lastName: "Okafor",
@@ -46,6 +49,7 @@ const demoBuyer: AppSession = {
 
 const demoAdmin: AppSession = {
   userId: "demo-admin",
+  dbUserId: "demo-admin",
   email: "admin@acmerealty.dev",
   firstName: "Tobi",
   lastName: "Adewale",
@@ -58,6 +62,7 @@ const demoAdmin: AppSession = {
 
 const demoSuperAdmin: AppSession = {
   userId: "demo-superadmin",
+  dbUserId: "demo-superadmin",
   email: "owner@estateos.dev",
   firstName: "Maya",
   lastName: "Cole",
@@ -105,6 +110,15 @@ export function buildDemoSession(
     companyId: company.companyId,
     companySlug: company.companySlug,
     branchId: company.branchId,
+  };
+}
+
+export function resolveTenantSessionIdentity(
+  session: Pick<AppSession, "userId" | "dbUserId" | "mode">,
+) {
+  return {
+    clerkUserId: session.userId,
+    userId: session.dbUserId ?? (session.mode === "demo" ? session.userId : null),
   };
 }
 
@@ -355,8 +369,10 @@ export async function getAppSession(
         },
         roles: {
           select: {
+            companyId: true,
             role: {
               select: {
+                companyId: true,
                 name: true,
               },
             },
@@ -433,7 +449,7 @@ export async function getAppSession(
 
     if (user) {
       const roles = sanitizeSessionRoles({
-        roles: user.roles.map((assignment) => assignment.role.name),
+        roles: filterSessionRoleAssignments(user.roles, user.companyId),
         email: user.email,
         isProduction: featureFlags.isProduction,
         superadminEmails: env.SUPERADMIN_EMAILS,
@@ -450,6 +466,7 @@ export async function getAppSession(
       });
       return {
         userId: session.userId,
+        dbUserId: user.id,
         email: user.email,
         firstName: user.firstName ?? "",
         lastName: user.lastName ?? "",
@@ -473,6 +490,7 @@ export async function getAppSession(
   });
   return {
     userId: session.userId,
+    dbUserId: null,
     email: (session.sessionClaims?.email as string | undefined) ?? "",
     firstName: (session.sessionClaims?.first_name as string | undefined) ?? "",
     lastName: (session.sessionClaims?.last_name as string | undefined) ?? "",

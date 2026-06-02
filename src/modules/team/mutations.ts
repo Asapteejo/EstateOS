@@ -195,6 +195,7 @@ export async function updateTeamMemberForAdmin(
   const updated = await prisma.teamMember.update({
     where: {
       id: marketerId,
+      companyId: context.companyId,
     },
     data: buildTeamMemberData(rawInput, slug, resumeDocumentId),
     select: {

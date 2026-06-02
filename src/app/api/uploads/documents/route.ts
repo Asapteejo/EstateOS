@@ -9,6 +9,7 @@ import { featureFlags } from "@/lib/env";
 import { getAppSession } from "@/lib/auth/session";
 import { resolveBuyerDbUserForKyc } from "@/modules/kyc/buyer-user";
 import { getUploadPurposeConfig } from "@/modules/uploads/config";
+import { assertUploadPurposeAllowed } from "@/lib/uploads/policy";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
@@ -41,6 +42,14 @@ export async function POST(request: Request) {
   }
 
   const config = getUploadPurposeConfig(body.data.purpose);
+  try {
+    assertUploadPurposeAllowed({
+      roles: tenant.roles,
+      purpose: body.data.purpose,
+    });
+  } catch {
+    return fail("Upload purpose is not allowed for this account.", 403);
+  }
   if (!config.documentType) {
     return fail("This upload purpose does not create a document record.", 400);
   }

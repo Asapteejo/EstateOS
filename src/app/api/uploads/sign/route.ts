@@ -8,6 +8,7 @@ import { requireTenantContext } from "@/lib/tenancy/context";
 import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import { uploadRequestSchema } from "@/lib/validations/storage";
 import { getUploadPurposeConfig } from "@/modules/uploads/config";
+import { assertUploadPurposeAllowed } from "@/lib/uploads/policy";
 
 export async function POST(request: Request) {
   const json = (await request.json()) as Record<string, unknown>;
@@ -30,6 +31,14 @@ export async function POST(request: Request) {
   }
 
   const config = getUploadPurposeConfig(body.data.purpose);
+  try {
+    assertUploadPurposeAllowed({
+      roles: tenant.roles,
+      purpose: body.data.purpose,
+    });
+  } catch {
+    return fail("Upload purpose is not allowed for this account.", 403);
+  }
 
   const key = namespaceTenantStorageKey(
     tenant,

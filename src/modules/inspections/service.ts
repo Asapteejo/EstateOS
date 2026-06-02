@@ -183,7 +183,7 @@ export async function createInspectionBooking(
 
     if (inquiry?.id) {
       await tx.inquiry.update({
-        where: { id: inquiry.id },
+        where: { id: inquiry.id, companyId: tenant.companyId! },
         data: { status: "INSPECTION_BOOKED" },
       });
     }
@@ -334,7 +334,7 @@ export async function updateInspectionBookingForAdmin(
   }
 
   const updated = await prisma.inspectionBooking.update({
-    where: { id: bookingId },
+    where: { id: bookingId, companyId: context.companyId },
     data: {
       status: input.status,
       assignedStaffId: input.assignedStaffId ?? null,

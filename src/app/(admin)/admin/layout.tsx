@@ -2,6 +2,8 @@ import { requireAdminSession } from "@/lib/auth/guards";
 import { TenantThemeShell } from "@/components/branding/tenant-theme-shell";
 import { getPublishedTenantBranding } from "@/modules/branding/service";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminLayout({
   children,
 }: {

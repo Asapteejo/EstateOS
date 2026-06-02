@@ -4,7 +4,9 @@ import { featureFlags } from "@/lib/env";
 import { logInfo } from "@/lib/ops/logger";
 import { publishRealtimeEvent } from "@/lib/realtime/events";
 import { type TenantContext } from "@/lib/tenancy/context";
+import { assertCompanyAssignmentAllowed } from "@/lib/auth/membership";
 import { loadSampleWorkspaceForTenant } from "@/modules/admin/sample-workspace";
+import { assertProductionDatabaseWriteAllowed } from "@/lib/db/production-db-guard";
 import { PRODUCT_EVENT_NAMES, trackProductEvent } from "@/modules/analytics/activity";
 
 function slugifyCompanyName(input: string) {
@@ -97,6 +99,16 @@ async function upsertWorkspaceAdmin(input: {
   lastName?: string | null;
   email?: string | null;
 }) {
+  const existingUser = await prisma.user.findUnique({
+    where: {
+      clerkUserId: input.session.userId,
+    },
+    select: {
+      companyId: true,
+    },
+  });
+  assertCompanyAssignmentAllowed(existingUser?.companyId, input.companyId);
+
   const user = await prisma.user.upsert({
     where: {
       clerkUserId: input.session.userId,
@@ -163,13 +175,15 @@ async function upsertWorkspaceAdmin(input: {
 }
 
 function buildTenantContext(input: {
-  session: AppSession;
+  userId: string;
+  clerkUserId: string;
   companyId: string;
   companySlug: string;
   branchId: string;
 }): TenantContext {
   return {
-    userId: input.session.userId,
+    userId: input.userId,
+    clerkUserId: input.clerkUserId,
     companyId: input.companyId,
     companySlug: input.companySlug,
     branchId: input.branchId,
@@ -192,8 +206,25 @@ export async function createSampleCompany(input: {
   adminEmail?: string | null;
   includeSampleData?: boolean;
 }) {
+  if (input.includeSampleData) {
+    assertProductionDatabaseWriteAllowed({
+      operation: "Create tenant with sample workspace",
+      allowExplicitOverride: true,
+    });
+  }
   if (!featureFlags.hasDatabase) {
     throw new Error("Database access is required to create a company.");
+  }
+  const existingUser = await prisma.user.findUnique({
+    where: {
+      clerkUserId: input.session.userId,
+    },
+    select: {
+      companyId: true,
+    },
+  });
+  if (existingUser?.companyId) {
+    throw new Error("This account already belongs to another company.");
   }
 
   const companySlug = await buildUniqueCompanySlug(input.companyName, input.slug);
@@ -237,7 +268,7 @@ export async function createSampleCompany(input: {
   });
 
   const { adminRole } = await ensureCompanyRoles(company.id);
-  await upsertWorkspaceAdmin({
+  const adminUser = await upsertWorkspaceAdmin({
     session: input.session,
     companyId: company.id,
     companySlug: company.slug,
@@ -251,7 +282,8 @@ export async function createSampleCompany(input: {
   if (input.includeSampleData) {
     await loadSampleWorkspaceForTenant(
       buildTenantContext({
-        session: input.session,
+        userId: adminUser.id,
+        clerkUserId: input.session.userId,
         companyId: company.id,
         companySlug: company.slug,
         branchId: branch.id,
@@ -261,7 +293,7 @@ export async function createSampleCompany(input: {
 
   await trackProductEvent({
     companyId: company.id,
-    userId: input.session.userId,
+    userId: adminUser.id,
     eventName: PRODUCT_EVENT_NAMES.companyCreated,
     summary: `${company.name} workspace created`,
     payload: {

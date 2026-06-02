@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { PRODUCT_EVENT_NAMES, trackProductEvent } from "@/modules/analytics/activity";
+import { assertProductionDatabaseWriteAllowed } from "@/lib/db/production-db-guard";
 
 function slugify(input: string) {
   return input
@@ -18,6 +19,10 @@ export async function loadSampleWorkspaceForTenant(context: TenantContext) {
   if (!featureFlags.hasDatabase || !context.companyId) {
     throw new Error("Sample workspace requires a real database-backed tenant.");
   }
+  assertProductionDatabaseWriteAllowed({
+    operation: "Load sample tenant workspace",
+    allowExplicitOverride: true,
+  });
 
   const company = await prisma.company.findUnique({
     where: {
@@ -501,6 +506,7 @@ export async function loadSampleWorkspaceForTenant(context: TenantContext) {
     await prisma.propertyUnit.update({
       where: {
         id: input.unit.id,
+        companyId: context.companyId!,
       },
       data: {
         status: input.paymentStatus === "COMPLETED" ? "SOLD" : "RESERVED",

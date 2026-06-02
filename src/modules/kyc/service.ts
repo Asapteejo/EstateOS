@@ -492,6 +492,7 @@ export async function createBuyerKycSubmission(
       await tx.transaction.update({
         where: {
           id: transaction.id,
+          companyId: context.companyId!,
         },
         data: {
           currentStage: "KYC_SUBMITTED",
@@ -660,6 +661,7 @@ export async function reviewKycSubmission(
   const updated = await prisma.kYCSubmission.update({
     where: {
       id: submissionId,
+      companyId: context.companyId,
     },
     data: {
       status: input.status,

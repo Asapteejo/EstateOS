@@ -116,6 +116,20 @@ EstateOS now supports tenant-managed marketer profiles using the company-owned `
 
 The codebase is designed for one-company MVP usage today and SaaS-style tenant isolation from day one.
 
+## Temporary Production Database Safety Guard
+
+Local development must use a separate Supabase project. Until that split is complete, configure:
+
+```env
+PRODUCTION_DATABASE_PROJECT_REF=epxbejutuodmnsdfvcjr
+PRODUCTION_DATABASE_HOST=aws-0-eu-west-1.pooler.supabase.com
+ALLOW_PRODUCTION_DB_WRITES=false
+```
+
+When local development points at the production database, EstateOS blocks destructive seeds and demo, mock, or sample-data writes. `npm run db:seed` is permanently blocked against the known production database. Use `npm run audit:demo-data` for a read-only inventory.
+
+`R2_PUBLIC_BASE_URL` is recommended for public branding and property asset delivery. Private uploads, downloads, and contract documents use signed R2 URLs and do not require the public base URL.
+
 ## Wishlist And Client Activity Intelligence
 
 EstateOS now deepens buyer intent tracking through a tenant-scoped wishlist workflow built on the existing `SavedProperty` domain.

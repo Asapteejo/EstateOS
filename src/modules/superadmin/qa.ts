@@ -132,14 +132,28 @@ export function buildPaymentQaChecks(input: {
 export function buildStorageQaChecks(input: {
   r2: SecretStatusMap<R2Key>;
 }): QaCheck[] {
-  const r2Ready = allConfigured(input.r2);
+  const coreR2 = {
+    R2_ACCOUNT_ID: input.r2.R2_ACCOUNT_ID,
+    R2_ACCESS_KEY_ID: input.r2.R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY: input.r2.R2_SECRET_ACCESS_KEY,
+    R2_BUCKET_NAME: input.r2.R2_BUCKET_NAME,
+  };
+  const r2Ready = allConfigured(coreR2);
 
   return [
-    ...Object.entries(input.r2).map(([key, status]) => ({
+    ...Object.entries(coreR2).map(([key, status]) => ({
       label: key,
       status: status === "Configured" ? "PASS" as const : "FAIL" as const,
       detail: status,
     })),
+    {
+      label: "R2_PUBLIC_BASE_URL",
+      status: input.r2.R2_PUBLIC_BASE_URL === "Configured" ? "PASS" : "WARN",
+      detail:
+        input.r2.R2_PUBLIC_BASE_URL === "Configured"
+          ? "Configured"
+          : "Missing. Private documents still work; public assets use the signed proxy fallback.",
+    },
     {
       label: "Upload testing",
       status: r2Ready ? "PASS" : "FAIL",
@@ -291,7 +305,7 @@ export async function getSuperadminCompanyQaChecklist(companyId: string) {
         roles: {
           some: {
             companyId,
-            role: { name: "ADMIN" },
+            role: { companyId, name: "ADMIN" },
           },
         },
       },
@@ -303,7 +317,7 @@ export async function getSuperadminCompanyQaChecklist(companyId: string) {
           roles: {
             some: {
               companyId,
-              role: { name: "ADMIN" },
+              role: { companyId, name: "ADMIN" },
             },
           },
         },

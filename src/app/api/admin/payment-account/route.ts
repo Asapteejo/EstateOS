@@ -17,7 +17,7 @@ export const runtime = "nodejs";
 export async function GET() {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
   try {
-    tenant = await requireAdminSession(undefined, { redirectOnMissingAuth: false });
+    tenant = await requireAdminSession(["ADMIN", "FINANCE"], { redirectOnMissingAuth: false });
   } catch {
     return fail("Authentication required.", 401);
   }
@@ -39,7 +39,7 @@ export async function GET() {
 export async function POST(request: Request) {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
   try {
-    tenant = await requireAdminSession(["ADMIN"], { redirectOnMissingAuth: false });
+    tenant = await requireAdminSession(["ADMIN", "FINANCE"], { redirectOnMissingAuth: false });
   } catch {
     return fail("Authentication required.", 401);
   }
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
   try {
-    tenant = await requireAdminSession(["ADMIN"], { redirectOnMissingAuth: false });
+    tenant = await requireAdminSession(["ADMIN", "FINANCE"], { redirectOnMissingAuth: false });
   } catch {
     return fail("Authentication required.", 401);
   }
@@ -146,7 +146,7 @@ export async function PATCH(request: Request) {
     });
 
     const account = await prisma.companyPaymentProviderAccount.update({
-      where: { id: existing.id },
+      where: { id: existing.id, companyId: tenant.companyId },
       data: {
         displayName: result.businessName,
         accountReference: result.accountNumber,

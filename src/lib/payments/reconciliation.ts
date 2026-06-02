@@ -14,6 +14,7 @@ import {
   assertInstallmentMatchesCompany,
   assertInstallmentMatchesTransaction,
   buildPaystackWebhookEventId,
+  selectTenantOwnedRelationId,
 } from "@/lib/payments/semantics";
 import {
   parseTenantPaymentReference,
@@ -96,6 +97,7 @@ export async function persistInitializedPayment(
     companyId: string;
     userId: string;
     transactionId?: string;
+    paymentRequestId?: string;
     installmentId?: string;
     reservationReference?: string;
     marketerId?: string;
@@ -106,8 +108,23 @@ export async function persistInitializedPayment(
   }
 
   let transactionId = input.transactionId;
+  let paymentRequestId = input.paymentRequestId;
   let installmentId = input.installmentId;
   let marketerId = input.marketerId;
+
+  if (paymentRequestId) {
+    const paymentRequest = await prisma.paymentRequest.findFirst({
+      where: {
+        id: paymentRequestId,
+        companyId: input.companyId,
+        userId: input.userId,
+      },
+      select: {
+        id: true,
+      },
+    });
+    paymentRequestId = paymentRequest?.id;
+  }
 
   if (transactionId) {
     const transaction = await prisma.transaction.findFirst({
@@ -148,6 +165,20 @@ export async function persistInitializedPayment(
     transactionId = reservation?.transaction?.id;
     marketerId =
       marketerId ?? reservation?.transaction?.marketerId ?? reservation?.marketerId ?? undefined;
+  }
+
+  if (marketerId) {
+    const marketer = await prisma.teamMember.findFirst({
+      where: {
+        id: marketerId,
+        companyId: input.companyId,
+      },
+      select: {
+        id: true,
+        companyId: true,
+      },
+    });
+    marketerId = selectTenantOwnedRelationId(input.companyId, marketer);
   }
 
   if (installmentId) {
@@ -200,6 +231,7 @@ export async function persistInitializedPayment(
     },
     update: {
       transactionId,
+      paymentRequestId,
       installmentId,
       userId: input.userId,
       marketerId,
@@ -218,6 +250,7 @@ export async function persistInitializedPayment(
     create: {
       companyId: input.companyId,
       transactionId,
+      paymentRequestId,
       installmentId,
       userId: input.userId,
       marketerId,
@@ -399,6 +432,36 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
       resolvedMarketerId ?? reservation?.transaction?.marketerId ?? reservation?.marketerId ?? undefined;
   }
 
+  if (resolvedTransactionId && featureFlags.hasDatabase) {
+    const transaction = await prisma.transaction.findFirst({
+      where: {
+        id: resolvedTransactionId,
+        companyId: company.id,
+      },
+      select: {
+        id: true,
+        companyId: true,
+        marketerId: true,
+      },
+    });
+    resolvedTransactionId = selectTenantOwnedRelationId(company.id, transaction);
+    resolvedMarketerId = resolvedMarketerId ?? transaction?.marketerId ?? undefined;
+  }
+
+  if (resolvedMarketerId && featureFlags.hasDatabase) {
+    const marketer = await prisma.teamMember.findFirst({
+      where: {
+        id: resolvedMarketerId,
+        companyId: company.id,
+      },
+      select: {
+        id: true,
+        companyId: true,
+      },
+    });
+    resolvedMarketerId = selectTenantOwnedRelationId(company.id, marketer);
+  }
+
   if (resolvedInstallmentId && featureFlags.hasDatabase) {
     const installment = await prisma.installment.findFirst({
       where: {
@@ -461,11 +524,12 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
     payment = await prisma.payment.update({
       where: {
         id: payment.id,
+        companyId: company.id,
       },
       data: {
-        transactionId: resolvedTransactionId ?? payment.transactionId,
-        installmentId: resolvedInstallmentId ?? payment.installmentId,
-        marketerId: resolvedMarketerId ?? payment.marketerId,
+        transactionId: resolvedTransactionId ?? null,
+        installmentId: resolvedInstallmentId ?? null,
+        marketerId: resolvedMarketerId ?? null,
         status,
         paidAt: rawPayload.data?.paid_at ? new Date(rawPayload.data.paid_at) : payment.paidAt,
         metadata: rawPayload as unknown as Prisma.InputJsonValue,
@@ -543,6 +607,7 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
           const updatedTransaction = await tx.transaction.update({
             where: {
               id: transaction.id,
+              companyId: company.id,
             },
             data: {
               outstandingBalance: nextOutstandingBalance,
@@ -578,6 +643,7 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
             await tx.reservation.update({
               where: {
                 id: updatedTransaction.reservation.id,
+                companyId: company.id,
               },
               data: {
                 status: "CONVERTED",

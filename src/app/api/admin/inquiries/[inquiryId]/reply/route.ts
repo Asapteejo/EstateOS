@@ -8,7 +8,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ inquiryId: string }> },
 ) {
-  const tenant = await requireAdminSession();
+  const tenant = await requireAdminSession(["ADMIN", "STAFF"]);
   const { inquiryId } = await params;
   const json = (await request.json()) as Record<string, unknown>;
 

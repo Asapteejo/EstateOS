@@ -1,19 +1,22 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import type { AppRole } from "@prisma/client";
 
+import {
+  getInvitationAcceptanceFailure,
+  hasMatchingVerifiedInvitationEmail,
+} from "@/lib/auth/invitation-email";
+import { assertCompanyAssignmentAllowed } from "@/lib/auth/membership";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { fail, ok } from "@/lib/http";
-export const runtime = "nodejs";
 
-// ─── GET — validate token and return invitation info ─────────────────────────
+export const runtime = "nodejs";
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
-
   if (!featureFlags.hasDatabase) {
     return fail("Service unavailable.", 503);
   }
@@ -31,24 +34,15 @@ export async function GET(
     },
   });
 
-  if (!invitation) {
-    return fail("Invitation not found.", 404);
-  }
-
-  if (invitation.role === "SUPER_ADMIN") {
-    return fail("This invitation is not valid.", 403);
-  }
-
+  if (!invitation) return fail("Invitation not found.", 404);
+  if (invitation.role === "SUPER_ADMIN") return fail("This invitation is not valid.", 403);
   if (invitation.status === "ACCEPTED") {
     return fail("This invitation has already been accepted.", 409);
   }
-
   if (invitation.status === "REVOKED" || invitation.status === "EXPIRED") {
     return fail("This invitation is no longer valid.", 410);
   }
-
   if (invitation.expiresAt < new Date()) {
-    // Lazily mark as expired
     await prisma.teamMemberInvitation.update({
       where: { token },
       data: { status: "EXPIRED" },
@@ -67,97 +61,82 @@ export async function GET(
   });
 }
 
-// ─── POST — accept invitation (requires Clerk auth) ──────────────────────────
-
 export async function POST(
   _request: Request,
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
+  if (!featureFlags.hasDatabase) return fail("Service unavailable.", 503);
 
-  if (!featureFlags.hasDatabase) {
-    return fail("Service unavailable.", 503);
-  }
-
-  // Require Clerk session
-  let clerkUserId: string | null = null;
-  if (featureFlags.hasClerk) {
-    const session = await auth();
-    clerkUserId = session.userId ?? null;
-  }
-
-  if (!clerkUserId) {
-    return fail("Authentication required.", 401);
-  }
+  const session = featureFlags.hasClerk ? await auth() : null;
+  const clerkUserId = session?.userId ?? null;
+  if (!clerkUserId) return fail("Authentication required.", 401);
 
   const invitation = await prisma.teamMemberInvitation.findUnique({
     where: { token },
     include: { company: { select: { id: true, name: true, slug: true } } },
   });
-
-  if (!invitation) {
-    return fail("Invitation not found.", 404);
-  }
-
-  if (invitation.role === "SUPER_ADMIN") {
-    return fail("This invitation is not valid.", 403);
-  }
-
-  if (invitation.status !== "PENDING") {
-    return fail(
-      invitation.status === "ACCEPTED"
-        ? "This invitation has already been accepted."
-        : "This invitation is no longer valid.",
-      409,
-    );
-  }
-
-  if (invitation.expiresAt < new Date()) {
+  if (!invitation) return fail("Invitation not found.", 404);
+  const acceptanceFailure = getInvitationAcceptanceFailure(invitation);
+  if (acceptanceFailure?.status === 410) {
     await prisma.teamMemberInvitation.update({
       where: { token },
       data: { status: "EXPIRED" },
     });
-    return fail("This invitation has expired.", 410);
+  }
+  if (acceptanceFailure) return fail(acceptanceFailure.message, acceptanceFailure.status);
+
+  const clerkIdentity = await currentUser();
+  if (
+    clerkIdentity?.id !== clerkUserId ||
+    !hasMatchingVerifiedInvitationEmail(invitation.email, clerkIdentity.emailAddresses)
+  ) {
+    return fail("Sign in with the verified email address that received this invitation.", 403);
   }
 
-  // Find or create the User record for this Clerk user
-  let user = await prisma.user.findUnique({ where: { clerkUserId } });
-
-  if (!user) {
-    // User may not be synced yet from webhook — try by email
-    user = await prisma.user.findUnique({ where: { email: invitation.email } });
-  }
-
+  const user = await prisma.user.findUnique({ where: { clerkUserId } });
   if (!user) {
     return fail(
-      "Your account could not be found. Please sign up with the email address this invitation was sent to.",
+      "Your account could not be found. Please sign in once with the invited email address, then retry.",
       422,
     );
   }
+  try {
+    assertCompanyAssignmentAllowed(user.companyId, invitation.companyId);
+  } catch {
+    return fail("This account already belongs to another company.", 409);
+  }
 
-  // Find or create the Role record for this company + role name
-  let role = await prisma.role.findFirst({
-    where: { companyId: invitation.companyId, name: invitation.role as AppRole },
-  });
+  const accepted = await prisma.$transaction(async (tx) => {
+    const claimed = await tx.teamMemberInvitation.updateMany({
+      where: {
+        id: invitation.id,
+        status: "PENDING",
+        expiresAt: { gte: new Date() },
+      },
+      data: { status: "ACCEPTED", acceptedAt: new Date() },
+    });
+    if (claimed.count !== 1) return false;
 
-  if (!role) {
-    role = await prisma.role.create({
-      data: {
+    const role = await tx.role.upsert({
+      where: {
+        companyId_name: {
+          companyId: invitation.companyId,
+          name: invitation.role as AppRole,
+        },
+      },
+      create: {
         companyId: invitation.companyId,
         name: invitation.role as AppRole,
         label: invitation.role.charAt(0) + invitation.role.slice(1).toLowerCase(),
       },
+      update: {},
     });
-  }
-
-  await prisma.$transaction([
-    // Link user to company
-    prisma.user.update({
+    await tx.user.update({
       where: { id: user.id },
       data: { companyId: invitation.companyId },
-    }),
-    // Assign role (upsert to avoid duplicate)
-    prisma.userRole.upsert({
+    });
+    await tx.userRole.upsert({
       where: {
         userId_roleId_companyId: {
           userId: user.id,
@@ -171,13 +150,13 @@ export async function POST(
         companyId: invitation.companyId,
       },
       update: {},
-    }),
-    // Mark invitation accepted
-    prisma.teamMemberInvitation.update({
-      where: { token },
-      data: { status: "ACCEPTED", acceptedAt: new Date() },
-    }),
-  ]);
+    });
+    return true;
+  });
+
+  if (!accepted) {
+    return fail("This invitation has already been accepted or is no longer valid.", 409);
+  }
 
   return ok({
     companySlug: invitation.company.slug,

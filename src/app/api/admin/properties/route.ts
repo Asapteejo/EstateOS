@@ -7,7 +7,7 @@ import { createPropertyForAdmin } from "@/modules/properties/mutations";
 export async function GET() {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
   try {
-    tenant = await requireAdminSession(undefined, { redirectOnMissingAuth: false });
+    tenant = await requireAdminSession(["ADMIN", "STAFF"], { redirectOnMissingAuth: false });
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }
@@ -23,7 +23,7 @@ export async function GET() {
 export async function POST(request: Request) {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
   try {
-    tenant = await requireAdminSession(undefined, { redirectOnMissingAuth: false });
+    tenant = await requireAdminSession(["ADMIN", "STAFF"], { redirectOnMissingAuth: false });
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }

@@ -76,6 +76,7 @@ export async function syncTransactionMilestones(
       await tx.transactionMilestone.update({
         where: {
           id: existing.id,
+          companyId: input.companyId,
         },
         data: {
           title: milestone.title,
@@ -236,6 +237,7 @@ export async function syncTransactionPaymentState(
   return tx.transaction.update({
     where: {
       id: transaction.id,
+      companyId: input.companyId,
     },
     data: {
       paymentStatus: summary.status,
@@ -323,6 +325,7 @@ export async function updateReservationStatusForAdmin(
     const updatedReservation = await tx.reservation.update({
       where: {
         id: reservation.id,
+        companyId: context.companyId!,
       },
       data: {
         status: input.status,
@@ -341,6 +344,7 @@ export async function updateReservationStatusForAdmin(
       await tx.propertyUnit.update({
         where: {
           id: updatedReservation.propertyUnitId,
+          companyId: context.companyId!,
         },
         data: {
           status: propertyStatus,
@@ -350,6 +354,7 @@ export async function updateReservationStatusForAdmin(
       await tx.property.update({
         where: {
           id: updatedReservation.propertyId,
+          companyId: context.companyId!,
         },
         data: {
           status: propertyStatus,
@@ -449,6 +454,7 @@ export async function updateTransactionStageForAdmin(
     const next = await tx.transaction.update({
       where: {
         id: transactionId,
+        companyId: context.companyId!,
       },
       data: {
         currentStage: input.stage,
@@ -545,6 +551,7 @@ export async function updateTransactionFollowUpForAdmin(
   const updated = await prisma.transaction.update({
     where: {
       id: transactionId,
+      companyId: context.companyId,
     },
     data: {
       followUpStatus: input.followUpStatus,

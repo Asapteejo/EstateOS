@@ -323,7 +323,9 @@ export async function getAdminClientsTable(context: TenantContext) {
       where: {
         roles: {
           some: {
+            companyId: context.companyId,
             role: {
+              companyId: context.companyId,
               name: "BUYER",
             },
           },
@@ -337,6 +339,9 @@ export async function getAdminClientsTable(context: TenantContext) {
         lastName: true,
         companyId: true,
         reservations: {
+          where: {
+            companyId: context.companyId,
+          },
           orderBy: {
             createdAt: "desc",
           },
@@ -350,6 +355,9 @@ export async function getAdminClientsTable(context: TenantContext) {
           },
         },
         kycSubmissions: {
+          where: {
+            companyId: context.companyId,
+          },
           orderBy: {
             updatedAt: "desc",
           },
@@ -360,6 +368,7 @@ export async function getAdminClientsTable(context: TenantContext) {
         },
         inquiries: {
           where: {
+            companyId: context.companyId,
             assignedStaffId: {
               not: null,
             },

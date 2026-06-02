@@ -7,6 +7,7 @@ import {
 } from "@/lib/config";
 import { buildSafeErrorLogContext, logError } from "@/lib/ops/logger";
 import { parseSuperadminEmails } from "@/lib/auth/superadmin";
+import { getProductionDatabaseSafetyStatus } from "@/lib/db/production-db-guard";
 
 export const EXPECTED_PRODUCTION_MIGRATIONS = [
   "0030_communication_wallet_ledger",
@@ -33,6 +34,7 @@ export function buildHealthSnapshot() {
 }
 
 export function buildDependencySummary() {
+  const databaseSafety = getProductionDatabaseSafetyStatus(env);
   return {
     database: featureFlags.hasDatabase ? "configured" : "disabled",
     clerk: featureFlags.hasClerk ? "configured" : "demo-or-disabled",
@@ -46,6 +48,10 @@ export function buildDependencySummary() {
     superadminAllowlist: {
       configured: Boolean(env.SUPERADMIN_EMAILS),
       count: parseSuperadminEmails(env.SUPERADMIN_EMAILS).size,
+    },
+    productionDatabaseSafety: {
+      sharedDatabaseRisk: databaseSafety.sharedDatabaseRisk,
+      localWritesBlocked: databaseSafety.sharedDatabaseRisk && !databaseSafety.explicitWriteOverride,
     },
   };
 }

@@ -27,6 +27,13 @@ export function assertInstallmentMatchesTransaction(
   return true;
 }
 
+export function selectTenantOwnedRelationId(
+  companyId: string,
+  record?: { id: string; companyId: string } | null,
+) {
+  return record?.companyId === companyId ? record.id : undefined;
+}
+
 export function buildPaystackWebhookEventId(input: {
   event: string;
   providerId?: string | number | null;

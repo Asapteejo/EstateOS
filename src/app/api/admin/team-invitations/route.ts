@@ -107,9 +107,9 @@ export async function POST(request: Request) {
   // Send invitation email
   const [company, inviter] = await Promise.all([
     prisma.company.findUnique({ where: { id: tenant.companyId }, select: { name: true } }),
-    tenant.userId
+    tenant.clerkUserId
       ? prisma.user.findUnique({
-          where: { clerkUserId: tenant.userId },
+          where: { clerkUserId: tenant.clerkUserId },
           select: { firstName: true, lastName: true },
         })
       : null,

@@ -1,5 +1,5 @@
 import { ok, fail } from "@/lib/http";
-import { requireTenantContext } from "@/lib/tenancy/context";
+import { requireAdminSession } from "@/lib/auth/guards";
 import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import { contractSettingsSchema } from "@/lib/validations/contracts";
 import {
@@ -10,9 +10,9 @@ import {
 export const runtime = "nodejs";
 
 export async function GET() {
-  let tenant: Awaited<ReturnType<typeof requireTenantContext>>;
+  let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
   try {
-    tenant = await requireTenantContext("admin", { redirectOnMissingAuth: false });
+    tenant = await requireAdminSession(["ADMIN", "LEGAL"], { redirectOnMissingAuth: false });
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }
@@ -25,9 +25,9 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  let tenant: Awaited<ReturnType<typeof requireTenantContext>>;
+  let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
   try {
-    tenant = await requireTenantContext("admin", { redirectOnMissingAuth: false });
+    tenant = await requireAdminSession(["ADMIN", "LEGAL"], { redirectOnMissingAuth: false });
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }

@@ -12,6 +12,7 @@ import { featureFlags } from "@/lib/env";
 import { fail } from "@/lib/http";
 import { logInfo } from "@/lib/ops/logger";
 import { createSampleCompany } from "@/modules/onboarding/service";
+import { assertProductionDatabaseWriteAllowed } from "@/lib/db/production-db-guard";
 
 export async function POST() {
   if (process.env.NODE_ENV !== "development") {
@@ -19,6 +20,10 @@ export async function POST() {
   }
 
   try {
+    assertProductionDatabaseWriteAllowed({
+      operation: "Create development company",
+      allowExplicitOverride: true,
+    });
     const existingSession = await getAppSession("admin");
     const session =
       existingSession ?? (featureFlags.allowDevBypass ? buildDemoSession("admin") : null);

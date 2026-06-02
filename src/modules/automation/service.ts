@@ -66,8 +66,13 @@ export function isPaymentReminderDue(input: {
   return input.nextPaymentDueAt <= now;
 }
 
+export function getOperationalAutomationCompanyId(input?: { companyId?: string }) {
+  return input?.companyId;
+}
+
 export async function runOperationalAutomationSweep(input?: { companyId?: string }) {
   const now = new Date();
+  const companyId = getOperationalAutomationCompanyId(input);
 
   if (!featureFlags.hasDatabase) {
     return {
@@ -78,11 +83,11 @@ export async function runOperationalAutomationSweep(input?: { companyId?: string
     };
   }
 
-  const wishlistResult = await runWishlistReminderSweep(now);
+  const wishlistResult = await runWishlistReminderSweep(now, companyId);
 
   const transactions = await prisma.transaction.findMany({
     where: {
-      ...(input?.companyId ? { companyId: input.companyId } : {}),
+      ...(companyId ? { companyId } : {}),
       currentStage: {
         notIn: ["FINAL_PAYMENT_COMPLETED", "HANDOVER_COMPLETED"],
       },
@@ -113,7 +118,7 @@ export async function runOperationalAutomationSweep(input?: { companyId?: string
 
   const inspectionBookings = await prisma.inspectionBooking.findMany({
     where: {
-      ...(input?.companyId ? { companyId: input.companyId } : {}),
+      ...(companyId ? { companyId } : {}),
       scheduledFor: {
         gte: now,
         lte: addHours(now, 24),
@@ -211,6 +216,7 @@ export async function runOperationalAutomationSweep(input?: { companyId?: string
     await prisma.transaction.update({
       where: {
         id: transaction.id,
+        companyId: transaction.companyId,
       },
       data: {
         paymentStatus: "OVERDUE",
@@ -281,6 +287,7 @@ export async function runOperationalAutomationSweep(input?: { companyId?: string
     await prisma.inspectionBooking.update({
       where: {
         id: booking.id,
+        companyId: booking.companyId,
       },
       data: {
         reminderSentAt: now,
@@ -290,7 +297,7 @@ export async function runOperationalAutomationSweep(input?: { companyId?: string
 
   const followUpCandidates = await prisma.savedProperty.findMany({
     where: {
-      ...(input?.companyId ? { companyId: input.companyId } : {}),
+      ...(companyId ? { companyId } : {}),
       status: "ACTIVE",
       followUpStatus: {
         in: ["NONE", "PENDING_CALL"],

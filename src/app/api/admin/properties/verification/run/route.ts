@@ -5,7 +5,7 @@ import { syncPropertyVerificationStates } from "@/modules/properties/verificatio
 export async function POST() {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
   try {
-    tenant = await requireAdminSession(undefined, { redirectOnMissingAuth: false });
+    tenant = await requireAdminSession(["ADMIN", "STAFF"], { redirectOnMissingAuth: false });
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }

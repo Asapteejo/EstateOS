@@ -1,7 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { isInspectionReminderDue, isPaymentReminderDue } from "@/modules/automation/service";
+import {
+  getOperationalAutomationCompanyId,
+  isInspectionReminderDue,
+  isPaymentReminderDue,
+} from "@/modules/automation/service";
 
 test("payment reminder becomes due when next payment date has passed and no recent reminder exists", () => {
   assert.equal(
@@ -36,4 +40,9 @@ test("inspection reminder is due within 24 hours for confirmed visits", () => {
     }),
     false,
   );
+});
+
+test("tenant automation preserves company scope for every sub-sweep", () => {
+  assert.equal(getOperationalAutomationCompanyId({ companyId: "company_123" }), "company_123");
+  assert.equal(getOperationalAutomationCompanyId(), undefined);
 });

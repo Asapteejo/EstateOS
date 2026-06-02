@@ -758,7 +758,7 @@ export async function updateInquiryForAdmin(
   }
 
   const updated = await prisma.inquiry.update({
-    where: { id: inquiryId },
+    where: { id: inquiryId, companyId: context.companyId },
     data: {
       status: input.status,
       assignedStaffId: input.assignedStaffId ?? null,

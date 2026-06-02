@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import type { AppRole } from "@prisma/client";
 
 import { hasRequiredRole } from "@/lib/auth/roles";
+import { adminRoles } from "@/lib/auth/roles";
 import { requireTenantContext } from "@/lib/tenancy/context";
 import { canAccessSuperadmin } from "@/lib/auth/superadmin";
 import { env, featureFlags } from "@/lib/env";
@@ -54,8 +55,12 @@ export async function requireAdminSession(
   },
 ) {
   const session = await requireTenantContext("admin", options);
+  const allowedRoles = requiredRoles ?? adminRoles;
 
-  if (requiredRoles && !hasRequiredRole(session.roles, requiredRoles)) {
+  if (!hasRequiredRole(session.roles, allowedRoles)) {
+    if (options?.redirectOnMissingAuth === false) {
+      throw new Error("Tenant operator access is required.");
+    }
     redirect("/portal");
   }
 

@@ -4,6 +4,8 @@ import { Card } from "@/components/ui/card";
 import { getPlatformPricingPlans } from "@/modules/platform-site/content";
 import { formatCurrency } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default async function PlatformPricingPage() {
   const plans = await getPlatformPricingPlans();
 

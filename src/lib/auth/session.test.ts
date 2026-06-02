@@ -5,6 +5,7 @@ import {
   buildDemoSession,
   buildFallbackDemoCompanyContext,
   getDefaultDemoSessionRole,
+  resolveTenantSessionIdentity,
   resolveDemoCompanyContextAfterDbError,
 } from "@/lib/auth/session";
 
@@ -58,5 +59,33 @@ test("demo company database errors fall back outside production only", () => {
       cookieCompanySlug: null,
       cookieBranchId: null,
     }),
+  );
+});
+
+test("tenant context uses database user id while preserving Clerk identity", () => {
+  assert.deepEqual(
+    resolveTenantSessionIdentity({
+      userId: "clerk-user-1",
+      dbUserId: "db-user-1",
+      mode: "clerk",
+    }),
+    {
+      clerkUserId: "clerk-user-1",
+      userId: "db-user-1",
+    },
+  );
+});
+
+test("unpersisted Clerk identity cannot be used as a database user id", () => {
+  assert.deepEqual(
+    resolveTenantSessionIdentity({
+      userId: "clerk-user-1",
+      dbUserId: null,
+      mode: "clerk",
+    }),
+    {
+      clerkUserId: "clerk-user-1",
+      userId: null,
+    },
   );
 });

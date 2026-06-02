@@ -29,6 +29,18 @@ type PropertyRecord = {
   brochureDocumentId: string | null;
 };
 
+export function assertIncomingIdsBelongToProperty(
+  resourceName: string,
+  incomingIds: Array<string | undefined>,
+  existingIds: string[],
+) {
+  const existingIdSet = new Set(existingIds);
+  const invalidId = incomingIds.find((id): id is string => Boolean(id) && !existingIdSet.has(id as string));
+  if (invalidId) {
+    throw new Error(`${resourceName} does not belong to this property.`);
+  }
+}
+
 export async function ensurePropertyBelongsToTenant(
   context: TenantContext,
   propertyId: string,
@@ -52,6 +64,28 @@ export async function ensurePropertyBelongsToTenant(
       },
     } as Parameters<typeof prisma.property.findFirst>[0],
   )) as PropertyRecord | null;
+}
+
+async function ensureBranchBelongsToTenant(companyId: string, branchId?: string) {
+  if (!branchId) {
+    return null;
+  }
+
+  const branch = await prisma.branch.findFirst({
+    where: {
+      id: branchId,
+      companyId,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!branch) {
+    throw new Error("Selected branch is invalid for this tenant.");
+  }
+
+  return branch.id;
 }
 
 async function ensureBrochureDocument(context: TenantContext, brochureDocumentId?: string) {
@@ -152,6 +186,11 @@ async function syncPropertyUnits(
   });
 
   const incomingIds = new Set(input.units.map((unit) => unit.id).filter(Boolean));
+  assertIncomingIdsBelongToProperty(
+    "Property unit",
+    input.units.map((unit) => unit.id),
+    existingUnits.map((unit) => unit.id),
+  );
 
   for (const existingUnit of existingUnits) {
     if (incomingIds.has(existingUnit.id)) {
@@ -165,6 +204,7 @@ async function syncPropertyUnits(
     await tx.propertyUnit.delete({
       where: {
         id: existingUnit.id,
+        companyId: input.companyId,
       },
     });
   }
@@ -188,6 +228,7 @@ async function syncPropertyUnits(
       await tx.propertyUnit.update({
         where: {
           id: unit.id,
+          companyId: input.companyId,
         },
         data: unitData,
       });
@@ -219,12 +260,18 @@ async function syncPropertyMedia(
   });
 
   const incomingIds = new Set(input.media.map((item) => item.id).filter(Boolean));
+  assertIncomingIdsBelongToProperty(
+    "Property media",
+    input.media.map((item) => item.id),
+    existingMedia.map((item) => item.id),
+  );
 
   for (const media of existingMedia) {
     if (!incomingIds.has(media.id)) {
       await tx.propertyMedia.delete({
         where: {
           id: media.id,
+          companyId: input.companyId,
         },
       });
     }
@@ -246,6 +293,7 @@ async function syncPropertyMedia(
       await tx.propertyMedia.update({
         where: {
           id: media.id,
+          companyId: input.companyId,
         },
         data: mediaData,
       });
@@ -277,18 +325,40 @@ async function syncPropertyPaymentPlans(
   });
 
   const incomingIds = new Set(input.plans.map((plan) => plan.id).filter(Boolean));
+  assertIncomingIdsBelongToProperty(
+    "Payment plan",
+    input.plans.map((plan) => plan.id),
+    existingPlans.map((plan) => plan.id),
+  );
 
   for (const existingPlan of existingPlans) {
     if (!incomingIds.has(existingPlan.id)) {
       await tx.paymentPlan.delete({
         where: {
           id: existingPlan.id,
+          companyId: input.companyId,
         },
       });
     }
   }
 
   for (const plan of input.plans) {
+    if (plan.propertyUnitId) {
+      const propertyUnit = await tx.propertyUnit.findFirst({
+        where: {
+          id: plan.propertyUnitId,
+          companyId: input.companyId,
+          propertyId: input.propertyId,
+        },
+        select: {
+          id: true,
+        },
+      });
+      if (!propertyUnit) {
+        throw new Error("Payment plan unit does not belong to this property.");
+      }
+    }
+
     const planData = {
       companyId: input.companyId,
       propertyId: input.propertyId,
@@ -308,6 +378,7 @@ async function syncPropertyPaymentPlans(
       ? await tx.paymentPlan.update({
           where: {
             id: plan.id,
+            companyId: input.companyId,
           },
           data: planData,
           select: {
@@ -433,6 +504,7 @@ export async function createPropertyForAdmin(
   }
 
   const brochureDocumentId = await ensureBrochureDocument(context, rawInput.brochureDocumentId);
+  const branchId = await ensureBranchBelongsToTenant(context.companyId, rawInput.branchId);
   const slug = await buildUniquePropertySlug(context.companyId, rawInput.title);
   const defaults = await getCompanyOperationalDefaults(context.companyId);
   const verificationThresholds = await getVerificationThresholdsForCompany(context.companyId);
@@ -448,7 +520,7 @@ export async function createPropertyForAdmin(
       data: {
         companyId: context.companyId!,
         ...buildPropertyBaseData(
-          rawInput,
+          { ...rawInput, branchId: branchId ?? undefined },
           slug,
           brochureDocumentId,
           defaults.defaultWishlistDurationDays,
@@ -559,6 +631,7 @@ export async function updatePropertyForAdmin(
   }
 
   const brochureDocumentId = await ensureBrochureDocument(context, rawInput.brochureDocumentId);
+  const branchId = await ensureBranchBelongsToTenant(context.companyId, rawInput.branchId);
   const slug = await buildUniquePropertySlug(context.companyId, rawInput.title, propertyId);
   const defaults = await getCompanyOperationalDefaults(context.companyId);
 
@@ -566,9 +639,10 @@ export async function updatePropertyForAdmin(
     const updated = await tx.property.update({
       where: {
         id: propertyId,
+        companyId: context.companyId!,
       },
       data: buildPropertyBaseData(
-        rawInput,
+        { ...rawInput, branchId: branchId ?? undefined },
         slug,
         brochureDocumentId,
         defaults.defaultWishlistDurationDays,
@@ -655,6 +729,7 @@ export async function updatePropertyStatusForAdmin(
   const updated = await prisma.property.update({
     where: {
       id: propertyId,
+      companyId: context.companyId,
     },
     data:
       status === "ARCHIVED"
@@ -712,6 +787,7 @@ export async function verifyPropertyForAdmin(
   const updated = await prisma.property.update({
     where: {
       id: propertyId,
+      companyId: context.companyId,
     },
     data: buildPropertyVerificationUpdateInput(now, notes, verificationThresholds),
     select: {

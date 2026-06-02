@@ -222,7 +222,7 @@ export async function runDealRiskSweep(input?: {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (prisma.transaction.update as (args: any) => Promise<any>)({
-      where: { id: tx.id },
+      where: { id: tx.id, companyId: tx.companyId },
       data: { riskScore: result.score },
     });
 

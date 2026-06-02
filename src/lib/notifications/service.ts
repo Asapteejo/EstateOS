@@ -92,7 +92,9 @@ export async function getTenantOperatorRecipients(companyId: string) {
       isActive: true,
       roles: {
         some: {
+          companyId,
           role: {
+            companyId,
             name: {
               in: ["ADMIN", "STAFF", "FINANCE", "LEGAL"] satisfies AppRole[],
             },

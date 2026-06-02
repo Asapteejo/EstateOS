@@ -1,17 +1,28 @@
 import { z } from "zod";
 
 export const paymentInitializeSchema = z.object({
-  email: z.email(),
-  amount: z.number().positive(),
+  paymentRequestId: z.string().optional(),
+  email: z.email().optional(),
+  amount: z.number().positive().optional(),
   currency: z.string().trim().length(3).transform((value) => value.toUpperCase()).default("NGN"),
-  reference: z.string().min(4),
-  callbackUrl: z.string().url(),
+  reference: z.string().min(4).optional(),
+  callbackUrl: z.string().url().optional(),
   transactionId: z.string().optional(),
   installmentId: z.string().optional(),
   reservationReference: z.string().optional(),
   marketerId: z.string().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 }).superRefine((value, ctx) => {
+  if (
+    !value.paymentRequestId &&
+    (!value.email || !value.amount || !value.reference || !value.callbackUrl)
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Legacy payment initialization requires email, amount, reference, and callback url.",
+      path: ["paymentRequestId"],
+    });
+  }
   if (value.installmentId && !value.transactionId && !value.reservationReference) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,

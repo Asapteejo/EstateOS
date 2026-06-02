@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { getProductionDatabaseSafetyStatus } from "@/lib/db/production-db-guard";
+
 const emptyStringToUndefined = <TSchema extends z.ZodTypeAny>(schema: TSchema) =>
   z.preprocess(
     (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
@@ -120,6 +122,10 @@ const serverEnvSchema = z
     VERCEL_URL: optionalString,
     DEFAULT_COMPANY_SLUG: optionalSlug,
     ESTATEOS_ENABLE_DEV_BYPASS: optionalBoolean,
+    ALLOW_PRODUCTION_DB_WRITES: optionalBoolean,
+    PRODUCTION_DATABASE_PROJECT_REF: optionalString,
+    PRODUCTION_DATABASE_HOST: optionalString,
+    PAYMENTS_DEMO_MODE: optionalBoolean,
     SUPERADMIN_EMAILS: optionalString,
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: optionalString,
     CLERK_SECRET_KEY: optionalString,
@@ -459,6 +465,7 @@ export function buildFeatureFlags(env: ServerEnv) {
       Boolean(env.PAYSTACK_SECRET_KEY) &&
       Boolean(env.PAYSTACK_PUBLIC_KEY) &&
       Boolean(env.PAYSTACK_WEBHOOK_SECRET),
+    paymentsDemoMode: env.NODE_ENV !== "production" || env.PAYMENTS_DEMO_MODE === true,
     hasR2:
       Boolean(env.R2_ACCOUNT_ID) &&
       Boolean(env.R2_ACCESS_KEY_ID) &&
@@ -591,11 +598,22 @@ export function getProductionReadinessIssues(env: ServerEnv) {
 }
 
 export function getProductionReadinessWarnings(env: ServerEnv) {
-  if (env.NODE_ENV !== "production") {
-    return [];
+  const warnings: string[] = [];
+  if (getProductionDatabaseSafetyStatus(env).sharedDatabaseRisk) {
+    warnings.push(
+      "Local development is pointing at the configured production database. Demo, seed, mock, and sample-data writes are blocked.",
+    );
   }
 
-  const warnings: string[] = [];
+  if (!env.R2_PUBLIC_BASE_URL) {
+    warnings.push(
+      "R2_PUBLIC_BASE_URL is not configured. Private uploads remain available, but public assets will use the signed proxy fallback.",
+    );
+  }
+
+  if (env.NODE_ENV !== "production") {
+    return warnings;
+  }
 
   if (!env.CLERK_WEBHOOK_SECRET) {
     warnings.push(

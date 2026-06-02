@@ -48,6 +48,7 @@ export async function setAdminNotificationReadState(
   return prisma.notification.update({
     where: {
       id: notification.id,
+      companyId: context.companyId,
     },
     data: {
       readAt: read ? new Date() : null,
