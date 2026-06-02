@@ -625,6 +625,30 @@ Realtime defaults to polling in production. The current SSE implementation uses 
 
 Partial configuration is treated as invalid for grouped services. For example, setting only `PAYSTACK_SECRET_KEY` without the webhook secret now fails config parsing.
 
+## Production data hygiene and manual tenant access
+
+Audit historical demo records and role integrity without mutating data:
+
+```bash
+npm run audit:data-hygiene
+npm run audit:tenant-readiness -- --companySlug blueprint-urban-residences
+```
+
+Review the report before running the conservative cleanup dry run. Cleanup never deletes companies, properties, payments, transactions, generated legal documents, KYC documents, or Blueprint tenant data.
+
+```bash
+npm run cleanup:data-hygiene -- --dry-run
+npm run cleanup:data-hygiene -- --apply --confirm "CLEAN_DEMO_DATA"
+```
+
+Provision an existing tenant admin without storing a password in EstateOS:
+
+```bash
+npm run provision:tenant-admin -- --companySlug blueprint-urban-residences --email admin@example.com --name "Admin Name"
+```
+
+After provisioning, invite the email from Clerk or send a Clerk password setup/reset link. EstateOS creates a `manual:<email>` placeholder only when needed and links the Clerk identity by email on first sign-in. For an unavoidable temporary password, create it only in Clerk, require a first-login change where supported, and never print it in EstateOS logs.
+
 ## Local Developer Bootstrap Checklist
 
 1. Install dependencies.

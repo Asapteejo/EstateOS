@@ -20,6 +20,10 @@
     "seed:mock-company": "tsx scripts/seed-mock-company.ts",
     "audit:superadmins": "tsx scripts/audit-superadmins.ts",
     "audit:demo-data": "tsx scripts/audit-demo-data.ts",
+    "audit:data-hygiene": "tsx scripts/audit-data-hygiene.ts",
+    "cleanup:data-hygiene": "tsx scripts/cleanup-data-hygiene.ts",
+    "provision:tenant-admin": "tsx scripts/provision-tenant-admin.ts",
+    "audit:tenant-readiness": "tsx scripts/audit-tenant-readiness.ts",
     "grant:superadmin": "tsx scripts/grant-superadmin.ts",
     "db:backfill:risk-scores": "tsx scripts/backfill-risk-scores.ts",
     "check": "npm run test && npm run typecheck && npm run lint && npm run build"
