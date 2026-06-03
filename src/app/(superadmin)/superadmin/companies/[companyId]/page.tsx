@@ -11,11 +11,13 @@ import { SuperadminShell } from "@/components/superadmin/superadmin-shell";
 import { TenantReadinessChecklist } from "@/components/shared/tenant-readiness-checklist";
 import { Card } from "@/components/ui/card";
 import { requireSuperAdminSession } from "@/lib/auth/guards";
+import { prisma } from "@/lib/db/prisma";
 import { formatCurrency } from "@/lib/utils";
 import { getTenantReadinessForCompany } from "@/modules/readiness/service";
 import { getSafePlatformCommissionControl } from "@/modules/superadmin/commission";
 import { getSuperadminCompanyOverview, parseSuperadminRange, readSuperadminSearchParam } from "@/modules/superadmin/queries";
 import {
+  inviteCompanyAdminFromSuperadminAction,
   overrideSuperadminSubscriptionAction,
   updatePlatformCommissionAction,
 } from "@/app/(superadmin)/superadmin/companies/actions";
@@ -108,6 +110,7 @@ export default async function SuperadminCompanyOverviewPage({
   const subscriptionUpdated = readSuperadminSearchParam(resolvedSearchParams.subscription) === "updated";
   const mockCreated = readSuperadminSearchParam(resolvedSearchParams.mock) === "created";
   const commissionUpdated = readSuperadminSearchParam(resolvedSearchParams.commission) === "updated";
+  const invitationSent = readSuperadminSearchParam(resolvedSearchParams.invitation) === "sent";
 
   let company: Awaited<ReturnType<typeof getSuperadminCompanyOverview>>;
   try {
@@ -115,9 +118,25 @@ export default async function SuperadminCompanyOverviewPage({
   } catch {
     notFound();
   }
-  const [platformCommission, readiness] = await Promise.all([
+  const [platformCommission, readiness, pendingInvitations] = await Promise.all([
     getSafePlatformCommissionControl(companyId),
     getTenantReadinessForCompany(companyId),
+    prisma.teamMemberInvitation.findMany({
+      where: {
+        companyId,
+        status: "PENDING",
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        role: true,
+        expiresAt: true,
+      },
+    }),
   ]);
 
   return (
@@ -147,9 +166,11 @@ export default async function SuperadminCompanyOverviewPage({
           {error}
         </Card>
       ) : null}
-      {created || subscriptionUpdated || mockCreated || commissionUpdated ? (
+      {created || subscriptionUpdated || mockCreated || commissionUpdated || invitationSent ? (
         <Card className="border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
-          {commissionUpdated
+          {invitationSent
+            ? "Invitation sent."
+            : commissionUpdated
             ? "Platform commission settings saved."
             : mockCreated
             ? "Mock company created with safe sample data."
@@ -215,6 +236,65 @@ export default async function SuperadminCompanyOverviewPage({
           </div>
         </Card>
       </div>
+
+      <Card className="p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-[var(--ink-950)]">Invite company admin</h2>
+            <p className="mt-1 max-w-2xl text-sm text-[var(--ink-600)]">
+              Superadmin-created invitations are limited to ADMIN or STAFF and must be claimed by
+              the invited email address.
+            </p>
+          </div>
+          <div className="rounded-full bg-[var(--sand-100)] px-4 py-2 text-sm text-[var(--ink-700)]">
+            Expires after 7 days
+          </div>
+        </div>
+        <form action={inviteCompanyAdminFromSuperadminAction} className="mt-5 grid gap-4 md:grid-cols-4">
+          <input type="hidden" name="companyId" value={companyId} />
+          <label className="space-y-2 text-sm">
+            <span className="font-medium text-[var(--ink-700)]">Full name</span>
+            <input name="fullName" className="w-full rounded-xl border border-[var(--line)] px-3 py-2" placeholder="Ada Lovelace" />
+          </label>
+          <label className="space-y-2 text-sm md:col-span-2">
+            <span className="font-medium text-[var(--ink-700)]">Email</span>
+            <input name="email" type="email" className="w-full rounded-xl border border-[var(--line)] px-3 py-2" placeholder="admin@company.com" />
+          </label>
+          <label className="space-y-2 text-sm">
+            <span className="font-medium text-[var(--ink-700)]">Role</span>
+            <select name="role" defaultValue="ADMIN" className="w-full rounded-xl border border-[var(--line)] px-3 py-2">
+              <option value="ADMIN">Admin</option>
+              <option value="STAFF">Staff</option>
+            </select>
+          </label>
+          <div className="flex items-end justify-end md:col-span-4">
+            <button type="submit" className="rounded-full bg-[var(--brand-700)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--brand-800)]">
+              Send invitation
+            </button>
+          </div>
+        </form>
+        <div className="mt-5 rounded-2xl border border-[var(--line)]">
+          <div className="border-b border-[var(--line)] px-4 py-3 text-sm font-semibold text-[var(--ink-700)]">
+            Pending invitations
+          </div>
+          {pendingInvitations.length ? (
+            <div className="divide-y divide-[var(--line)]">
+              {pendingInvitations.map((invitation) => (
+                <div key={invitation.id} className="grid gap-2 px-4 py-3 text-sm md:grid-cols-[1fr_1fr_0.5fr_0.8fr]">
+                  <div className="font-medium text-[var(--ink-950)]">{invitation.fullName}</div>
+                  <div className="text-[var(--ink-700)]">{invitation.email}</div>
+                  <div className="text-[var(--ink-700)]">{invitation.role}</div>
+                  <div className="text-[var(--ink-500)]">
+                    Expires {invitation.expiresAt.toLocaleDateString("en-GB")}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="px-4 py-4 text-sm text-[var(--ink-500)]">No pending invitations.</div>
+          )}
+        </div>
+      </Card>
 
       <Card className="p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { SignIn } from "@clerk/nextjs";
+import { SignIn, SignUp } from "@clerk/nextjs";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,7 @@ export function AcceptInvitationClient({
 }: Props) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
-  const [showSignIn, setShowSignIn] = useState(false);
+  const [authMode, setAuthMode] = useState<"invite" | "sign-in" | "sign-up">("invite");
 
   async function handleAccept() {
     setPending(true);
@@ -112,16 +112,25 @@ export function AcceptInvitationClient({
     );
   }
 
-  if (showSignIn) {
+  if (authMode !== "invite") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f5f5f0] p-4">
         <div className="w-full max-w-md space-y-4">
           {hasClerk ? (
-            <SignIn
-              forceRedirectUrl={`/accept-invitation/${token}`}
-              fallbackRedirectUrl={`/accept-invitation/${token}`}
-              initialValues={{ emailAddress: inviteeEmail }}
-            />
+            authMode === "sign-in" ? (
+              <SignIn
+                forceRedirectUrl={`/accept-invitation/${token}`}
+                fallbackRedirectUrl={`/accept-invitation/${token}`}
+                initialValues={{ emailAddress: inviteeEmail }}
+              />
+            ) : (
+              <SignUp
+                forceRedirectUrl={`/accept-invitation/${token}`}
+                fallbackRedirectUrl={`/accept-invitation/${token}`}
+                signInUrl={`/accept-invitation/${token}`}
+                initialValues={{ emailAddress: inviteeEmail }}
+              />
+            )
           ) : (
             <div className="rounded-[24px] border border-[#e8e4db] bg-white px-8 py-7 text-center">
               <p className="text-sm text-[#6b6558]">
@@ -132,7 +141,7 @@ export function AcceptInvitationClient({
           <div className="text-center">
             <button
               type="button"
-              onClick={() => setShowSignIn(false)}
+              onClick={() => setAuthMode("invite")}
               className="text-sm text-[#9b9488] underline underline-offset-2 hover:text-[#1a1a18]"
             >
               Back
@@ -175,10 +184,18 @@ export function AcceptInvitationClient({
         <Button
           variant="outline"
           className="w-full"
-          onClick={() => setShowSignIn(true)}
+          onClick={() => setAuthMode("sign-in")}
           disabled={pending}
         >
-          Sign in with a different account
+          Sign in to claim invitation
+        </Button>
+        <Button
+          variant="outline"
+          className="w-full"
+          onClick={() => setAuthMode("sign-up")}
+          disabled={pending}
+        >
+          Create account or continue with Google
         </Button>
       </div>
 

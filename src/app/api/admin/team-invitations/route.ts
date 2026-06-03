@@ -1,15 +1,15 @@
-import { randomBytes } from "crypto";
-import type { AppRole } from "@prisma/client";
 import { z } from "zod";
 
 import { requireAdminSession } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
-import { env, featureFlags } from "@/lib/env";
+import { featureFlags } from "@/lib/env";
 import { fail, ok } from "@/lib/http";
-import { sendTransactionalEmail } from "@/lib/notifications/email";
-import { buildTeamInvitationEmail } from "@/lib/notifications/templates/team-invitation";
+import {
+  createTeamMemberInvitation,
+  invitationErrorStatus,
+  TENANT_INVITABLE_ROLES,
+} from "@/modules/invitations/team-invitations";
 
-const INVITE_TTL_MS = 48 * 60 * 60 * 1000; // 48 hours
 export const runtime = "nodejs";
 
 const inviteSchema = z.object({
@@ -79,56 +79,19 @@ export async function POST(request: Request) {
     return fail(body.error.issues[0]?.message ?? "Invalid input.", 400);
   }
 
-  // Revoke any existing pending invite for this email at this company
-  await prisma.teamMemberInvitation.updateMany({
-    where: {
+  let invitation: Awaited<ReturnType<typeof createTeamMemberInvitation>>;
+  try {
+    invitation = await createTeamMemberInvitation({
       companyId: tenant.companyId,
-      email: body.data.email.toLowerCase(),
-      status: "PENDING",
-    },
-    data: { status: "REVOKED" },
-  });
-
-  const token = randomBytes(32).toString("hex");
-  const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
-
-  const invitation = await prisma.teamMemberInvitation.create({
-    data: {
-      companyId: tenant.companyId,
-      email: body.data.email.toLowerCase(),
+      email: body.data.email,
       fullName: body.data.fullName,
       role: body.data.role,
-      token,
-      expiresAt,
-      invitedByUserId: tenant.userId ?? undefined,
-    },
-  });
-
-  // Send invitation email
-  const [company, inviter] = await Promise.all([
-    prisma.company.findUnique({ where: { id: tenant.companyId }, select: { name: true } }),
-    tenant.clerkUserId
-      ? prisma.user.findUnique({
-          where: { clerkUserId: tenant.clerkUserId },
-          select: { firstName: true, lastName: true },
-        })
-      : null,
-  ]);
-
-  const inviterName =
-    `${inviter?.firstName ?? ""} ${inviter?.lastName ?? ""}`.trim() || "Your admin";
-
-  const acceptUrl = `${env.APP_BASE_URL}/accept-invitation/${token}`;
-  const { subject, html } = buildTeamInvitationEmail({
-    inviteeName: body.data.fullName,
-    companyName: company?.name ?? "EstateOS",
-    inviterName,
-    role: body.data.role as AppRole,
-    acceptUrl,
-    expiresAt,
-  });
-
-  await sendTransactionalEmail({ to: body.data.email, subject, html });
+      actor: { userId: tenant.userId, source: "tenant_admin" },
+      allowedRoles: TENANT_INVITABLE_ROLES,
+    });
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "Unable to send invitation.", invitationErrorStatus(error));
+  }
 
   return ok(
     {

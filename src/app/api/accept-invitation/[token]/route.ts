@@ -1,14 +1,17 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
-import type { AppRole } from "@prisma/client";
 
 import {
   getInvitationAcceptanceFailure,
   hasMatchingVerifiedInvitationEmail,
 } from "@/lib/auth/invitation-email";
-import { assertCompanyAssignmentAllowed } from "@/lib/auth/membership";
+import { writeAuditLog } from "@/lib/audit/service";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { fail, ok } from "@/lib/http";
+import {
+  acceptTeamMemberInvitation,
+  invitationErrorStatus,
+} from "@/modules/invitations/team-invitations";
 
 export const runtime = "nodejs";
 
@@ -84,82 +87,60 @@ export async function POST(
       data: { status: "EXPIRED" },
     });
   }
-  if (acceptanceFailure) return fail(acceptanceFailure.message, acceptanceFailure.status);
+  if (acceptanceFailure) {
+    await writeAuditLog({
+      companyId: invitation.companyId,
+      action: "UPDATE",
+      entityType: "TeamMemberInvitation",
+      entityId: invitation.id,
+      summary: "Team invitation acceptance was rejected.",
+      payload: {
+        invitationEmail: invitation.email,
+        role: invitation.role,
+        status: invitation.status,
+        reason: acceptanceFailure.message,
+      },
+    });
+    return fail(acceptanceFailure.message, acceptanceFailure.status);
+  }
 
   const clerkIdentity = await currentUser();
   if (
     clerkIdentity?.id !== clerkUserId ||
     !hasMatchingVerifiedInvitationEmail(invitation.email, clerkIdentity.emailAddresses)
   ) {
+    await writeAuditLog({
+      companyId: invitation.companyId,
+      action: "UPDATE",
+      entityType: "TeamMemberInvitation",
+      entityId: invitation.id,
+      summary: "Team invitation acceptance email mismatch.",
+      payload: {
+        invitationEmail: invitation.email,
+        clerkUserId,
+      },
+    });
     return fail("Sign in with the verified email address that received this invitation.", 403);
   }
 
-  const user = await prisma.user.findUnique({ where: { clerkUserId } });
-  if (!user) {
-    return fail(
-      "Your account could not be found. Please sign in once with the invited email address, then retry.",
-      422,
-    );
-  }
+  const primaryEmail =
+    clerkIdentity.emailAddresses.find((address) => address.id === clerkIdentity.primaryEmailAddressId) ??
+    clerkIdentity.emailAddresses.find((address) => address.emailAddress.toLowerCase() === invitation.email.toLowerCase()) ??
+    clerkIdentity.emailAddresses[0];
+
   try {
-    assertCompanyAssignmentAllowed(user.companyId, invitation.companyId);
-  } catch {
-    return fail("This account already belongs to another company.", 409);
+    const result = await acceptTeamMemberInvitation({
+      token,
+      clerkUser: {
+        clerkUserId,
+        email: primaryEmail.emailAddress,
+        firstName: clerkIdentity.firstName,
+        lastName: clerkIdentity.lastName,
+        phone: clerkIdentity.phoneNumbers[0]?.phoneNumber,
+      },
+    });
+    return ok(result);
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "Unable to accept invitation.", invitationErrorStatus(error));
   }
-
-  const accepted = await prisma.$transaction(async (tx) => {
-    const claimed = await tx.teamMemberInvitation.updateMany({
-      where: {
-        id: invitation.id,
-        status: "PENDING",
-        expiresAt: { gte: new Date() },
-      },
-      data: { status: "ACCEPTED", acceptedAt: new Date() },
-    });
-    if (claimed.count !== 1) return false;
-
-    const role = await tx.role.upsert({
-      where: {
-        companyId_name: {
-          companyId: invitation.companyId,
-          name: invitation.role as AppRole,
-        },
-      },
-      create: {
-        companyId: invitation.companyId,
-        name: invitation.role as AppRole,
-        label: invitation.role.charAt(0) + invitation.role.slice(1).toLowerCase(),
-      },
-      update: {},
-    });
-    await tx.user.update({
-      where: { id: user.id },
-      data: { companyId: invitation.companyId },
-    });
-    await tx.userRole.upsert({
-      where: {
-        userId_roleId_companyId: {
-          userId: user.id,
-          roleId: role.id,
-          companyId: invitation.companyId,
-        },
-      },
-      create: {
-        userId: user.id,
-        roleId: role.id,
-        companyId: invitation.companyId,
-      },
-      update: {},
-    });
-    return true;
-  });
-
-  if (!accepted) {
-    return fail("This invitation has already been accepted or is no longer valid.", 409);
-  }
-
-  return ok({
-    companySlug: invitation.company.slug,
-    redirectTo: "/admin",
-  });
 }

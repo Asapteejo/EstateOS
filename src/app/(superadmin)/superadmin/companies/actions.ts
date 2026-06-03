@@ -15,6 +15,10 @@ import {
   overrideCompanySubscriptionFromSuperadmin,
 } from "@/modules/superadmin/onboarding";
 import { updatePlatformCommissionFromSuperadmin } from "@/modules/superadmin/commission";
+import {
+  createTeamMemberInvitation,
+  SUPERADMIN_INVITABLE_ROLES,
+} from "@/modules/invitations/team-invitations";
 
 const platformCommissionSchema = z.object({
   companyId: z.string().min(1),
@@ -29,6 +33,13 @@ const platformCommissionSchema = z.object({
       message: "Set either a commission percentage or a fixed fee.",
     });
   }
+});
+
+const superadminInviteSchema = z.object({
+  companyId: z.string().min(1),
+  fullName: z.string().trim().min(2, "Full name must be at least 2 characters."),
+  email: z.string().trim().email("A valid email address is required."),
+  role: z.enum(SUPERADMIN_INVITABLE_ROLES),
 });
 
 function formValue(formData: FormData, key: string) {
@@ -131,4 +142,32 @@ export async function updatePlatformCommissionAction(formData: FormData) {
   }
 
   redirect(`/superadmin/companies/${companyId}?commission=updated`);
+}
+
+export async function inviteCompanyAdminFromSuperadminAction(formData: FormData) {
+  const companyId = formValue(formData, "companyId") ?? "";
+
+  try {
+    const context = await requireSuperAdminSession({ redirectOnMissingAuth: false });
+    const input = superadminInviteSchema.parse({
+      companyId,
+      fullName: formValue(formData, "fullName"),
+      email: formValue(formData, "email"),
+      role: formValue(formData, "role"),
+    });
+
+    await createTeamMemberInvitation({
+      companyId: input.companyId,
+      fullName: input.fullName,
+      email: input.email,
+      role: input.role,
+      actor: { userId: context.userId, source: "superadmin" },
+      allowedRoles: SUPERADMIN_INVITABLE_ROLES,
+    });
+    revalidatePath(`/superadmin/companies/${companyId}`);
+  } catch (error) {
+    errorRedirect(`/superadmin/companies/${companyId}`, error);
+  }
+
+  redirect(`/superadmin/companies/${companyId}?invitation=sent`);
 }

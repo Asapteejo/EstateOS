@@ -888,6 +888,7 @@ model Branch {
   company      Company  @relation(fields: [companyId], references: [id])
   users        User[]
   properties   Property[]
+  teamInvitations TeamMemberInvitation[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -2093,6 +2094,7 @@ enum CustomDomainStatus {
 model TeamMemberInvitation {
   id              String           @id @default(cuid())
   companyId       String
+  branchId        String?
   email           String
   fullName        String
   role            AppRole          @default(STAFF)
@@ -2104,7 +2106,9 @@ model TeamMemberInvitation {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   company         Company          @relation(fields: [companyId], references: [id])
+  branch          Branch?          @relation(fields: [branchId], references: [id])
 
   @@index([companyId, status])
+  @@index([branchId])
   @@index([email, status])
 }

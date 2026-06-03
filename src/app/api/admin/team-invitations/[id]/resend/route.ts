@@ -1,14 +1,19 @@
 import { randomBytes } from "crypto";
 import type { AppRole } from "@prisma/client";
 
+import { writeAuditLog } from "@/lib/audit/service";
 import { requireAdminSession } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
-import { env, featureFlags } from "@/lib/env";
+import { featureFlags } from "@/lib/env";
 import { fail, ok } from "@/lib/http";
 import { sendTransactionalEmail } from "@/lib/notifications/email";
 import { buildTeamInvitationEmail } from "@/lib/notifications/templates/team-invitation";
+import {
+  buildInvitationAcceptUrl,
+  invitationExpiresAt,
+  requireInvitationEmailDelivery,
+} from "@/modules/invitations/team-invitations";
 
-const INVITE_TTL_MS = 48 * 60 * 60 * 1000;
 export const runtime = "nodejs";
 
 export async function POST(
@@ -40,8 +45,14 @@ export async function POST(
     return fail("This invitation has already been accepted.", 409);
   }
 
+  try {
+    requireInvitationEmailDelivery();
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "Unable to resend invitation.", 503);
+  }
+
   const token = randomBytes(32).toString("hex");
-  const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
+  const expiresAt = invitationExpiresAt();
 
   const updated = await prisma.teamMemberInvitation.update({
     where: { id, companyId: tenant.companyId },
@@ -61,7 +72,7 @@ export async function POST(
   const inviterName =
     `${inviter?.firstName ?? ""} ${inviter?.lastName ?? ""}`.trim() || "Your admin";
 
-  const acceptUrl = `${env.APP_BASE_URL}/accept-invitation/${token}`;
+  const acceptUrl = buildInvitationAcceptUrl(token);
   const { subject, html } = buildTeamInvitationEmail({
     inviteeName: existing.fullName,
     companyName: company?.name ?? "EstateOS",
@@ -72,6 +83,19 @@ export async function POST(
   });
 
   await sendTransactionalEmail({ to: existing.email, subject, html });
+  await writeAuditLog({
+    companyId: tenant.companyId,
+    actorUserId: tenant.userId ?? undefined,
+    action: "UPDATE",
+    entityType: "TeamMemberInvitation",
+    entityId: updated.id,
+    summary: "Team invitation resent.",
+    payload: {
+      email: updated.email,
+      role: updated.role,
+      expiresAt: updated.expiresAt.toISOString(),
+    },
+  });
 
   return ok({
     invitation: {
