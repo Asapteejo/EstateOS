@@ -10,13 +10,29 @@ import {
   normalizeCustomDomain,
   REMOVE_CUSTOM_DOMAIN_CONFIRMATION,
   isCustomDomainIntentionallySkipped,
+  readCustomDomainSetupMetadata,
 } from "@/lib/domains/custom-domain";
-import { verifyDomainCname } from "@/lib/domains/verify";
+import { verifyTenantDomainDns } from "@/lib/domains/verify";
+import {
+  addVercelProjectDomainsForTenant,
+  checkVercelProjectDomainsForTenant,
+  removeVercelProjectDomainsForTenant,
+  toCustomDomainVercelMetadata,
+} from "@/lib/vercel/domains";
 
 type DomainActor = {
   userId?: string | null;
   source: "tenant_admin" | "superadmin";
 };
+
+function getVercelConfig() {
+  return {
+    apiToken: env.VERCEL_API_TOKEN,
+    projectId: env.VERCEL_PROJECT_ID,
+    projectName: env.VERCEL_PROJECT_NAME,
+    teamId: env.VERCEL_TEAM_ID,
+  };
+}
 
 export async function getCompanyDomainSetup(companyId: string) {
   const company = await prisma.company.findUnique({
@@ -36,6 +52,7 @@ export async function getCompanyDomainSetup(companyId: string) {
   return {
     company,
     intentionallySkipped: isCustomDomainIntentionallySkipped(company.brandSettings),
+    vercel: readCustomDomainSetupMetadata(company.brandSettings).customDomainSetup?.vercel ?? null,
     dns: buildCustomDomainDnsInstructions({
       cnameTarget: env.CUSTOM_DOMAIN_CNAME_TARGET,
       rootTarget: env.CUSTOM_DOMAIN_ROOT_TARGET,
@@ -70,6 +87,10 @@ export async function setCompanyCustomDomain(input: {
     });
   }
 
+  const vercelResult = normalizedDomain
+    ? await addVercelProjectDomainsForTenant(normalizedDomain, getVercelConfig())
+    : null;
+
   const company = await prisma.company.update({
     where: { id: input.companyId },
     data: {
@@ -81,6 +102,7 @@ export async function setCompanyCustomDomain(input: {
         intentionallySkipped: false,
         actorUserId: input.actor.userId,
         actor: input.actor.source,
+        vercel: vercelResult ? toCustomDomainVercelMetadata(vercelResult) : null,
       }),
     },
     select: {
@@ -101,6 +123,20 @@ export async function setCompanyCustomDomain(input: {
     payload: {
       customDomain: normalizedDomain,
       source: input.actor.source,
+      vercel: vercelResult
+        ? {
+            configured: vercelResult.configured,
+            attached: vercelResult.attached,
+            manualSetupRequired: vercelResult.manualSetupRequired,
+            domains: vercelResult.domains.map((record) => ({
+              name: record.name,
+              attached: record.attached,
+              verified: record.verified ?? null,
+              misconfigured: record.misconfigured ?? null,
+              error: record.error ?? null,
+            })),
+          }
+        : null,
     } as Prisma.InputJsonValue,
   });
 
@@ -128,6 +164,7 @@ export async function markCompanyCustomDomainSkipped(input: {
         intentionallySkipped: true,
         actorUserId: input.actor.userId,
         actor: input.actor.source,
+        vercel: null,
       }),
     },
     select: { id: true, customDomain: true, customDomainStatus: true },
@@ -155,6 +192,29 @@ export async function removeCompanyCustomDomain(input: {
     throw new Error(`Removing a custom domain requires confirmation: ${REMOVE_CUSTOM_DOMAIN_CONFIRMATION}.`);
   }
 
+  const current = await prisma.company.findUnique({
+    where: { id: input.companyId },
+    select: { customDomain: true },
+  });
+  if (!current?.customDomain) {
+    return setCompanyCustomDomain({
+      companyId: input.companyId,
+      customDomain: null,
+      actor: input.actor,
+    });
+  }
+
+  const stillAssigned = await prisma.company.findFirst({
+    where: {
+      customDomain: current.customDomain,
+      id: { not: input.companyId },
+    },
+    select: { id: true },
+  });
+  if (!stillAssigned) {
+    await removeVercelProjectDomainsForTenant(current.customDomain, getVercelConfig());
+  }
+
   return setCompanyCustomDomain({
     companyId: input.companyId,
     customDomain: null,
@@ -168,16 +228,52 @@ export async function verifyCompanyCustomDomain(input: {
 }) {
   const company = await prisma.company.findUnique({
     where: { id: input.companyId },
-    select: { customDomain: true },
+    select: { customDomain: true, brandSettings: true },
   });
   if (!company?.customDomain) throw new Error("No custom domain is configured.");
 
-  const result = await verifyDomainCname(company.customDomain, env.CUSTOM_DOMAIN_CNAME_TARGET);
+  const collision = await prisma.company.findFirst({
+    where: { customDomain: company.customDomain, id: { not: input.companyId } },
+    select: { id: true },
+  });
+  assertDomainAssignable({
+    requestedDomain: company.customDomain,
+    targetCompanyId: input.companyId,
+    conflictCompanyId: collision?.id,
+  });
+
+  const [dnsResult, vercelResult] = await Promise.all([
+    verifyTenantDomainDns(company.customDomain, {
+      cnameTarget: env.CUSTOM_DOMAIN_CNAME_TARGET,
+      rootTarget: env.CUSTOM_DOMAIN_ROOT_TARGET,
+    }),
+    checkVercelProjectDomainsForTenant(company.customDomain, getVercelConfig()),
+  ]);
+  const verified = dnsResult.verified && vercelResult.configured && vercelResult.attached;
+  const reason = verified
+    ? null
+    : [
+        dnsResult.reason,
+        vercelResult.configured
+          ? vercelResult.error
+          : "Vercel API not configured. Add this domain manually in Vercel.",
+        vercelResult.configured && !vercelResult.attached
+          ? "Domain is not attached to the EstateOS Vercel project."
+          : null,
+      ].filter(Boolean).join(" ");
+  const vercelMetadata = toCustomDomainVercelMetadata(vercelResult, new Date(), "verify");
   const updated = await prisma.company.update({
     where: { id: input.companyId },
     data: {
-      customDomainStatus: result.verified ? "VERIFIED" : "FAILED",
-      customDomainVerifiedAt: result.verified ? new Date() : null,
+      customDomainStatus: verified ? "VERIFIED" : "FAILED",
+      customDomainVerifiedAt: verified ? new Date() : null,
+      brandSettings: buildDomainMetadataUpdate({
+        brandSettings: company.brandSettings,
+        intentionallySkipped: false,
+        actorUserId: input.actor.userId,
+        actor: input.actor.source,
+        vercel: vercelMetadata,
+      }),
     },
     select: {
       customDomain: true,
@@ -194,15 +290,24 @@ export async function verifyCompanyCustomDomain(input: {
     entityId: input.companyId,
     summary: "Custom domain verification attempted.",
     payload: {
-      verified: result.verified,
-      reason: result.verified ? null : result.reason,
+      verified,
+      reason,
+      dns: dnsResult,
+      vercel: {
+        configured: vercelResult.configured,
+        attached: vercelResult.attached,
+        manualSetupRequired: vercelResult.manualSetupRequired,
+        domains: vercelMetadata.domains ?? [],
+      },
       source: input.actor.source,
     } as Prisma.InputJsonValue,
   });
 
   return {
-    verified: result.verified,
-    reason: result.verified ? null : result.reason,
+    verified,
+    reason,
+    dns: dnsResult,
+    vercel: vercelMetadata,
     company: updated,
   };
 }

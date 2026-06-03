@@ -29,6 +29,8 @@ export async function POST() {
   return ok({
     verified: result.verified,
     reason: result.reason,
+    dns: result.dns,
+    vercel: result.vercel,
     company: result.company,
   });
 }

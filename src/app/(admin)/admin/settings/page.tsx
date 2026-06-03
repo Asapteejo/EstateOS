@@ -9,17 +9,17 @@ import { SettingsManagement } from "@/components/admin/settings-management";
 import { TenantReadinessChecklist } from "@/components/shared/tenant-readiness-checklist";
 import { Card } from "@/components/ui/card";
 import { requireAdminSession } from "@/lib/auth/guards";
-import { buildCustomDomainDnsInstructions } from "@/lib/domains/custom-domain";
 import { resolveCompanyPublicUrl } from "@/lib/domains/public-url";
-import { env, featureFlags } from "@/lib/env";
+import { featureFlags } from "@/lib/env";
 import { formatDate } from "@/lib/utils";
 import { getCompanyWalletOverview } from "@/modules/communication/wallet";
+import { getCompanyDomainSetup } from "@/modules/domains/service";
 import { getTenantReadinessForCompany } from "@/modules/readiness/service";
 import { getTenantAdminSettings } from "@/modules/settings/service";
 
 export default async function AdminSettingsPage() {
   const tenant = await requireAdminSession(["ADMIN"]);
-  const [settings, communicationWallet, readiness] = await Promise.all([
+  const [settings, communicationWallet, readiness, domainSetup] = await Promise.all([
     getTenantAdminSettings(tenant),
     tenant.companyId
       ? getCompanyWalletOverview(tenant.companyId, { take: 5 })
@@ -27,11 +27,10 @@ export default async function AdminSettingsPage() {
     tenant.companyId
       ? getTenantReadinessForCompany(tenant.companyId)
       : Promise.resolve(null),
+    tenant.companyId
+      ? getCompanyDomainSetup(tenant.companyId)
+      : Promise.resolve(null),
   ]);
-  const dnsInstructions = buildCustomDomainDnsInstructions({
-    cnameTarget: env.CUSTOM_DOMAIN_CNAME_TARGET,
-    rootTarget: env.CUSTOM_DOMAIN_ROOT_TARGET,
-  });
 
   const subdomainUrl = resolveCompanyPublicUrl({
     slug: settings.slug,
@@ -74,8 +73,9 @@ export default async function AdminSettingsPage() {
           subdomainUrl={subdomainUrl}
           customDomain={settings.customDomain}
           customDomainStatus={settings.customDomainStatus}
-          cnameTarget={dnsInstructions.cname.target}
-          rootTarget={dnsInstructions.root.target}
+          cnameTarget={domainSetup?.dns.cname.target ?? "cname.vercel-dns.com"}
+          rootTarget={domainSetup?.dns.root.target ?? "76.76.21.21"}
+          vercel={domainSetup?.vercel ?? null}
         />
       </Card>
 

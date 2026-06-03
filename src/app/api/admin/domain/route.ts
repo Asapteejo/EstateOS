@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireAdminSession } from "@/lib/auth/guards";
 import { featureFlags } from "@/lib/env";
 import { fail, ok } from "@/lib/http";
-import { setCompanyCustomDomain } from "@/modules/domains/service";
+import { getCompanyDomainSetup, setCompanyCustomDomain } from "@/modules/domains/service";
 export const runtime = "nodejs";
 
 const schema = z.object({
@@ -47,5 +47,6 @@ export async function PATCH(request: Request) {
     return fail(error instanceof Error ? error.message : "Unable to save custom domain.", 400);
   }
 
-  return ok({ company });
+  const setup = await getCompanyDomainSetup(tenant.companyId);
+  return ok({ company, vercel: setup.vercel, dns: setup.dns });
 }

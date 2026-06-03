@@ -8,6 +8,7 @@ test("tenant domain API keeps admin guard and delegates to shared service", () =
 
   assert.match(source, /requireAdminSession\(\["ADMIN"\]/);
   assert.match(source, /setCompanyCustomDomain/);
+  assert.doesNotMatch(source, /customDomain:\s*body\.data\.companyId/);
 });
 
 test("superadmin domain API requires superadmin guard and exposes management actions", () => {
@@ -20,4 +21,13 @@ test("superadmin domain API requires superadmin guard and exposes management act
   assert.match(source, /markCompanyCustomDomainSkipped/);
   assert.match(source, /removeCompanyCustomDomain/);
   assert.match(source, /verifyCompanyCustomDomain/);
+});
+
+test("domain service delegates assignment and verification to Vercel integration", () => {
+  const source = readFileSync(join(process.cwd(), "src", "modules", "domains", "service.ts"), "utf8");
+
+  assert.match(source, /addVercelProjectDomainsForTenant/);
+  assert.match(source, /checkVercelProjectDomainsForTenant/);
+  assert.match(source, /removeVercelProjectDomainsForTenant/);
+  assert.match(source, /verifyTenantDomainDns/);
 });

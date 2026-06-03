@@ -17,6 +17,7 @@ import {
   sanitizeTenantSlug,
   shouldAllowDefaultTenantFallback,
 } from "@/lib/domains";
+import { getCustomDomainLookupCandidates } from "@/lib/domains/custom-domain";
 import { selectAuthenticatedCompany } from "@/lib/tenancy/authenticated-company";
 
 export type TenantContext = {
@@ -80,10 +81,14 @@ async function lookupCompany(
   }
 
   if (input.host) {
-    const normalizedHost = input.host.split(":")[0];
+    const hostCandidates = getCustomDomainLookupCandidates(input.host);
+    if (hostCandidates.length === 0) {
+      return null;
+    }
+
     return prisma.company.findFirst({
       where: {
-        customDomain: normalizedHost,
+        customDomain: { in: hostCandidates },
       },
       select: { id: true, slug: true, status: true, suspendedAt: true, suspensionReason: true },
     });
@@ -178,16 +183,20 @@ export async function resolveTenantContext(
     ? env.DEFAULT_COMPANY_SLUG ?? (!featureFlags.isProduction ? "acme-realty" : undefined)
     : undefined;
 
-  const hostHintCompany = hostResolution.companySlug
+  const customDomainHostCompany = normalizeHost(host) && !shouldAllowDefaultTenantFallback(host, runtimeConfig)
+    ? await lookupCompanyForRequest({ host })
+    : null;
+  const subdomainHostCompany = !customDomainHostCompany && hostResolution.companySlug
     ? await lookupCompanyForRequest({
         companySlug: hostResolution.companySlug,
-        host,
       })
-    : normalizeHost(host) && !shouldAllowDefaultTenantFallback(host, runtimeConfig)
-      ? await lookupCompanyForRequest({
-          host,
-        })
-      : null;
+    : null;
+  const hostHintCompany = customDomainHostCompany ?? subdomainHostCompany;
+  const hostHintResolutionSource = customDomainHostCompany
+    ? "domain"
+    : subdomainHostCompany
+      ? hostResolution.resolutionSource
+      : "none";
 
   const hintedCompany =
     hostHintCompany ??
@@ -266,9 +275,7 @@ export async function resolveTenantContext(
       resolutionSource:
         area === "marketing"
           ? hostHintCompany
-            ? hostResolution.companySlug
-              ? hostResolution.resolutionSource
-              : "domain"
+            ? hostHintResolutionSource
             : "none"
           : hostResolution.companySlug
             ? hostResolution.resolutionSource
@@ -305,9 +312,7 @@ export async function resolveTenantContext(
     resolutionSource:
       area === "marketing"
         ? hostHintCompany
-          ? hostResolution.companySlug
-            ? hostResolution.resolutionSource
-            : "domain"
+          ? hostHintResolutionSource
           : "none"
         : hostResolution.companySlug
           ? hostResolution.resolutionSource

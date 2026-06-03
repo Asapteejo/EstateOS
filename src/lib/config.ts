@@ -149,6 +149,10 @@ const serverEnvSchema = z
     REALTIME_TRANSPORT: z.enum(["polling", "sse", "auto"]).default("polling"),
     CUSTOM_DOMAIN_CNAME_TARGET: optionalString,
     CUSTOM_DOMAIN_ROOT_TARGET: optionalString,
+    VERCEL_API_TOKEN: optionalString,
+    VERCEL_PROJECT_ID: optionalString,
+    VERCEL_PROJECT_NAME: optionalString,
+    VERCEL_TEAM_ID: optionalString,
     RESEND_API_KEY: optionalString,
     EMAIL_FROM: z.string().trim().min(3).default("Acme Realty <no-reply@example.com>"),
     LINEAR_API_KEY: optionalString,
@@ -480,6 +484,9 @@ export function buildFeatureFlags(env: ServerEnv) {
     hasRedis:
       Boolean(env.UPSTASH_REDIS_REST_URL) &&
       Boolean(env.UPSTASH_REDIS_REST_TOKEN),
+    hasVercelDomains:
+      Boolean(env.VERCEL_API_TOKEN) &&
+      Boolean(env.VERCEL_PROJECT_ID || env.VERCEL_PROJECT_NAME),
     hasResend: Boolean(env.RESEND_API_KEY),
     hasLinear:
       Boolean(env.LINEAR_API_KEY) &&
@@ -611,6 +618,12 @@ export function getProductionReadinessWarnings(env: ServerEnv) {
   if (!env.R2_PUBLIC_BASE_URL) {
     warnings.push(
       "R2_PUBLIC_BASE_URL is not configured. Private uploads remain available, but public assets will use the signed proxy fallback.",
+    );
+  }
+
+  if (!env.VERCEL_API_TOKEN || (!env.VERCEL_PROJECT_ID && !env.VERCEL_PROJECT_NAME)) {
+    warnings.push(
+      "Vercel custom-domain API integration is not configured. Tenant custom domains must be added manually in Vercel.",
     );
   }
 

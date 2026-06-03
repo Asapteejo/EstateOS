@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
 export const DEFAULT_CUSTOM_DOMAIN_CNAME_TARGET = "cname.vercel-dns.com";
-export const DEFAULT_CUSTOM_DOMAIN_ROOT_TARGET = "Use your DNS provider's ALIAS/ANAME support for estateos.tech";
+export const DEFAULT_CUSTOM_DOMAIN_ROOT_TARGET = "76.76.21.21";
 export const REMOVE_CUSTOM_DOMAIN_CONFIRMATION = "REMOVE_CUSTOM_DOMAIN";
 
 const PRIVATE_SUFFIXES = [
@@ -19,7 +19,27 @@ export type CustomDomainSetupMetadata = {
     skippedAt?: string;
     skippedByUserId?: string | null;
     skippedBy?: "tenant_admin" | "superadmin";
+    vercel?: CustomDomainVercelMetadata | null;
   };
+};
+
+export type CustomDomainVercelMetadata = {
+  configured?: boolean;
+  attached?: boolean;
+  manualSetupRequired?: boolean;
+  lastSyncedAt?: string;
+  lastVerifiedAt?: string;
+  apexDomain?: string | null;
+  wwwDomain?: string | null;
+  error?: string | null;
+  domains?: Array<{
+    name: string;
+    attached: boolean;
+    verified?: boolean | null;
+    sslReady?: boolean | null;
+    misconfigured?: boolean | null;
+    error?: string | null;
+  }>;
 };
 
 export function normalizeCustomDomain(input: string | null | undefined) {
@@ -75,20 +95,35 @@ export function isCustomDomainIntentionallySkipped(value: Prisma.JsonValue | nul
   return readCustomDomainSetupMetadata(value).customDomainSetup?.intentionallySkipped === true;
 }
 
+export function getCustomDomainLookupCandidates(host: string | null | undefined) {
+  const normalized = host?.trim().toLowerCase().split(":")[0]?.replace(/\.$/, "") ?? "";
+  if (!normalized || !/^[a-z0-9.-]+$/.test(normalized)) {
+    return [];
+  }
+
+  return normalized.startsWith("www.")
+    ? [normalized, normalized.slice(4)]
+    : [normalized];
+}
+
 export function buildDomainMetadataUpdate(input: {
   brandSettings: Prisma.JsonValue | null | undefined;
   intentionallySkipped: boolean;
   actorUserId?: string | null;
   actor: "tenant_admin" | "superadmin";
+  vercel?: CustomDomainVercelMetadata | null;
 }) {
   const current = readCustomDomainSetupMetadata(input.brandSettings);
+  const hasVercelInput = Object.prototype.hasOwnProperty.call(input, "vercel");
   return {
     ...current,
     customDomainSetup: {
+      ...current.customDomainSetup,
       intentionallySkipped: input.intentionallySkipped,
       skippedAt: input.intentionallySkipped ? new Date().toISOString() : null,
       skippedByUserId: input.intentionallySkipped ? input.actorUserId ?? null : null,
       skippedBy: input.intentionallySkipped ? input.actor : null,
+      vercel: hasVercelInput ? input.vercel ?? null : current.customDomainSetup?.vercel ?? null,
     },
   } satisfies Prisma.InputJsonObject;
 }
@@ -104,7 +139,7 @@ export function buildCustomDomainDnsInstructions(input?: {
       target: input?.cnameTarget?.trim() || DEFAULT_CUSTOM_DOMAIN_CNAME_TARGET,
     },
     root: {
-      type: "A/ALIAS/ANAME",
+      type: "A",
       host: "@",
       target: input?.rootTarget?.trim() || DEFAULT_CUSTOM_DOMAIN_ROOT_TARGET,
     },

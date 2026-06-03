@@ -9,6 +9,7 @@ import type { CustomDomainStatus } from "@prisma/client";
 import { AdminStateBanner } from "@/components/admin/admin-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import type { CustomDomainVercelMetadata } from "@/lib/domains/custom-domain";
 
 function StatusBadge({ status }: { status: CustomDomainStatus }) {
   const styles = {
@@ -47,6 +48,18 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+function IntegrationBadge({ complete, label }: { complete: boolean; label: string }) {
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
+      complete
+        ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+        : "bg-amber-50 text-amber-700 ring-1 ring-amber-200"
+    }`}>
+      {label}
+    </span>
+  );
+}
+
 export function DomainSettings({
   slug,
   subdomain,
@@ -55,6 +68,7 @@ export function DomainSettings({
   customDomainStatus: initialStatus,
   cnameTarget,
   rootTarget,
+  vercel,
 }: {
   slug: string;
   subdomain: string | null;
@@ -63,6 +77,7 @@ export function DomainSettings({
   customDomainStatus: CustomDomainStatus | null;
   cnameTarget: string;
   rootTarget: string;
+  vercel?: CustomDomainVercelMetadata | null;
 }) {
   const router = useRouter();
   const [customDomain, setCustomDomain] = useState(initialCustomDomain ?? "");
@@ -162,12 +177,11 @@ export function DomainSettings({
         </p>
       </div>
 
-      {/* Custom domain section */}
       <div className="space-y-4">
         <div>
           <div className="text-sm font-medium text-[var(--ink-700)]">Custom domain</div>
           <p className="mt-1 text-xs text-[var(--ink-400)]">
-            Enter a domain you own (e.g. <span className="font-mono">homes.yourcompany.com</span>). Add the CNAME record below, then click Verify.
+            Enter a domain you own (e.g. <span className="font-mono">yourcompany.com</span>). EstateOS will attach it to Vercel when configured; DNS remains manual.
           </p>
         </div>
 
@@ -180,39 +194,83 @@ export function DomainSettings({
             disabled={saving}
           />
           <Button onClick={saveDomain} disabled={saving || !domainChanged} className="shrink-0">
-            {saving ? "Saving…" : "Save"}
+            {saving ? "Saving..." : "Save"}
           </Button>
         </div>
 
         {/* DNS instructions */}
         {customDomain.trim() && !domainChanged && (
           <div className="space-y-3">
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-[12px] border border-[var(--line)] bg-white p-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--ink-400)]">
+                  Vercel
+                </div>
+                <div className="mt-2">
+                  <IntegrationBadge
+                    complete={vercel?.attached === true}
+                    label={vercel?.attached ? "Attached" : vercel?.manualSetupRequired ? "Manual setup" : "Not attached"}
+                  />
+                </div>
+                <p className="mt-2 text-xs leading-5 text-[var(--ink-500)]">
+                  {vercel?.manualSetupRequired
+                    ? "Vercel API is not configured. A platform operator must add this domain in Vercel."
+                    : "EstateOS checks that this domain is attached to the production Vercel project."}
+                </p>
+              </div>
+              <div className="rounded-[12px] border border-[var(--line)] bg-white p-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--ink-400)]">
+                  DNS
+                </div>
+                <div className="mt-2">
+                  <IntegrationBadge complete={status === "VERIFIED"} label={status === "VERIFIED" ? "Verified" : "Pending"} />
+                </div>
+                <p className="mt-2 text-xs leading-5 text-[var(--ink-500)]">
+                  Cloudflare or your registrar must point the apex and www records to Vercel.
+                </p>
+              </div>
+              <div className="rounded-[12px] border border-[var(--line)] bg-white p-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--ink-400)]">
+                  SSL
+                </div>
+                <div className="mt-2">
+                  <IntegrationBadge
+                    complete={vercel?.domains?.some((domain) => domain.sslReady) === true}
+                    label={vercel?.domains?.some((domain) => domain.sslReady) ? "Ready" : "Pending"}
+                  />
+                </div>
+                <p className="mt-2 text-xs leading-5 text-[var(--ink-500)]">
+                  SSL becomes ready after Vercel sees the correct DNS records.
+                </p>
+              </div>
+            </div>
+
             <div className="rounded-[12px] border border-[var(--line)] bg-[#1a1a18] p-4 text-sm font-mono">
               <div className="mb-2 text-[11px] font-sans font-semibold uppercase tracking-[0.14em] text-[#a89f8c]">
-                DNS record required
+                Manual DNS records
               </div>
-              <div className="space-y-1.5">
-                <div className="flex gap-6">
-                  <span className="w-14 shrink-0 text-[#9b9488]">Type</span>
-                  <span className="text-[#faf9f7]">CNAME</span>
-                </div>
-                <div className="flex gap-6">
-                  <span className="w-14 shrink-0 text-[#9b9488]">Name</span>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-lg bg-white/5 px-3 py-2">
+                  <div className="text-[#9b9488]">Apex / root</div>
+                  <div className="mt-1 text-[#faf9f7]">Type: A</div>
+                  <div className="text-[#faf9f7]">Name: @</div>
                   <div className="flex items-center gap-2 text-[#faf9f7]">
-                    <span>@ or www</span>
+                    <span>Value: {rootTarget}</span>
+                    <CopyButton text={rootTarget} />
                   </div>
                 </div>
-                <div className="flex gap-6">
-                  <span className="w-14 shrink-0 text-[#9b9488]">Value</span>
+                <div className="rounded-lg bg-white/5 px-3 py-2">
+                  <div className="text-[#9b9488]">www alias</div>
+                  <div className="mt-1 text-[#faf9f7]">Type: CNAME</div>
+                  <div className="text-[#faf9f7]">Name: www</div>
                   <div className="flex items-center gap-2 text-[#faf9f7]">
-                    <span>{cnameTarget}</span>
+                    <span>Value: {cnameTarget}</span>
                     <CopyButton text={cnameTarget} />
                   </div>
                 </div>
               </div>
               <div className="mt-4 rounded-lg bg-white/5 px-3 py-2 font-sans text-xs leading-5 text-[#d6d1c7]">
-                Root domains should use your DNS provider&apos;s ALIAS/ANAME support where available.
-                Target: <span className="font-mono text-[#faf9f7]">{rootTarget}</span>
+                In Cloudflare, keep the records DNS-only until Vercel reports SSL as ready, then enable proxying only if your setup requires it.
               </div>
             </div>
 
@@ -232,7 +290,7 @@ export function DomainSettings({
                 className="gap-2"
               >
                 <RefreshCw className={`h-3.5 w-3.5 ${verifying ? "animate-spin" : ""}`} />
-                {verifying ? "Checking DNS…" : "Verify now"}
+                {verifying ? "Checking DNS..." : "Verify now"}
               </Button>
             </div>
 
@@ -247,14 +305,14 @@ export function DomainSettings({
               <AdminStateBanner
                 tone="warning"
                 title="DNS check failed"
-                message={`The CNAME record for ${customDomain} was not found pointing to ${cnameTarget}. DNS changes can take up to 48 hours to propagate. Try verifying again after a few minutes.`}
+                message={`EstateOS could not verify the Vercel attachment and required DNS records for ${customDomain}. DNS changes can take up to 48 hours to propagate.`}
               />
             )}
             {status === "PENDING" && (
               <AdminStateBanner
                 tone="info"
                 title="Pending verification"
-                message="Add the CNAME record to your DNS provider, then click Verify now. It can take a few minutes for DNS changes to propagate."
+                message="Add the A and CNAME records to your DNS provider, then click Verify now. It can take a few minutes for DNS changes to propagate."
               />
             )}
           </div>

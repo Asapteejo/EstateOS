@@ -19,6 +19,20 @@ function readParam(params: Record<string, string | string[] | undefined>, key: s
   return Array.isArray(value) ? value[0] : value;
 }
 
+function StatusPill({ label, tone }: { label: string; tone: "success" | "warning" | "muted" }) {
+  const styles = {
+    success: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+    warning: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
+    muted: "bg-slate-50 text-slate-600 ring-1 ring-slate-200",
+  } as const;
+
+  return (
+    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${styles[tone]}`}>
+      {label}
+    </span>
+  );
+}
+
 export default async function SuperadminCompanyDomainsPage({
   params,
   searchParams,
@@ -70,6 +84,54 @@ export default async function SuperadminCompanyDomainsPage({
             <p className="mt-2 text-sm leading-6 text-[var(--ink-600)]">
               Status: {setup.company.customDomainStatus ?? "not configured"}. {setup.routingStatus}
             </p>
+            {setup.company.customDomain ? (
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <div className="rounded-2xl bg-[var(--sand-100)] p-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ink-400)]">
+                    Vercel
+                  </div>
+                  <div className="mt-2">
+                    <StatusPill
+                      tone={setup.vercel?.attached ? "success" : "warning"}
+                      label={setup.vercel?.attached ? "Attached" : setup.vercel?.manualSetupRequired ? "Manual setup" : "Not attached"}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-[var(--ink-500)]">
+                    {setup.vercel?.manualSetupRequired
+                      ? "Vercel API is not configured. Add the domain manually in Vercel."
+                      : "Apex and www aliases are tracked against the Vercel project."}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-[var(--sand-100)] p-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ink-400)]">
+                    DNS
+                  </div>
+                  <div className="mt-2">
+                    <StatusPill
+                      tone={setup.company.customDomainStatus === "VERIFIED" ? "success" : "warning"}
+                      label={setup.company.customDomainStatus === "VERIFIED" ? "Verified" : "Pending"}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-[var(--ink-500)]">
+                    Verification checks apex A and www CNAME records.
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-[var(--sand-100)] p-4">
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ink-400)]">
+                    SSL
+                  </div>
+                  <div className="mt-2">
+                    <StatusPill
+                      tone={setup.vercel?.domains?.some((domain) => domain.sslReady) ? "success" : "muted"}
+                      label={setup.vercel?.domains?.some((domain) => domain.sslReady) ? "Ready" : "Pending"}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs leading-5 text-[var(--ink-500)]">
+                    Vercel reports SSL readiness after DNS points to the project.
+                  </p>
+                </div>
+              </div>
+            ) : null}
             {setup.intentionallySkipped ? (
               <p className="mt-2 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
                 Custom domain setup has been intentionally skipped for this tenant.
@@ -118,15 +180,20 @@ export default async function SuperadminCompanyDomainsPage({
           </div>
           <div className="mt-4 space-y-4 text-sm text-[var(--ink-700)]">
             <div className="rounded-2xl bg-[var(--sand-100)] p-4">
-              <div className="font-semibold text-[var(--ink-950)]">Subdomain / www</div>
+              <div className="font-semibold text-[var(--ink-950)]">www alias</div>
               <div className="mt-2 grid gap-2 font-mono text-xs">
                 <div>Type: CNAME</div>
+                <div>Name: www</div>
                 <div>Target: {setup.dns.cname.target}</div>
               </div>
             </div>
             <div className="rounded-2xl bg-[var(--sand-100)] p-4">
               <div className="font-semibold text-[var(--ink-950)]">Root domain</div>
-              <p className="mt-2 text-xs leading-5">{setup.dns.root.target}</p>
+              <div className="mt-2 grid gap-2 font-mono text-xs">
+                <div>Type: A</div>
+                <div>Name: @</div>
+                <div>Target: {setup.dns.root.target}</div>
+              </div>
             </div>
           </div>
 

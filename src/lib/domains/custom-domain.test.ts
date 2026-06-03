@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   assertDomainAssignable,
   buildCustomDomainDnsInstructions,
+  getCustomDomainLookupCandidates,
   normalizeCustomDomain,
 } from "@/lib/domains/custom-domain";
 
@@ -61,11 +62,19 @@ test("custom domain DNS instructions use configured env targets", () => {
         target: "estateos.tech",
       },
       root: {
-        type: "A/ALIAS/ANAME",
+        type: "A",
         host: "@",
         target: "ALIAS estateos.tech",
       },
       note: "Go to your domain provider, create the DNS record, wait for propagation, then click Verify.",
     },
   );
+});
+
+test("custom domain lookup candidates include apex fallback for www host", () => {
+  assert.deepEqual(getCustomDomainLookupCandidates("www.example.com"), [
+    "www.example.com",
+    "example.com",
+  ]);
+  assert.deepEqual(getCustomDomainLookupCandidates("example.com:443"), ["example.com"]);
 });

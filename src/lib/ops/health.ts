@@ -47,6 +47,7 @@ export function buildDependencySummary() {
     clerkWebhook: featureFlags.hasClerkWebhook ? "configured" : "disabled",
     paystack: featureFlags.hasPaystack ? "configured" : "demo-or-disabled",
     r2: featureFlags.hasR2 ? "configured" : "demo-or-disabled",
+    vercelDomains: featureFlags.hasVercelDomains ? "configured" : "manual-setup",
     resend: featureFlags.hasResend ? "configured" : "disabled",
     redis: featureFlags.hasRedis ? "configured" : "disabled",
     redisConfigured: realtime.redisConfigured,
