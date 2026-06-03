@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SignIn } from "@clerk/nextjs";
 
+import { AuthProviders } from "@/components/providers/auth-providers";
 import { Container } from "@/components/shared/container";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -53,6 +54,7 @@ export default async function SignInPage({
     : null;
 
   return (
+    <AuthProviders>
     <Container className="flex min-h-[70vh] items-center justify-center py-16">
       {featureFlags.hasClerk ? (
         <SignIn forceRedirectUrl={completionUrl} fallbackRedirectUrl={completionUrl} />
@@ -87,5 +89,6 @@ export default async function SignInPage({
         </Card>
       )}
     </Container>
+    </AuthProviders>
   );
 }

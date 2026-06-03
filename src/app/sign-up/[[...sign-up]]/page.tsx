@@ -1,11 +1,13 @@
 import { SignUp } from "@clerk/nextjs";
 
+import { AuthProviders } from "@/components/providers/auth-providers";
 import { Container } from "@/components/shared/container";
 import { Card } from "@/components/ui/card";
 import { clientFlags } from "@/lib/public-env";
 
 export default function SignUpPage() {
   return (
+    <AuthProviders>
     <Container className="flex min-h-[70vh] items-center justify-center py-16">
       {clientFlags.hasClerk ? (
         <SignUp />
@@ -15,5 +17,6 @@ export default function SignUpPage() {
         </Card>
       )}
     </Container>
+    </AuthProviders>
   );
 }

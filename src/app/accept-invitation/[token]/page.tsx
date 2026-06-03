@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { AuthProviders } from "@/components/providers/auth-providers";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { AcceptInvitationClient } from "./accept-invitation-client";
@@ -47,6 +48,7 @@ export default async function AcceptInvitationPage({
     (invitation.status === "PENDING" && invitation.expiresAt < new Date());
 
   return (
+    <AuthProviders>
     <AcceptInvitationClient
       token={token}
       inviteeName={invitation.fullName}
@@ -58,5 +60,6 @@ export default async function AcceptInvitationPage({
       isExpired={isExpired}
       hasClerk={featureFlags.hasClerk}
     />
+    </AuthProviders>
   );
 }
