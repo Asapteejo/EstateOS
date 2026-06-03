@@ -59,6 +59,42 @@ test("auth redirect preserves tenant hint and internal return path", () => {
   assert.equal(redirect.searchParams.get("returnTo"), "/properties/ikoyi-villas");
 });
 
+test("tenant public admin cta points to central sign-in with tenant host context", () => {
+  const redirect = new URL(
+    buildAuthRedirect({
+      appBaseUrl: "https://estateos.tech",
+      platformBaseUrl: "https://estateos.tech",
+      portalBaseUrl: "https://estateos.tech",
+      isProduction: true,
+    }, {
+      returnTo: "/admin",
+      tenantSlug: "blueprint-urban-residences",
+      tenantHost: "blueprinturbanresidences.com",
+      entry: "admin",
+    }),
+  );
+
+  assert.equal(redirect.toString(), "https://estateos.tech/sign-in?returnTo=%2Fadmin&tenant=blueprint-urban-residences&host=blueprinturbanresidences.com&entry=admin");
+});
+
+test("tenant public buyer cta points to central sign-in with tenant host context", () => {
+  const redirect = new URL(
+    buildAuthRedirect({
+      appBaseUrl: "https://estateos.tech",
+      platformBaseUrl: "https://estateos.tech",
+      portalBaseUrl: "https://estateos.tech",
+      isProduction: true,
+    }, {
+      returnTo: "/portal",
+      tenantSlug: "blueprint-urban-residences",
+      tenantHost: "blueprinturbanresidences.com",
+      entry: "buyer",
+    }),
+  );
+
+  assert.equal(redirect.toString(), "https://estateos.tech/sign-in?returnTo=%2Fportal&tenant=blueprint-urban-residences&host=blueprinturbanresidences.com&entry=buyer");
+});
+
 test("production auth redirect uses EstateOS production url instead of localhost", () => {
   const env = parseServerEnv({
     NODE_ENV: "production",

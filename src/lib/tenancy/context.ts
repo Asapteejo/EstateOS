@@ -51,7 +51,9 @@ async function lookupCompany(
     ) {
       return {
         id: "demo-company-acme",
+        name: "Acme Realty",
         slug: "acme-realty",
+        customDomain: null,
         status: "ACTIVE" as const,
         suspendedAt: null,
         suspensionReason: null,
@@ -64,7 +66,7 @@ async function lookupCompany(
   if (input.companyId) {
     return prisma.company.findUnique({
       where: { id: input.companyId },
-      select: { id: true, slug: true, status: true, suspendedAt: true, suspensionReason: true },
+      select: { id: true, name: true, slug: true, customDomain: true, status: true, suspendedAt: true, suspensionReason: true },
     });
   }
 
@@ -76,7 +78,7 @@ async function lookupCompany(
           { subdomain: input.companySlug },
         ],
       },
-      select: { id: true, slug: true, status: true, suspendedAt: true, suspensionReason: true },
+      select: { id: true, name: true, slug: true, customDomain: true, status: true, suspendedAt: true, suspensionReason: true },
     });
   }
 
@@ -90,7 +92,7 @@ async function lookupCompany(
       where: {
         customDomain: { in: hostCandidates },
       },
-      select: { id: true, slug: true, status: true, suspendedAt: true, suspensionReason: true },
+      select: { id: true, name: true, slug: true, customDomain: true, status: true, suspendedAt: true, suspensionReason: true },
     });
   }
 

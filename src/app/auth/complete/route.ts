@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 
+import {
+  canAccessTenantEntry,
+  defaultDashboardForRoles,
+  type TenantEntryIntent,
+} from "@/lib/auth/access";
+import { getAppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import {
   TENANT_HINT_COOKIE,
@@ -25,6 +31,35 @@ function buildTenantHintCookieOptions() {
     path: "/",
     maxAge: 60 * 60 * 24 * 30,
   };
+}
+
+function buildTenantAccessUrl(input: {
+  baseUrl: string;
+  entry: TenantEntryIntent;
+  returnTo: string;
+  currentDashboard: string;
+  tenantSlug?: string | null;
+  tenantHost?: string | null;
+  tenantName?: string | null;
+}) {
+  const url = new URL("/auth/access", input.baseUrl);
+  url.searchParams.set("entry", input.entry === "admin" ? "admin" : "buyer");
+  url.searchParams.set("returnTo", input.returnTo);
+  url.searchParams.set("current", input.currentDashboard);
+
+  if (input.tenantSlug) {
+    url.searchParams.set("tenant", input.tenantSlug);
+  }
+
+  if (input.tenantHost) {
+    url.searchParams.set("host", input.tenantHost);
+  }
+
+  if (input.tenantName) {
+    url.searchParams.set("company", input.tenantName);
+  }
+
+  return url;
 }
 
 export async function GET(request: Request) {
@@ -53,6 +88,7 @@ export async function GET(request: Request) {
     }
 
     let resolvedTenantSlug = tenantSlug;
+    let resolvedTenant: Awaited<ReturnType<typeof resolveCompanyForTenantHint>> = null;
 
     if (!resolvedTenantSlug && (tenantHost || tenantSlug)) {
       const company = await resolveCompanyForTenantHint({
@@ -60,7 +96,15 @@ export async function GET(request: Request) {
         host: tenantHost,
       });
 
+      resolvedTenant = company;
       resolvedTenantSlug = company?.slug ?? resolvedTenantSlug;
+    }
+
+    if (resolvedTenantSlug && !resolvedTenant) {
+      resolvedTenant = await resolveCompanyForTenantHint({
+        companySlug: resolvedTenantSlug,
+        host: tenantHost,
+      });
     }
 
     if (!resolvedTenantSlug && featureFlags.hasDatabase && session?.userId) {
@@ -76,6 +120,31 @@ export async function GET(request: Request) {
       });
 
       resolvedTenantSlug = user?.company?.slug ?? null;
+    }
+
+    const tenantEntry =
+      resolvedEntry === "admin" || resolvedEntry === "buyer" || resolvedEntry === "purchase"
+        ? resolvedEntry
+        : null;
+    if (tenantEntry && resolvedTenant) {
+      const appSession = await getAppSession();
+      if (!canAccessTenantEntry({
+        entry: tenantEntry,
+        session: appSession,
+        target: { companyId: resolvedTenant.id },
+      })) {
+        return NextResponse.redirect(
+          buildTenantAccessUrl({
+            baseUrl: env.PORTAL_BASE_URL,
+            entry: tenantEntry,
+            returnTo,
+            currentDashboard: defaultDashboardForRoles(appSession?.roles ?? []),
+            tenantSlug: resolvedTenant.slug,
+            tenantHost,
+            tenantName: resolvedTenant.name,
+          }),
+        );
+      }
     }
 
     const response = NextResponse.redirect(new URL(returnTo, env.PORTAL_BASE_URL));

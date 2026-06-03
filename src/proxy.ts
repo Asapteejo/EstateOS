@@ -16,6 +16,7 @@ const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 const isSuperadminRoute = createRouteMatcher(["/superadmin(.*)"]);
 const isSignInRoute = createRouteMatcher(["/sign-in(.*)"]);
 const isSignUpRoute = createRouteMatcher(["/sign-up(.*)"]);
+const isAuthAccessRoute = createRouteMatcher(["/auth/access(.*)"]);
 
 async function handleProxyRequest(
   req: NextRequest,
@@ -28,7 +29,8 @@ async function handleProxyRequest(
     isAdminRoute(req) ||
     isSuperadminRoute(req) ||
     isSignInRoute(req) ||
-    isSignUpRoute(req);
+    isSignUpRoute(req) ||
+    isAuthAccessRoute(req);
 
   if (
     featureFlags.isProduction &&
