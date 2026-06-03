@@ -10,8 +10,6 @@ import { AdminStateBanner } from "@/components/admin/admin-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const CNAME_VALUE = "cname.vercel-dns.com";
-
 function StatusBadge({ status }: { status: CustomDomainStatus }) {
   const styles = {
     PENDING: "bg-amber-50 text-amber-700 ring-1 ring-amber-200",
@@ -55,12 +53,16 @@ export function DomainSettings({
   subdomainUrl,
   customDomain: initialCustomDomain,
   customDomainStatus: initialStatus,
+  cnameTarget,
+  rootTarget,
 }: {
   slug: string;
   subdomain: string | null;
   subdomainUrl: string;
   customDomain: string | null;
   customDomainStatus: CustomDomainStatus | null;
+  cnameTarget: string;
+  rootTarget: string;
 }) {
   const router = useRouter();
   const [customDomain, setCustomDomain] = useState(initialCustomDomain ?? "");
@@ -203,10 +205,14 @@ export function DomainSettings({
                 <div className="flex gap-6">
                   <span className="w-14 shrink-0 text-[#9b9488]">Value</span>
                   <div className="flex items-center gap-2 text-[#faf9f7]">
-                    <span>{CNAME_VALUE}</span>
-                    <CopyButton text={CNAME_VALUE} />
+                    <span>{cnameTarget}</span>
+                    <CopyButton text={cnameTarget} />
                   </div>
                 </div>
+              </div>
+              <div className="mt-4 rounded-lg bg-white/5 px-3 py-2 font-sans text-xs leading-5 text-[#d6d1c7]">
+                Root domains should use your DNS provider&apos;s ALIAS/ANAME support where available.
+                Target: <span className="font-mono text-[#faf9f7]">{rootTarget}</span>
               </div>
             </div>
 
@@ -241,7 +247,7 @@ export function DomainSettings({
               <AdminStateBanner
                 tone="warning"
                 title="DNS check failed"
-                message={`The CNAME record for ${customDomain} was not found pointing to ${CNAME_VALUE}. DNS changes can take up to 48 hours to propagate. Try verifying again after a few minutes.`}
+                message={`The CNAME record for ${customDomain} was not found pointing to ${cnameTarget}. DNS changes can take up to 48 hours to propagate. Try verifying again after a few minutes.`}
               />
             )}
             {status === "PENDING" && (

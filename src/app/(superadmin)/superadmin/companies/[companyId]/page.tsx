@@ -8,15 +8,88 @@ import { SuperadminHealthBadge } from "@/components/superadmin/superadmin-health
 import { SuperadminMetricCard } from "@/components/superadmin/superadmin-metric-card";
 import { SuperadminRangeTabs } from "@/components/superadmin/superadmin-range-tabs";
 import { SuperadminShell } from "@/components/superadmin/superadmin-shell";
+import { TenantReadinessChecklist } from "@/components/shared/tenant-readiness-checklist";
 import { Card } from "@/components/ui/card";
 import { requireSuperAdminSession } from "@/lib/auth/guards";
 import { formatCurrency } from "@/lib/utils";
+import { getTenantReadinessForCompany } from "@/modules/readiness/service";
 import { getSafePlatformCommissionControl } from "@/modules/superadmin/commission";
 import { getSuperadminCompanyOverview, parseSuperadminRange, readSuperadminSearchParam } from "@/modules/superadmin/queries";
 import {
   overrideSuperadminSubscriptionAction,
   updatePlatformCommissionAction,
 } from "@/app/(superadmin)/superadmin/companies/actions";
+
+function statusText(complete: boolean) {
+  return complete ? "Complete" : "Missing";
+}
+
+function VisibilityPanels({
+  visibility,
+}: {
+  visibility: NonNullable<Awaited<ReturnType<typeof getTenantReadinessForCompany>>["visibility"]>;
+}) {
+  const panels = [
+    {
+      title: "Branding",
+      action: "/admin/settings/branding",
+      items: [
+        ["Logo", statusText(visibility.branding.logoConfigured)],
+        ["Favicon", statusText(visibility.branding.faviconConfigured)],
+        ["Hero", statusText(visibility.branding.heroConfigured)],
+        ["Published branding", statusText(visibility.branding.published)],
+      ],
+    },
+    {
+      title: "Payments",
+      action: "/admin/settings",
+      items: [
+        ["Provider account", statusText(visibility.payments.providerAccounts.length > 0)],
+        ["Payout readiness", statusText(visibility.payments.payoutReady)],
+        ["Paystack platform", statusText(visibility.payments.paystackPlatformReady)],
+      ],
+    },
+    {
+      title: "Contracts",
+      action: "/admin/settings/contracts",
+      items: [
+        ["Contract settings", statusText(visibility.contracts.settingsConfigured)],
+        ["Company stamp", statusText(visibility.contracts.stampConfigured)],
+        ["Authorized signature", statusText(visibility.contracts.signatureConfigured)],
+      ],
+    },
+  ];
+
+  return (
+    <div className="grid gap-6 xl:grid-cols-3">
+      {panels.map((panel) => (
+        <Card key={panel.title} className="p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--brand-700)]">
+                Visibility
+              </div>
+              <h2 className="mt-3 text-lg font-semibold text-[var(--ink-950)]">{panel.title}</h2>
+            </div>
+            <Link href={panel.action} className="text-xs font-semibold text-[var(--brand-700)]">
+              Tenant flow
+            </Link>
+          </div>
+          <div className="mt-4 space-y-3 text-sm">
+            {panel.items.map(([label, value]) => (
+              <div key={label} className="flex items-center justify-between gap-4">
+                <span className="text-[var(--ink-600)]">{label}</span>
+                <span className={value === "Complete" ? "font-semibold text-emerald-700" : "font-semibold text-amber-700"}>
+                  {value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 export default async function SuperadminCompanyOverviewPage({
   params,
@@ -42,7 +115,10 @@ export default async function SuperadminCompanyOverviewPage({
   } catch {
     notFound();
   }
-  const platformCommission = await getSafePlatformCommissionControl(companyId);
+  const [platformCommission, readiness] = await Promise.all([
+    getSafePlatformCommissionControl(companyId),
+    getTenantReadinessForCompany(companyId),
+  ]);
 
   return (
     <SuperadminShell
@@ -56,6 +132,12 @@ export default async function SuperadminCompanyOverviewPage({
             className="rounded-full bg-[var(--brand-700)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--brand-800)]"
           >
             Run QA checklist
+          </Link>
+          <Link
+            href={`/superadmin/companies/${companyId}/domains`}
+            className="rounded-full border border-[var(--line)] px-4 py-2 text-sm font-semibold text-[var(--ink-900)] transition hover:bg-[var(--sand-100)]"
+          >
+            Manage domain
           </Link>
         </div>
       }
@@ -84,6 +166,14 @@ export default async function SuperadminCompanyOverviewPage({
         <SuperadminMetricCard label="Overdue" value={formatCurrency(company.businessMetrics.totalOverdue)} detail={company.businessMetrics.collectionsPerformance} tone="risk" />
         <SuperadminMetricCard label="EstateOS revenue" value={formatCurrency(company.platformMetrics.estateRevenue)} detail="What this tenant has generated for the platform" tone="revenue" />
       </div>
+
+      <TenantReadinessChecklist
+        title="Tenant readiness"
+        description="Go-live checklist for profile, branding, payments, contracts, storage, domain, and public reachability."
+        items={readiness.checklist}
+      />
+
+      {readiness.visibility ? <VisibilityPanels visibility={readiness.visibility} /> : null}
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <Card className="p-6">

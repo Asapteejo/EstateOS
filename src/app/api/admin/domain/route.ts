@@ -1,22 +1,13 @@
 import { z } from "zod";
 
 import { requireAdminSession } from "@/lib/auth/guards";
-import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { fail, ok } from "@/lib/http";
+import { setCompanyCustomDomain } from "@/modules/domains/service";
 export const runtime = "nodejs";
 
 const schema = z.object({
-  customDomain: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .transform((v) => v.replace(/^https?:\/\//, "").split("/")[0] ?? "")
-    .refine((v) => !v || /^[a-z0-9.-]+\.[a-z]{2,}$/.test(v), {
-      message: "Enter a valid domain (e.g. sales.yourbrand.com).",
-    })
-    .optional()
-    .or(z.literal("")),
+  customDomain: z.string().trim().optional().nullable().or(z.literal("")),
 });
 
 // ─── PATCH — save custom domain ──────────────────────────────────────────────
@@ -45,33 +36,16 @@ export async function PATCH(request: Request) {
     return fail(body.error.issues[0]?.message ?? "Invalid input.", 400);
   }
 
-  const newDomain = body.data.customDomain || null;
-
-  // Check uniqueness if setting a domain
-  if (newDomain) {
-    const conflict = await prisma.company.findFirst({
-      where: { customDomain: newDomain, id: { not: tenant.companyId } },
-      select: { id: true },
+  let company: Awaited<ReturnType<typeof setCompanyCustomDomain>>;
+  try {
+    company = await setCompanyCustomDomain({
+      companyId: tenant.companyId,
+      customDomain: body.data.customDomain || null,
+      actor: { userId: tenant.userId, source: "tenant_admin" },
     });
-    if (conflict) {
-      return fail("This domain is already in use by another workspace.", 409);
-    }
+  } catch (error) {
+    return fail(error instanceof Error ? error.message : "Unable to save custom domain.", 400);
   }
-
-  const company = await prisma.company.update({
-    where: { id: tenant.companyId },
-    data: {
-      customDomain: newDomain,
-      // Reset verification whenever the domain changes
-      customDomainStatus: "PENDING",
-      customDomainVerifiedAt: null,
-    },
-    select: {
-      customDomain: true,
-      customDomainStatus: true,
-      customDomainVerifiedAt: true,
-    },
-  });
 
   return ok({ company });
 }

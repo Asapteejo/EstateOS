@@ -147,6 +147,8 @@ const serverEnvSchema = z
     UPSTASH_REDIS_REST_URL: optionalUrl,
     UPSTASH_REDIS_REST_TOKEN: optionalString,
     REALTIME_TRANSPORT: z.enum(["polling", "sse", "auto"]).default("polling"),
+    CUSTOM_DOMAIN_CNAME_TARGET: optionalString,
+    CUSTOM_DOMAIN_ROOT_TARGET: optionalString,
     RESEND_API_KEY: optionalString,
     EMAIL_FROM: z.string().trim().min(3).default("Acme Realty <no-reply@example.com>"),
     LINEAR_API_KEY: optionalString,

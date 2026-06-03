@@ -6,20 +6,32 @@ import { DomainSettings } from "@/components/admin/domain-settings";
 import { CommunicationWalletTopUp } from "@/components/admin/communication-wallet-top-up";
 import { PaymentAccountSetup } from "@/components/admin/payment-account-setup";
 import { SettingsManagement } from "@/components/admin/settings-management";
+import { TenantReadinessChecklist } from "@/components/shared/tenant-readiness-checklist";
 import { Card } from "@/components/ui/card";
 import { requireAdminSession } from "@/lib/auth/guards";
+import { buildCustomDomainDnsInstructions } from "@/lib/domains/custom-domain";
 import { resolveCompanyPublicUrl } from "@/lib/domains/public-url";
-import { featureFlags } from "@/lib/env";
+import { env, featureFlags } from "@/lib/env";
 import { formatDate } from "@/lib/utils";
 import { getCompanyWalletOverview } from "@/modules/communication/wallet";
+import { getTenantReadinessForCompany } from "@/modules/readiness/service";
 import { getTenantAdminSettings } from "@/modules/settings/service";
 
 export default async function AdminSettingsPage() {
   const tenant = await requireAdminSession(["ADMIN"]);
-  const settings = await getTenantAdminSettings(tenant);
-  const communicationWallet = tenant.companyId
-    ? await getCompanyWalletOverview(tenant.companyId, { take: 5 })
-    : null;
+  const [settings, communicationWallet, readiness] = await Promise.all([
+    getTenantAdminSettings(tenant),
+    tenant.companyId
+      ? getCompanyWalletOverview(tenant.companyId, { take: 5 })
+      : Promise.resolve(null),
+    tenant.companyId
+      ? getTenantReadinessForCompany(tenant.companyId)
+      : Promise.resolve(null),
+  ]);
+  const dnsInstructions = buildCustomDomainDnsInstructions({
+    cnameTarget: env.CUSTOM_DOMAIN_CNAME_TARGET,
+    rootTarget: env.CUSTOM_DOMAIN_ROOT_TARGET,
+  });
 
   const subdomainUrl = resolveCompanyPublicUrl({
     slug: settings.slug,
@@ -35,6 +47,14 @@ export default async function AdminSettingsPage() {
       subtitle="Manage tenant branding, defaults, payment display rules, and public staff visibility without developer intervention."
     >
       {/* Domain card — top priority */}
+      {readiness ? (
+        <TenantReadinessChecklist
+          title="Tenant readiness"
+          description="Production launch checks for this company. Items show who owns the next action."
+          items={readiness.checklist}
+        />
+      ) : null}
+
       <Card className="rounded-[30px] border-[var(--line)] bg-white p-6">
         <div className="mb-5">
           <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--brand-700)]">
@@ -54,6 +74,8 @@ export default async function AdminSettingsPage() {
           subdomainUrl={subdomainUrl}
           customDomain={settings.customDomain}
           customDomainStatus={settings.customDomainStatus}
+          cnameTarget={dnsInstructions.cname.target}
+          rootTarget={dnsInstructions.root.target}
         />
       </Card>
 

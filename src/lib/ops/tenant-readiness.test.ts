@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildTenantReadiness } from "@/lib/ops/tenant-readiness";
+import { buildTenantReadiness, buildTenantReadinessChecklist } from "@/lib/ops/tenant-readiness";
 
 test("tenant readiness reports missing Paystack and contract settings clearly", () => {
   const result = buildTenantReadiness({
@@ -21,10 +21,11 @@ test("tenant readiness reports missing Paystack and contract settings clearly", 
   });
 
   assert.equal(result.status, "Partially ready");
-  assert.equal(result.missingItems.includes("Paystack live configuration"), true);
-  assert.equal(result.missingItems.includes("contract settings"), true);
-  assert.equal(result.missingItems.includes("company stamp"), true);
-  assert.equal(result.missingItems.includes("authorized signature"), true);
+  assert.equal(result.missingItems.includes("Payment account"), true);
+  assert.equal(result.missingItems.includes("Paystack platform readiness"), true);
+  assert.equal(result.missingItems.includes("Contract settings"), true);
+  assert.equal(result.missingItems.includes("Company stamp"), true);
+  assert.equal(result.missingItems.includes("Authorized signature"), true);
 });
 
 test("tenant readiness reports unknown company as not ready", () => {
@@ -49,4 +50,32 @@ test("tenant readiness reports unknown company as not ready", () => {
       missingItems: ["company"],
     },
   );
+});
+
+test("custom domain can be intentionally skipped but remains a warning", () => {
+  const checklist = buildTenantReadinessChecklist({
+    companyExists: true,
+    companyActive: true,
+    companyProfileComplete: true,
+    adminUsers: 1,
+    brandingConfigured: true,
+    logoConfigured: true,
+    propertiesCount: 1,
+    paymentAccountConfigured: true,
+    paystackConfigured: true,
+    contractSettingsConfigured: true,
+    stampConfigured: true,
+    signatureConfigured: true,
+    customDomainConfigured: false,
+    customDomainSkipped: true,
+    r2Configured: true,
+    publicSiteReachable: true,
+    walletConfigured: true,
+    companyId: "company-1",
+  });
+
+  const customDomain = checklist.find((item) => item.id === "custom-domain");
+  assert.equal(customDomain?.status, "warning");
+  assert.equal(customDomain?.owner, "Superadmin");
+  assert.equal(customDomain?.actionLink, "/superadmin/companies/company-1/domains");
 });
