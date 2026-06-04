@@ -3,6 +3,7 @@ import { subDays } from "date-fns";
 
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
+import { buildSafeErrorLogContext, logError } from "@/lib/ops/logger";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { findManyForTenant } from "@/lib/tenancy/db";
 import { getMarketerCommissionTotals, type MarketerCommissionTotals } from "@/modules/commission/calculator";
@@ -35,6 +36,50 @@ type TeamMemberPerformanceRow = {
   avatarUrl: string | null;
   isActive: boolean;
   isPublished: boolean;
+};
+
+type SavedPropertyAttributionRow = {
+  selectedMarketerId: string | null;
+};
+
+type ReservationAttributionRow = {
+  marketerId: string | null;
+  userId: string | null;
+  propertyId: string | null;
+};
+
+type TransactionAttributionRow = ReservationAttributionRow;
+
+type SuccessfulPaymentAttributionRow = {
+  amount: Prisma.Decimal | number;
+  paidAt: Date | null;
+  marketerId: string | null;
+  transaction: {
+    marketerId: string | null;
+    userId: string | null;
+    propertyId: string | null;
+    reservation: {
+      marketerId: string | null;
+    } | null;
+  } | null;
+};
+
+type InquiryAttributionRow = {
+  userId: string | null;
+  propertyId: string | null;
+  createdAt: Date;
+  assignedStaff: {
+    teamMemberId: string | null;
+  } | null;
+};
+
+type InspectionAttributionRow = InquiryAttributionRow;
+
+type MarketerSnapshotRow = {
+  teamMemberId: string;
+  score: number;
+  rank: number;
+  snapshotDate: Date;
 };
 
 export type MarketerPerformanceMetrics = {
@@ -378,6 +423,25 @@ function getMarketerRankingSnapshotDelegate() {
     .marketerRankingSnapshot;
 }
 
+async function runMarketersQuery<T>(
+  context: TenantContext,
+  queryName: string,
+  query: () => Promise<T>,
+) {
+  try {
+    return await query();
+  } catch (error) {
+    logError("Admin marketers render query failed.", {
+      route: "/admin/marketers",
+      component: "getAdminMarketerPerformanceDashboard",
+      queryName,
+      companyId: context.companyId,
+      ...buildSafeErrorLogContext(error),
+    });
+    throw error;
+  }
+}
+
 async function getTenantMarketerPerformanceEntries(
   context: TenantContext,
   now: Date,
@@ -390,28 +454,31 @@ async function getTenantMarketerPerformanceEntries(
   if (!featureFlags.hasDatabase || !context.companyId) {
     return [] as ComputedMarketerPerformanceRow[];
   }
+  const companyId = context.companyId;
 
   const period = options?.period ?? "MONTHLY";
   const periodStart = getMarketerPeriodWindowStart(period, now);
-  const members = (await findManyForTenant(
-    prisma.teamMember as ScopedFindManyDelegate,
-    context,
-    {
-      where: {
-        ...(options?.includeInactive ? {} : { isActive: true }),
-        ...(options?.includeUnpublished ? {} : { isPublished: true }),
-      },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-      select: {
-        id: true,
-        slug: true,
-        fullName: true,
-        title: true,
-        avatarUrl: true,
-        isActive: true,
-        isPublished: true,
-      },
-    } as Parameters<typeof prisma.teamMember.findMany>[0],
+  const members = (await runMarketersQuery(context, "teamMember.findMany", () =>
+    findManyForTenant(
+      prisma.teamMember as ScopedFindManyDelegate,
+      context,
+      {
+        where: {
+          ...(options?.includeInactive ? {} : { isActive: true }),
+          ...(options?.includeUnpublished ? {} : { isPublished: true }),
+        },
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+        select: {
+          id: true,
+          slug: true,
+          fullName: true,
+          title: true,
+          avatarUrl: true,
+          isActive: true,
+          isPublished: true,
+        },
+      } as Parameters<typeof prisma.teamMember.findMany>[0],
+    ),
   )) as TeamMemberPerformanceRow[];
 
   if (members.length === 0) {
@@ -422,9 +489,9 @@ async function getTenantMarketerPerformanceEntries(
 
   const [wishlistAdds, reservations, completedDeals, successfulPayments, inquiries, inspections] =
     await Promise.all([
-      prisma.savedProperty.findMany({
+      runMarketersQuery<SavedPropertyAttributionRow[]>(context, "savedProperty.findMany", () => prisma.savedProperty.findMany({
         where: {
-          companyId: context.companyId,
+          companyId,
           status: "ACTIVE",
           ...(periodStart ? { createdAt: { gte: periodStart } } : {}),
           selectedMarketerId: {
@@ -434,10 +501,10 @@ async function getTenantMarketerPerformanceEntries(
         select: {
           selectedMarketerId: true,
         },
-      }),
-      prisma.reservation.findMany({
+      })),
+      runMarketersQuery<ReservationAttributionRow[]>(context, "reservation.findMany", () => prisma.reservation.findMany({
         where: {
-          companyId: context.companyId,
+          companyId,
           ...(periodStart ? { createdAt: { gte: periodStart } } : {}),
         },
         select: {
@@ -445,10 +512,10 @@ async function getTenantMarketerPerformanceEntries(
           userId: true,
           propertyId: true,
         },
-      }),
-      prisma.transaction.findMany({
+      })),
+      runMarketersQuery<TransactionAttributionRow[]>(context, "transaction.findMany", () => prisma.transaction.findMany({
         where: {
-          companyId: context.companyId,
+          companyId,
           paymentStatus: "COMPLETED",
           ...(periodStart ? { lastPaymentAt: { gte: periodStart } } : {}),
         },
@@ -457,10 +524,10 @@ async function getTenantMarketerPerformanceEntries(
           userId: true,
           propertyId: true,
         },
-      }),
-      prisma.payment.findMany({
+      })),
+      runMarketersQuery<SuccessfulPaymentAttributionRow[]>(context, "payment.findMany", () => prisma.payment.findMany({
         where: {
-          companyId: context.companyId,
+          companyId,
           status: "SUCCESS",
           ...(periodStart ? { paidAt: { gte: periodStart } } : {}),
         },
@@ -481,10 +548,10 @@ async function getTenantMarketerPerformanceEntries(
             },
           },
         },
-      }),
-      prisma.inquiry.findMany({
+      })),
+      runMarketersQuery<InquiryAttributionRow[]>(context, "inquiry.findMany", () => prisma.inquiry.findMany({
         where: {
-          companyId: context.companyId,
+          companyId,
           assignedStaffId: {
             not: null,
           },
@@ -509,10 +576,10 @@ async function getTenantMarketerPerformanceEntries(
             },
           },
         },
-      }),
-      prisma.inspectionBooking.findMany({
+      })),
+      runMarketersQuery<InspectionAttributionRow[]>(context, "inspectionBooking.findMany", () => prisma.inspectionBooking.findMany({
         where: {
-          companyId: context.companyId,
+          companyId,
           assignedStaffId: {
             not: null,
           },
@@ -534,7 +601,7 @@ async function getTenantMarketerPerformanceEntries(
             },
           },
         },
-      }),
+      })),
     ]);
 
   // Buyer-selected marketer attribution remains the primary source.
@@ -753,6 +820,7 @@ export async function getAdminMarketerPerformanceDashboard(
 ) {
   const now = input?.now ?? new Date();
   const period = input?.period ?? "MONTHLY";
+  const companyId = context.companyId;
   const entries = await getTenantMarketerPerformanceEntries(context, now, {
     includeInactive: true,
     includeUnpublished: true,
@@ -768,15 +836,15 @@ export async function getAdminMarketerPerformanceDashboard(
       )
     : entries;
 
-  const commissionTotals: Map<string, MarketerCommissionTotals> = context.companyId
-    ? await getMarketerCommissionTotals(context.companyId)
+  const commissionTotals: Map<string, MarketerCommissionTotals> = companyId
+    ? await runMarketersQuery(context, "marketerCommission.findMany", () => getMarketerCommissionTotals(companyId))
     : new Map<string, MarketerCommissionTotals>();
 
   const snapshotDelegate = getMarketerRankingSnapshotDelegate();
-  const snapshots = context.companyId && snapshotDelegate
-    ? await snapshotDelegate.findMany({
+  const snapshots: MarketerSnapshotRow[] = companyId && snapshotDelegate
+    ? await runMarketersQuery<MarketerSnapshotRow[]>(context, "marketerRankingSnapshot.findMany", () => snapshotDelegate.findMany({
         where: {
-          companyId: context.companyId,
+          companyId,
           teamMemberId: {
             in: filtered.map((entry) => entry.id),
           },
@@ -792,7 +860,7 @@ export async function getAdminMarketerPerformanceDashboard(
           rank: true,
           snapshotDate: true,
         },
-      })
+      }))
     : [];
 
   const previousByMember = new Map<string, { score: number; rank: number; snapshotDate: Date }>();

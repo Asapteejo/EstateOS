@@ -20,6 +20,10 @@ import {
 } from "@/lib/domains";
 import { env, featureFlags } from "@/lib/env";
 import { captureServerEvent, captureServerException } from "@/lib/integrations/posthog";
+import {
+  isBuyerSelfRegistrationAccessError,
+  registerBuyerForTenantFromAuthIntent,
+} from "@/modules/buyers/self-registration";
 import { resolveCompanyForTenantHint } from "@/lib/tenancy/context";
 export const runtime = "nodejs";
 
@@ -136,6 +140,36 @@ export async function GET(request: Request) {
           })
         : false;
       if (!canAccessEntry) {
+        if (
+          resolvedTenant &&
+          appSession &&
+          (tenantEntry === "buyer" || tenantEntry === "purchase")
+        ) {
+          try {
+            await registerBuyerForTenantFromAuthIntent({
+              clerkUserId: appSession.userId,
+              email: appSession.email,
+              firstName: appSession.firstName,
+              lastName: appSession.lastName,
+              targetCompanyId: resolvedTenant.id,
+              targetCompanySlug: resolvedTenant.slug,
+              host: tenantHost,
+            });
+
+            const response = NextResponse.redirect(new URL(returnTo, env.PORTAL_BASE_URL));
+            response.cookies.set(
+              TENANT_HINT_COOKIE,
+              resolvedTenant.slug,
+              buildTenantHintCookieOptions(),
+            );
+            return response;
+          } catch (error) {
+            if (!isBuyerSelfRegistrationAccessError(error)) {
+              throw error;
+            }
+          }
+        }
+
         return NextResponse.redirect(
           buildTenantAccessUrl({
             baseUrl: env.PORTAL_BASE_URL,
