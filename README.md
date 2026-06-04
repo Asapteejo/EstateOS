@@ -799,10 +799,30 @@ Notes:
 - `prisma migrate dev` is for local development only.
 - `prisma migrate deploy` is the production-safe path.
 - Vercel builds intentionally run only `prisma generate` and `next build`. Run `npm run db:migrate:deploy` separately in a controlled CI or release step before deploying application code.
+- Any commit that changes `prisma/schema.prisma` or adds a `prisma/migrations/*` folder must have migrations deployed before the new code path is used in production. Do not patch application code to hide missing-column errors; deploy the migration first.
 - `DATABASE_URL` should point to the Supabase pooler for runtime traffic.
 - `DIRECT_URL` should point to the direct Supabase Postgres host for migrations.
 - Seed data is deterministic and intended for development/demo environments.
 - The schema and baseline migration should stay aligned; run `npx prisma validate` and `npx prisma generate` after schema changes.
+
+If production reports Prisma missing-column drift, verify migration state in Supabase before debugging feature code:
+
+```sql
+SELECT migration_name, finished_at, rolled_back_at
+FROM "_prisma_migrations"
+WHERE migration_name IN (
+  '0036_team_invitation_branch',
+  '0037_property_location_mapbox',
+  '0038_property_location_boundary',
+  '0039_team_invitation_invited_by_user_id'
+)
+ORDER BY migration_name;
+
+SELECT column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_name = 'TeamMemberInvitation'
+ORDER BY ordinal_position;
+```
 
 ## Auth, Session, And Tenancy Runtime Rules
 
@@ -1006,11 +1026,11 @@ The repo is prepared for Next.js production deployment and includes [vercel.json
    `PORTAL_BASE_URL`
 5. Configure Paystack callback and webhook URLs.
 6. Configure R2 bucket and credentials.
-7. Run:
+7. Run migrations before enabling schema-dependent features:
    `npm run db:validate`
    `npm run db:generate`
    `npm run db:migrate:deploy`
-8. Deploy the app. The Vercel build does not run migrations or require `DIRECT_URL` network access.
+8. Deploy the app only after `npm run db:migrate:deploy` succeeds against production. The Vercel build does not run migrations or require `DIRECT_URL` network access.
 9. Verify:
    `/api/health`
    `/api/readyz`

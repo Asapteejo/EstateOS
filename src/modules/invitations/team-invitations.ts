@@ -17,6 +17,8 @@ export const TEAM_INVITATION_TTL_DAYS = 7;
 export const TEAM_INVITATION_TTL_MS = TEAM_INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000;
 export const SUPERADMIN_INVITABLE_ROLES = ["ADMIN", "STAFF"] as const;
 export const TENANT_INVITABLE_ROLES = ["STAFF", "ADMIN", "FINANCE", "LEGAL"] as const;
+export const INVITATION_MIGRATION_PENDING_MESSAGE =
+  "Database migration pending. Run production migrations before sending invitations.";
 
 type InviteActor = {
   userId?: string | null;
@@ -38,6 +40,20 @@ type PrismaTx = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transa
 
 function roleLabel(role: AppRole) {
   return role.charAt(0) + role.slice(1).toLowerCase();
+}
+
+function withStatus(message: string, status: number) {
+  const error = new Error(message) as Error & { status?: number };
+  error.status = status;
+  return error;
+}
+
+export function isInvitationMigrationPendingError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const code = "code" in error ? String((error as { code?: unknown }).code) : "";
+  const message = "message" in error ? String((error as { message?: unknown }).message) : "";
+
+  return code === "P2022" || /column .* does not exist/i.test(message);
 }
 
 export function invitationExpiresAt(now = new Date()) {
@@ -100,29 +116,36 @@ export async function createTeamMemberInvitation(input: CreateInvitationInput) {
   const expiresAt = invitationExpiresAt();
 
   const { invitation, revokedCount } = await prisma.$transaction(async (tx) => {
-    const revoked = await tx.teamMemberInvitation.updateMany({
-      where: {
-        companyId: input.companyId,
-        email,
-        status: "PENDING",
-      },
-      data: { status: "REVOKED" },
-    });
+    try {
+      const revoked = await tx.teamMemberInvitation.updateMany({
+        where: {
+          companyId: input.companyId,
+          email,
+          status: "PENDING",
+        },
+        data: { status: "REVOKED" },
+      });
 
-    const created = await tx.teamMemberInvitation.create({
-      data: {
-        companyId: input.companyId,
-        branchId,
-        email,
-        fullName,
-        role: input.role,
-        token,
-        expiresAt,
-        invitedByUserId: input.actor.userId ?? undefined,
-      },
-    });
+      const created = await tx.teamMemberInvitation.create({
+        data: {
+          companyId: input.companyId,
+          branchId,
+          email,
+          fullName,
+          role: input.role,
+          token,
+          expiresAt,
+          invitedByUserId: input.actor.userId ?? undefined,
+        },
+      });
 
-    return { invitation: created, revokedCount: revoked.count };
+      return { invitation: created, revokedCount: revoked.count };
+    } catch (error) {
+      if (isInvitationMigrationPendingError(error)) {
+        throw withStatus(INVITATION_MIGRATION_PENDING_MESSAGE, 503);
+      }
+      throw error;
+    }
   });
 
   if (revokedCount > 0) {

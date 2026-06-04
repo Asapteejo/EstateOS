@@ -5,7 +5,10 @@ import test from "node:test";
 
 import {
   assertInvitableRole,
+  INVITATION_MIGRATION_PENDING_MESSAGE,
   invitationExpiresAt,
+  invitationErrorStatus,
+  isInvitationMigrationPendingError,
   SUPERADMIN_INVITABLE_ROLES,
   TEAM_INVITATION_TTL_DAYS,
 } from "@/modules/invitations/team-invitations";
@@ -62,6 +65,20 @@ test("expired and replayed invitations are rejected by acceptance policy", () =>
     }),
     { message: "This invitation has already been accepted.", status: 409 },
   );
+});
+
+test("pending invitation migration errors are reported safely", () => {
+  const prismaError = {
+    code: "P2022",
+    message: "The column `branchId` does not exist in the current database.",
+  };
+  const migrationError = new Error(INVITATION_MIGRATION_PENDING_MESSAGE) as Error & { status?: number };
+  migrationError.status = 503;
+
+  assert.equal(isInvitationMigrationPendingError(prismaError), true);
+  assert.equal(isInvitationMigrationPendingError(new Error("The column branchId does not exist")), true);
+  assert.equal(isInvitationMigrationPendingError(new Error("Other failure")), false);
+  assert.equal(invitationErrorStatus(migrationError), 503);
 });
 
 test("successful invitation acceptance remains atomic and role-assigning", () => {
