@@ -63,11 +63,13 @@ export type AdminPropertyManagementRecord = {
   wishlistReminderEnabled: boolean;
   location: {
     addressLine1: string | null;
+    formattedAddress: string | null;
     city: string;
     state: string;
     country: string;
     latitude: number | null;
     longitude: number | null;
+    mapboxPlaceId: string | null;
     neighborhood: string | null;
     postalCode: string | null;
   };
@@ -198,11 +200,13 @@ export async function getAdminPropertyManagementList(context: TenantContext) {
         location: {
           select: {
             addressLine1: true,
+            formattedAddress: true,
             city: true,
             state: true,
             country: true,
             latitude: true,
             longitude: true,
+            mapboxPlaceId: true,
             neighborhood: true,
             postalCode: true,
             companyId: true,
@@ -319,11 +323,13 @@ export async function getAdminPropertyManagementList(context: TenantContext) {
     wishlistReminderEnabled: boolean;
     location: {
       addressLine1: string | null;
+      formattedAddress: string | null;
       city: string;
       state: string;
       country: string;
       latitude: Decimalish | null;
       longitude: Decimalish | null;
+      mapboxPlaceId: string | null;
       neighborhood: string | null;
       postalCode: string | null;
       companyId: string;
@@ -431,11 +437,13 @@ export async function getAdminPropertyManagementList(context: TenantContext) {
         wishlistReminderEnabled: property.wishlistReminderEnabled,
         location: {
           addressLine1: property.location?.addressLine1 ?? null,
+          formattedAddress: property.location?.formattedAddress ?? null,
           city: property.location?.city ?? "",
           state: property.location?.state ?? "",
           country: property.location?.country ?? "Nigeria",
           latitude: decimalToNumber(property.location?.latitude),
           longitude: decimalToNumber(property.location?.longitude),
+          mapboxPlaceId: property.location?.mapboxPlaceId ?? null,
           neighborhood: property.location?.neighborhood ?? null,
           postalCode: property.location?.postalCode ?? null,
         },

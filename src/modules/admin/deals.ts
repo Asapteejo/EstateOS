@@ -224,9 +224,11 @@ export async function quickCreatePropertyForDeal(
     wishlistReminderEnabled: true,
     location: {
       addressLine1: undefined,
+      formattedAddress: undefined,
       city: branch?.city ?? "Lagos",
       state: branch?.state ?? "Lagos",
       country: branch?.country ?? "Nigeria",
+      mapboxPlaceId: undefined,
       neighborhood: undefined,
       postalCode: undefined,
     },

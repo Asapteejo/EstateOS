@@ -4,6 +4,7 @@ import { OptimizedImage } from "@/components/media/optimized-image";
 import { InquiryForm } from "@/components/marketing/inquiry-form";
 import { InspectionForm } from "@/components/marketing/inspection-form";
 import { MapSection } from "@/components/marketing/map-section";
+import { NearbyAmenitiesSection } from "@/components/marketing/nearby-amenities-section";
 import { PropertyActions } from "@/components/marketing/property-actions";
 import { PropertyCountdown } from "@/components/marketing/property-countdown";
 import { Container } from "@/components/shared/container";
@@ -102,19 +103,18 @@ export default async function PropertyDetailPage({
                 <h2 className="text-2xl font-semibold text-[var(--ink-950)]">Location & map</h2>
                 <p className="mt-2 text-sm leading-6 text-[var(--ink-600)]">{property.locationSummary}</p>
                 <div className="mt-6">
-                  <MapSection title={property.locationSummary} coordinates={property.coordinates} />
+                  <MapSection
+                    title={property.formattedAddress ?? property.locationSummary}
+                    coordinates={property.coordinates}
+                    hasCoordinates={property.hasCoordinates}
+                  />
                 </div>
               </Card>
-              <Card className="p-8">
-                <h2 className="text-2xl font-semibold text-[var(--ink-950)]">Nearby landmarks</h2>
-                <div className="mt-6 space-y-3">
-                  {property.landmarks.map((landmark) => (
-                    <div key={landmark} className="rounded-2xl bg-[var(--sand-100)] px-4 py-3 text-sm text-[var(--ink-700)]">
-                      {landmark}
-                    </div>
-                  ))}
-                </div>
-              </Card>
+              <NearbyAmenitiesSection
+                coordinates={property.coordinates}
+                hasCoordinates={property.hasCoordinates}
+                landmarks={property.landmarks}
+              />
             </div>
           </div>
 

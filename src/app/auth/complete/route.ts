@@ -126,22 +126,25 @@ export async function GET(request: Request) {
       resolvedEntry === "admin" || resolvedEntry === "buyer" || resolvedEntry === "purchase"
         ? resolvedEntry
         : null;
-    if (tenantEntry && resolvedTenant) {
+    if (tenantEntry && (resolvedTenant || tenantHost || tenantSlug)) {
       const appSession = await getAppSession();
-      if (!canAccessTenantEntry({
-        entry: tenantEntry,
-        session: appSession,
-        target: { companyId: resolvedTenant.id },
-      })) {
+      const canAccessEntry = resolvedTenant
+        ? canAccessTenantEntry({
+            entry: tenantEntry,
+            session: appSession,
+            target: { companyId: resolvedTenant.id },
+          })
+        : false;
+      if (!canAccessEntry) {
         return NextResponse.redirect(
           buildTenantAccessUrl({
             baseUrl: env.PORTAL_BASE_URL,
             entry: tenantEntry,
             returnTo,
             currentDashboard: defaultDashboardForRoles(appSession?.roles ?? []),
-            tenantSlug: resolvedTenant.slug,
+            tenantSlug: resolvedTenant?.slug ?? tenantSlug,
             tenantHost,
-            tenantName: resolvedTenant.name,
+            tenantName: resolvedTenant?.name ?? tenantSlug ?? tenantHost,
           }),
         );
       }

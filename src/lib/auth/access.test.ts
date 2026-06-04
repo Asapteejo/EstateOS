@@ -136,3 +136,49 @@ test("tenant host hint alone cannot grant tenant access", () => {
     false,
   );
 });
+
+test("tenant entry denies anonymous users before protected content can render", () => {
+  assert.equal(
+    canAccessTenantEntry({
+      entry: "admin",
+      session: null,
+      target: { companyId: "blueprint" },
+    }),
+    false,
+  );
+  assert.equal(
+    canAccessTenantEntry({
+      entry: "buyer",
+      session: null,
+      target: { companyId: "blueprint" },
+    }),
+    false,
+  );
+});
+
+test("tenant entry keeps tenant admin and buyer roles isolated", () => {
+  assert.equal(
+    canAccessTenantEntry({
+      entry: "buyer",
+      session: {
+        email: "admin@example.com",
+        companyId: "blueprint",
+        roles: ["ADMIN"],
+      },
+      target: { companyId: "blueprint" },
+    }),
+    false,
+  );
+  assert.equal(
+    canAccessTenantEntry({
+      entry: "admin",
+      session: {
+        email: "buyer@example.com",
+        companyId: "blueprint",
+        roles: ["BUYER"],
+      },
+      target: { companyId: "blueprint" },
+    }),
+    false,
+  );
+});

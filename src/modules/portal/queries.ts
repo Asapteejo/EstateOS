@@ -1050,6 +1050,19 @@ function mapPropertyRecordToSummary(property: {
   inquiries: Array<{ id: string }>;
 }): PropertySummary {
   const paymentPlan = property.paymentPlans[0];
+  const hasCoordinates = property.location?.longitude != null && property.location?.latitude != null;
+  const longitude =
+    property.location?.longitude == null
+      ? 0
+      : typeof property.location.longitude === "number"
+        ? property.location.longitude
+        : property.location.longitude.toNumber?.() ?? Number(property.location.longitude);
+  const latitude =
+    property.location?.latitude == null
+      ? 0
+      : typeof property.location.latitude === "number"
+        ? property.location.latitude
+        : property.location.latitude.toNumber?.() ?? Number(property.location.latitude);
   const verification = buildPropertyVerificationPresentation({
     lastVerifiedAt: property.lastVerifiedAt,
     verificationStatus: property.verificationStatus,
@@ -1126,18 +1139,8 @@ function mapPropertyRecordToSummary(property: {
     locationSummary: property.locationSummary ?? `${property.location?.city ?? ""}, ${property.location?.state ?? ""}`.trim(),
     city: property.location?.city ?? "Unknown",
     state: property.location?.state ?? "Unknown",
-    coordinates: [
-      property.location?.longitude == null
-        ? 0
-        : typeof property.location.longitude === "number"
-          ? property.location.longitude
-          : property.location.longitude.toNumber?.() ?? Number(property.location.longitude),
-      property.location?.latitude == null
-        ? 0
-        : typeof property.location.latitude === "number"
-          ? property.location.latitude
-          : property.location.latitude.toNumber?.() ?? Number(property.location.latitude),
-    ],
+    coordinates: [longitude, latitude],
+    hasCoordinates,
     images: property.media.map((item) => item.url),
     paymentPlan: {
       title: paymentPlan?.title ?? "Flexible payment plan",

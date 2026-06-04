@@ -3,9 +3,12 @@ import assert from "node:assert/strict";
 import type { AppRole } from "@prisma/client";
 
 import {
+  buildRadiusBoundingBox,
   buildPropertyBrochureHref,
   buildPublicPropertyFilterWhere,
   buildPublicPropertyWhere,
+  calculateDistanceKm,
+  hasRadiusPropertySearch,
   parsePropertySearchParams,
   normalizePlotOptions,
   resolvePublicPropertyVideoUrl,
@@ -173,6 +176,61 @@ test("public property filter where includes URL-backed filters", () => {
         in: ["AVAILABLE", "RESERVED", "SOLD"],
       },
     },
+  );
+});
+
+test("property location radius params parse safely", () => {
+  assert.deepEqual(
+    parsePropertySearchParams({
+      location: "Lekki Phase 1",
+      latitude: "6.4474",
+      longitude: "3.4723",
+      radiusKm: "10",
+    }),
+    {
+      location: "Lekki Phase 1",
+      latitude: 6.4474,
+      longitude: 3.4723,
+      radiusKm: 10,
+      page: 1,
+    },
+  );
+});
+
+test("public property radius filter adds a coordinate bounding box", () => {
+  const where = buildPublicPropertyFilterWhere(marketingTenant, {
+    latitude: 6.4474,
+    longitude: 3.4723,
+    radiusKm: 10,
+    page: 1,
+  }, now);
+
+  assert.ok(where);
+  const filters = (where.AND as Array<Record<string, unknown>>)[0] as { AND: Array<Record<string, unknown>> };
+  assert.equal(filters.AND.some((item) => "location" in item), true);
+  assert.equal(hasRadiusPropertySearch({ latitude: 6.4474, longitude: 3.4723, radiusKm: 10, page: 1 }), true);
+  assert.equal(hasRadiusPropertySearch({ latitude: 6.4474, longitude: 3.4723, page: 1 }), false);
+});
+
+test("radius helpers calculate useful geographic bounds and distance", () => {
+  const bounds = buildRadiusBoundingBox({
+    latitude: 6.4474,
+    longitude: 3.4723,
+    radiusKm: 10,
+    page: 1,
+  });
+
+  assert.ok(bounds);
+  assert.equal(bounds.minLatitude < 6.4474, true);
+  assert.equal(bounds.maxLatitude > 6.4474, true);
+  assert.equal(bounds.minLongitude < 3.4723, true);
+  assert.equal(bounds.maxLongitude > 3.4723, true);
+  assert.equal(
+    calculateDistanceKm(
+      { latitude: 6.4474, longitude: 3.4723 },
+      { latitude: 6.4474, longitude: 3.4723 },
+    ),
+    0,
   );
 });
 

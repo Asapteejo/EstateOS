@@ -39,7 +39,9 @@ export type PropertySummary = {
   locationSummary: string;
   city: string;
   state: string;
+  formattedAddress?: string;
   coordinates: [number, number];
+  hasCoordinates: boolean;
   images: string[];
   paymentPlan: {
     title: string;

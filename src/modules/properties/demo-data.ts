@@ -23,6 +23,7 @@ export const properties: PropertySummary[] = [
     city: "Lagos",
     state: "Lagos",
     coordinates: [3.447, 6.431],
+    hasCoordinates: true,
     images: [
       "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1494526585095-c41746248156?auto=format&fit=crop&w=1200&q=80",
@@ -76,6 +77,7 @@ export const properties: PropertySummary[] = [
     city: "Lagos",
     state: "Lagos",
     coordinates: [3.4365, 6.4544],
+    hasCoordinates: true,
     images: [
       "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1560185008-a33f5c7d4c0a?auto=format&fit=crop&w=1200&q=80",
@@ -129,6 +131,7 @@ export const properties: PropertySummary[] = [
     city: "Abuja",
     state: "FCT",
     coordinates: [7.536, 9.0579],
+    hasCoordinates: true,
     images: [
       "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=1200&q=80",
       "https://images.unsplash.com/photo-1605146769289-440113cc3d00?auto=format&fit=crop&w=1200&q=80",

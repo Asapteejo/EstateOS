@@ -28,6 +28,7 @@ type Decimalish = { toNumber?: () => number } | number;
 
 const PUBLIC_PROPERTY_STATUSES = ["AVAILABLE", "RESERVED", "SOLD"] as const;
 const PAGE_SIZE = 9;
+const EARTH_RADIUS_KM = 6371;
 
 export type PublicPropertyFilters = PropertySearchParams;
 export type PublicPropertyListingResult = {
@@ -116,6 +117,8 @@ type PropertyRow = {
   locationSummary: string | null;
   landmarks: unknown;
   location: {
+    addressLine1: string | null;
+    formattedAddress: string | null;
     city: string;
     state: string;
     longitude: Decimalish | null;
@@ -250,6 +253,22 @@ export function buildPublicPropertyFilterWhere(
     });
   }
 
+  const boundingBox = buildRadiusBoundingBox(filters);
+  if (boundingBox) {
+    andFilters.push({
+      location: {
+        latitude: {
+          gte: boundingBox.minLatitude,
+          lte: boundingBox.maxLatitude,
+        },
+        longitude: {
+          gte: boundingBox.minLongitude,
+          lte: boundingBox.maxLongitude,
+        },
+      },
+    });
+  }
+
   if (filters.propertyType) {
     andFilters.push({
       propertyType: filters.propertyType,
@@ -318,6 +337,70 @@ export function buildPublicPropertyFilterWhere(
   );
 }
 
+export function hasRadiusPropertySearch(filters: PublicPropertyFilters) {
+  return (
+    filters.latitude != null &&
+    filters.longitude != null &&
+    filters.radiusKm != null
+  );
+}
+
+export function calculateDistanceKm(
+  from: { latitude: number; longitude: number },
+  to: { latitude: number; longitude: number },
+) {
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const deltaLatitude = toRadians(to.latitude - from.latitude);
+  const deltaLongitude = toRadians(to.longitude - from.longitude);
+  const startLatitude = toRadians(from.latitude);
+  const endLatitude = toRadians(to.latitude);
+  const haversine =
+    Math.sin(deltaLatitude / 2) ** 2 +
+    Math.cos(startLatitude) *
+      Math.cos(endLatitude) *
+      Math.sin(deltaLongitude / 2) ** 2;
+
+  return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(haversine));
+}
+
+export function buildRadiusBoundingBox(filters: PublicPropertyFilters) {
+  if (!hasRadiusPropertySearch(filters)) return null;
+
+  const latitude = filters.latitude as number;
+  const longitude = filters.longitude as number;
+  const radiusKm = filters.radiusKm as number;
+  const latitudeDelta = radiusKm / 111.32;
+  const longitudeDelta =
+    radiusKm / (111.32 * Math.max(Math.cos((latitude * Math.PI) / 180), 0.01));
+
+  return {
+    minLatitude: Math.max(-90, latitude - latitudeDelta),
+    maxLatitude: Math.min(90, latitude + latitudeDelta),
+    minLongitude: Math.max(-180, longitude - longitudeDelta),
+    maxLongitude: Math.min(180, longitude + longitudeDelta),
+  };
+}
+
+function applyRadiusFilter(rows: PropertyRow[], filters: PublicPropertyFilters) {
+  if (!hasRadiusPropertySearch(filters)) return rows;
+
+  const origin = {
+    latitude: filters.latitude as number,
+    longitude: filters.longitude as number,
+  };
+  const radiusKm = filters.radiusKm as number;
+
+  return rows.filter((property) => {
+    if (property.location?.latitude == null || property.location.longitude == null) {
+      return false;
+    }
+    const latitude = decimalToNumber(property.location.latitude);
+    const longitude = decimalToNumber(property.location.longitude);
+
+    return calculateDistanceKm(origin, { latitude, longitude }) <= radiusKm;
+  });
+}
+
 export function buildPropertyBrochureHref(slug: string) {
   return `/brochures/${slug}`;
 }
@@ -344,6 +427,7 @@ export async function getPublicProperties(
 
   const where = buildPublicPropertyFilterWhere(context, resolvedFilters);
   const skip = (resolvedFilters.page - 1) * PAGE_SIZE;
+  const radiusSearch = hasRadiusPropertySearch(resolvedFilters);
 
   const [rows, totalResult] = await Promise.all([
     findManyForTenant(
@@ -352,8 +436,8 @@ export async function getPublicProperties(
       {
         where,
         orderBy: [{ isFeatured: "desc" }, { createdAt: "desc" }],
-        skip,
-        take: PAGE_SIZE,
+        skip: radiusSearch ? undefined : skip,
+        take: radiusSearch ? 250 : PAGE_SIZE,
         select: {
           id: true,
           slug: true,
@@ -389,6 +473,8 @@ export async function getPublicProperties(
           landmarks: true,
           location: {
             select: {
+              addressLine1: true,
+              formattedAddress: true,
               city: true,
               state: true,
               longitude: true,
@@ -465,16 +551,18 @@ export async function getPublicProperties(
   const typedRows = (rows as PropertyRow[]).filter(
     (property) => property.location?.companyId === context.companyId,
   );
-  const total = Number(
+  const radiusFilteredRows = applyRadiusFilter(typedRows, resolvedFilters);
+  const total = radiusSearch ? radiusFilteredRows.length : Number(
     (
       totalResult as {
         _count: { id: number | null };
       }
     )._count.id ?? 0,
   );
+  const pageRows = radiusSearch ? radiusFilteredRows.slice(skip, skip + PAGE_SIZE) : radiusFilteredRows;
 
   return {
-    items: typedRows.map((property) => mapPropertyRowToSummary(property)),
+    items: pageRows.map((property) => mapPropertyRowToSummary(property)),
     filters: resolvedFilters,
     page: resolvedFilters.page,
     total,
@@ -544,6 +632,8 @@ export async function getPublicPropertyDetailBySlug(
         brochureDocumentId: true,
         location: {
           select: {
+            addressLine1: true,
+            formattedAddress: true,
             city: true,
             state: true,
             longitude: true,
@@ -775,6 +865,9 @@ async function hasPublicBrochure(
 
 function mapPropertyRowToSummary(property: PropertyRow): PropertySummary {
   const paymentPlan = property.paymentPlans[0];
+  const hasCoordinates = property.location?.longitude != null && property.location?.latitude != null;
+  const longitude = property.location?.longitude == null ? 0 : decimalToNumber(property.location.longitude);
+  const latitude = property.location?.latitude == null ? 0 : decimalToNumber(property.location.latitude);
   const unitPrices = property.units.map((unit) => decimalToNumber(unit.price));
   const minUnitPrice = unitPrices.length > 0 ? Math.min(...unitPrices) : null;
   const maxUnitPrice = unitPrices.length > 0 ? Math.max(...unitPrices) : null;
@@ -827,10 +920,9 @@ function mapPropertyRowToSummary(property: PropertyRow): PropertySummary {
       `${property.location?.city ?? "Unknown"}, ${property.location?.state ?? "Unknown"}`,
     city: property.location?.city ?? "Unknown",
     state: property.location?.state ?? "Unknown",
-    coordinates: [
-      property.location?.longitude == null ? 0 : decimalToNumber(property.location.longitude),
-      property.location?.latitude == null ? 0 : decimalToNumber(property.location.latitude),
-    ],
+    formattedAddress: property.location?.formattedAddress ?? property.location?.addressLine1 ?? undefined,
+    coordinates: [longitude, latitude],
+    hasCoordinates,
     images: property.media.map((item) => item.url),
     paymentPlan: {
       title: paymentPlan?.title ?? "Flexible payment plan",

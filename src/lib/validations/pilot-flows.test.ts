@@ -368,6 +368,62 @@ test("empty optional numeric fields stay undefined instead of becoming zero", ()
   assert.equal(parsed.data.location.longitude, undefined);
 });
 
+test("property location accepts Mapbox address metadata with complete coordinates", () => {
+  const parsed = propertyCreateSchema.safeParse({
+    title: "Mapbox Ready Residences",
+    shortDescription: "A listing with geocoded address metadata.",
+    description:
+      "A residential listing that stores formatted address, Mapbox place id, and exact coordinates for public map display.",
+    propertyType: "APARTMENT",
+    status: "DRAFT",
+    priceFrom: 85000000,
+    location: {
+      addressLine1: "10 Admiralty Way",
+      formattedAddress: "10 Admiralty Way, Lekki Phase 1, Lagos, Nigeria",
+      city: "Lagos",
+      state: "Lagos",
+      country: "Nigeria",
+      latitude: "6.4474000",
+      longitude: "3.4723000",
+      mapboxPlaceId: "dXJuOm1ieHBsYzp0ZXN0",
+    },
+  });
+
+  assert.equal(parsed.success, true);
+  if (!parsed.success) {
+    assert.fail("Expected Mapbox location metadata to parse.");
+  }
+  assert.equal(parsed.data.location.formattedAddress, "10 Admiralty Way, Lekki Phase 1, Lagos, Nigeria");
+  assert.equal(parsed.data.location.mapboxPlaceId, "dXJuOm1ieHBsYzp0ZXN0");
+  assert.equal(parsed.data.location.latitude, 6.4474);
+  assert.equal(parsed.data.location.longitude, 3.4723);
+});
+
+test("property location rejects partial coordinates", () => {
+  const parsed = propertyCreateSchema.safeParse({
+    title: "Partial Coordinate Estate",
+    shortDescription: "A listing missing one coordinate.",
+    description:
+      "A residential listing that should not save partial map coordinates because public map rendering needs a complete pair.",
+    propertyType: "APARTMENT",
+    status: "DRAFT",
+    priceFrom: 85000000,
+    location: {
+      city: "Lagos",
+      state: "Lagos",
+      country: "Nigeria",
+      latitude: "6.4474000",
+      longitude: "",
+    },
+  });
+
+  assert.equal(parsed.success, false);
+  if (parsed.success) {
+    assert.fail("Expected partial coordinates to fail.");
+  }
+  assert.equal(parsed.error.issues.some((issue) => issue.path.join(".") === "location.longitude"), true);
+});
+
 test("countdown data validates when enabled and rejects missing deadline", () => {
   const valid = propertyCreateSchema.safeParse({
     title: "Ikoyi Intro Offer",

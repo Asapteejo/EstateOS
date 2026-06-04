@@ -322,6 +322,19 @@ test("client flags enable Clerk provider when the public publishable key exists"
   assert.equal(disabled.hasClerk, false);
 });
 
+test("Mapbox browser maps can be enabled with only the public token", () => {
+  const env = parseServerEnv({
+    NODE_ENV: "production",
+    NEXT_PUBLIC_APP_URL: "https://estateos.example.com",
+    NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: "pk.mapbox-public",
+  });
+  const flags = buildFeatureFlags(env);
+
+  assert.equal(env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN, "pk.mapbox-public");
+  assert.equal(env.MAPBOX_ACCESS_TOKEN, undefined);
+  assert.equal(flags.hasMapbox, true);
+});
+
 test("feature flags require full service groups", () => {
   const env = parseServerEnv({
     NODE_ENV: "development",

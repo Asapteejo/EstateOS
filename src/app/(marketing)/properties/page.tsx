@@ -1,5 +1,6 @@
 import { PropertyCard } from "@/components/marketing/property-card";
 import { TopMarketersSection } from "@/components/marketing/top-marketers-section";
+import { PropertyLocationSearch } from "@/components/marketing/property-location-search";
 import { Container } from "@/components/shared/container";
 import { EmptyState } from "@/components/shared/empty-state";
 import { SectionHeading } from "@/components/shared/section-heading";
@@ -41,6 +42,9 @@ export default async function PropertiesPage({
     filters.status ? `Status: ${filters.status}` : null,
     filters.hasPaymentPlan ? "Payment plan" : null,
     filters.featured ? "Featured" : null,
+    filters.radiusKm && filters.latitude != null && filters.longitude != null
+      ? `Within ${filters.radiusKm} km`
+      : null,
   ].filter(Boolean) as string[];
 
   return (
@@ -52,7 +56,12 @@ export default async function PropertiesPage({
       />
       <form className="space-y-4" method="GET">
         <Card className="grid gap-4 p-5 lg:grid-cols-4">
-          <Input name="location" placeholder="Location" defaultValue={filters.location ?? ""} />
+          <PropertyLocationSearch
+            defaultLocation={filters.location}
+            defaultLatitude={filters.latitude}
+            defaultLongitude={filters.longitude}
+            defaultRadiusKm={filters.radiusKm}
+          />
           <select
             name="propertyType"
             defaultValue={filters.propertyType ?? ""}

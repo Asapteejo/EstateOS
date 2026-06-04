@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import type { AdminPropertyManagementRecord } from "@/modules/properties/admin-queries";
+import { PropertyLocationPicker } from "@/components/admin/property-location-picker";
 import { MultiUploadDropzone } from "@/components/uploads/multi-upload-dropzone";
 import { UploadField } from "@/components/uploads/upload-field";
 import { Button } from "@/components/ui/button";
@@ -58,11 +59,13 @@ type PropertyFormState = {
   wishlistReminderEnabled: boolean;
   location: {
     addressLine1: string;
+    formattedAddress: string;
     city: string;
     state: string;
     country: string;
     latitude: string;
     longitude: string;
+    mapboxPlaceId: string;
     neighborhood: string;
     postalCode: string;
   };
@@ -208,11 +211,13 @@ const PROPERTY_FIELD_LABELS: Record<string, string> = {
   offerEndsAt: "Offer end date",
   countdownLabel: "Countdown label",
   "location.addressLine1": "Address line 1",
+  "location.formattedAddress": "Formatted address",
   "location.city": "City",
   "location.state": "State",
   "location.country": "Country",
   "location.latitude": "Latitude",
   "location.longitude": "Longitude",
+  "location.mapboxPlaceId": "Mapbox place",
   media: "Media",
   units: "Units",
   paymentPlans: "Payment plans",
@@ -286,11 +291,13 @@ function emptyFormState(): PropertyFormState {
     wishlistReminderEnabled: true,
     location: {
       addressLine1: "",
+      formattedAddress: "",
       city: "",
       state: "",
       country: "Nigeria",
       latitude: "",
       longitude: "",
+      mapboxPlaceId: "",
       neighborhood: "",
       postalCode: "",
     },
@@ -346,11 +353,13 @@ function toFormState(property: AdminPropertyManagementRecord): PropertyFormState
     wishlistReminderEnabled: property.wishlistReminderEnabled,
     location: {
       addressLine1: property.location.addressLine1 ?? "",
+      formattedAddress: property.location.formattedAddress ?? "",
       city: property.location.city,
       state: property.location.state,
       country: property.location.country,
       latitude: property.location.latitude == null ? "" : String(property.location.latitude),
       longitude: property.location.longitude == null ? "" : String(property.location.longitude),
+      mapboxPlaceId: property.location.mapboxPlaceId ?? "",
       neighborhood: property.location.neighborhood ?? "",
       postalCode: property.location.postalCode ?? "",
     },
@@ -481,11 +490,13 @@ function serializeForm(state: PropertyFormState) {
     wishlistReminderEnabled: state.wishlistReminderEnabled,
     location: {
       addressLine1: state.location.addressLine1 || undefined,
+      formattedAddress: state.location.formattedAddress || undefined,
       city: state.location.city,
       state: state.location.state,
       country: state.location.country,
       latitude: optionalNumber(state.location.latitude),
       longitude: optionalNumber(state.location.longitude),
+      mapboxPlaceId: state.location.mapboxPlaceId || undefined,
       neighborhood: state.location.neighborhood || undefined,
       postalCode: state.location.postalCode || undefined,
     },
@@ -1162,8 +1173,14 @@ function PropertyEditor({
         />
       </div>
 
+      <PropertyLocationPicker
+        value={value.location}
+        onChange={(nextLocation) => update("location", nextLocation)}
+      />
+
       <div className="grid gap-4 md:grid-cols-2">
         <Input placeholder="Address line 1" value={value.location.addressLine1} onChange={(event) => update("location", { ...value.location, addressLine1: event.target.value })} />
+        <Input placeholder="Formatted address" value={value.location.formattedAddress} onChange={(event) => update("location", { ...value.location, formattedAddress: event.target.value })} />
         <Input placeholder="Neighborhood" value={value.location.neighborhood} onChange={(event) => update("location", { ...value.location, neighborhood: event.target.value })} />
         <Input placeholder="City" value={value.location.city} onChange={(event) => update("location", { ...value.location, city: event.target.value })} />
         <Input placeholder="State" value={value.location.state} onChange={(event) => update("location", { ...value.location, state: event.target.value })} />
@@ -1171,6 +1188,7 @@ function PropertyEditor({
         <Input placeholder="Postal code" value={value.location.postalCode} onChange={(event) => update("location", { ...value.location, postalCode: event.target.value })} />
         <Input placeholder="Latitude" value={value.location.latitude} onChange={(event) => update("location", { ...value.location, latitude: event.target.value })} />
         <Input placeholder="Longitude" value={value.location.longitude} onChange={(event) => update("location", { ...value.location, longitude: event.target.value })} />
+        <Input placeholder="Mapbox place ID" value={value.location.mapboxPlaceId} onChange={(event) => update("location", { ...value.location, mapboxPlaceId: event.target.value })} />
       </div>
 
       <Textarea

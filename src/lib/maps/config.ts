@@ -1,6 +1,6 @@
 import { env, featureFlags } from "@/lib/env";
 
 export const mapboxConfig = {
-  token: env.MAPBOX_ACCESS_TOKEN,
+  token: env.MAPBOX_ACCESS_TOKEN ?? env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN,
   enabled: featureFlags.hasMapbox,
 };

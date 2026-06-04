@@ -21,12 +21,6 @@ export function isSuperadminAccessError(error: unknown): error is SuperadminAcce
 export async function requirePortalSession(options?: {
   redirectOnMissingAuth?: boolean;
 }) {
-  return requireTenantContext("portal", options);
-}
-
-export async function requireBuyerPortalSession(options?: {
-  redirectOnMissingAuth?: boolean;
-}) {
   const session = await requireTenantContext("portal", options);
 
   if (!hasRequiredRole(session.roles, ["BUYER"])) {
@@ -46,6 +40,12 @@ export async function requireBuyerPortalSession(options?: {
   }
 
   return session;
+}
+
+export async function requireBuyerPortalSession(options?: {
+  redirectOnMissingAuth?: boolean;
+}) {
+  return requirePortalSession(options);
 }
 
 export async function requireAdminSession(

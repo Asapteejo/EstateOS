@@ -232,13 +232,11 @@ const serverEnvSchema = z
       ]);
     }
 
-    if (
-      Boolean(value.MAPBOX_ACCESS_TOKEN) !== Boolean(value.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN)
-    ) {
+    if (Boolean(value.MAPBOX_ACCESS_TOKEN) && !Boolean(value.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Mapbox configuration should provide both server and public tokens together.",
-        path: ["MAPBOX_ACCESS_TOKEN"],
+        message: "Mapbox server token requires NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN for browser maps.",
+        path: ["NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN"],
       });
     }
 
@@ -419,11 +417,6 @@ export function normalizeRuntimeServerEnv(raw: NodeJS.ProcessEnv): NodeJS.Proces
     "NEXT_PUBLIC_POSTHOG_KEY",
     "NEXT_PUBLIC_POSTHOG_HOST",
   ]);
-  clearIncompleteGroup([
-    "MAPBOX_ACCESS_TOKEN",
-    "NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN",
-  ]);
-
   if (normalized.TWILIO_ENABLED?.trim().toLowerCase() === "true") {
     clearIncompleteGroup([
       "TWILIO_ACCOUNT_SID",
@@ -478,9 +471,7 @@ export function buildFeatureFlags(env: ServerEnv) {
       Boolean(env.R2_ACCESS_KEY_ID) &&
       Boolean(env.R2_SECRET_ACCESS_KEY) &&
       Boolean(env.R2_BUCKET_NAME),
-    hasMapbox:
-      Boolean(env.MAPBOX_ACCESS_TOKEN) &&
-      Boolean(env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN),
+    hasMapbox: Boolean(env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN),
     hasRedis:
       Boolean(env.UPSTASH_REDIS_REST_URL) &&
       Boolean(env.UPSTASH_REDIS_REST_TOKEN),

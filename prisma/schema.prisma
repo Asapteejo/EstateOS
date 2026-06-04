@@ -1140,6 +1140,7 @@ model PropertyLocation {
   companyId     String
   propertyId    String   @unique
   addressLine1  String?
+  formattedAddress String?
   city          String
   state         String
   country       String   @default("Nigeria")

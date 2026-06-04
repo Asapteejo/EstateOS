@@ -86,6 +86,8 @@ type MarketplacePropertyRow = {
     logoUrl: string | null;
   };
   location: {
+    addressLine1: string | null;
+    formattedAddress: string | null;
     city: string;
     state: string;
     longitude: Decimalish | null;
@@ -188,6 +190,9 @@ function buildMarketplaceWhere(filters: MarketplaceFilters) {
 
 function mapRowToMarketplaceSummary(row: MarketplacePropertyRow): MarketplacePropertySummary {
   const paymentPlan = row.paymentPlans[0];
+  const hasCoordinates = row.location?.longitude != null && row.location?.latitude != null;
+  const longitude = row.location?.longitude == null ? 0 : decimalToNumber(row.location.longitude);
+  const latitude = row.location?.latitude == null ? 0 : decimalToNumber(row.location.latitude);
   const unitPrices = row.units.map((u) => decimalToNumber(u.price));
   const minUnitPrice = unitPrices.length > 0 ? Math.min(...unitPrices) : null;
   const maxUnitPrice = unitPrices.length > 0 ? Math.max(...unitPrices) : null;
@@ -232,10 +237,9 @@ function mapRowToMarketplaceSummary(row: MarketplacePropertyRow): MarketplacePro
       `${row.location?.city ?? "Unknown"}, ${row.location?.state ?? "Unknown"}`,
     city: row.location?.city ?? "Unknown",
     state: row.location?.state ?? "Unknown",
-    coordinates: [
-      row.location?.longitude == null ? 0 : decimalToNumber(row.location.longitude),
-      row.location?.latitude == null ? 0 : decimalToNumber(row.location.latitude),
-    ],
+    formattedAddress: row.location?.formattedAddress ?? row.location?.addressLine1 ?? undefined,
+    coordinates: [longitude, latitude],
+    hasCoordinates,
     images: row.media.map((m) => m.url),
     paymentPlan: {
       title: paymentPlan?.title ?? "Flexible payment plan",
@@ -327,7 +331,14 @@ export async function getMarketplaceProperties(
           select: { slug: true, name: true, logoUrl: true },
         },
         location: {
-          select: { city: true, state: true, longitude: true, latitude: true },
+          select: {
+            addressLine1: true,
+            formattedAddress: true,
+            city: true,
+            state: true,
+            longitude: true,
+            latitude: true,
+          },
         },
         media: {
           where: { visibility: "PUBLIC" },
@@ -424,7 +435,14 @@ export async function getMarketplacePropertyDetail(
         select: { slug: true, name: true, logoUrl: true },
       },
       location: {
-        select: { city: true, state: true, longitude: true, latitude: true },
+        select: {
+          addressLine1: true,
+          formattedAddress: true,
+          city: true,
+          state: true,
+          longitude: true,
+          latitude: true,
+        },
       },
       media: {
         where: { visibility: "PUBLIC" },

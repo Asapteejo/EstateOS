@@ -95,6 +95,29 @@ test("tenant public buyer cta points to central sign-in with tenant host context
   assert.equal(redirect.toString(), "https://estateos.tech/sign-in?returnTo=%2Fportal&tenant=blueprint-urban-residences&host=blueprinturbanresidences.com&entry=buyer");
 });
 
+test("tenant subdomain portal ctas also preserve host context on central auth", () => {
+  const redirect = new URL(
+    buildAuthRedirect({
+      appBaseUrl: "https://estateos.tech",
+      platformBaseUrl: "https://estateos.tech",
+      portalBaseUrl: "https://estateos.tech",
+      isProduction: true,
+    }, {
+      returnTo: "/portal",
+      tenantSlug: "blueprinturbanresidences",
+      tenantHost: "blueprinturbanresidences.estateos.tech",
+      entry: "buyer",
+    }),
+  );
+
+  assert.equal(redirect.origin, "https://estateos.tech");
+  assert.equal(redirect.pathname, "/sign-in");
+  assert.equal(redirect.searchParams.get("tenant"), "blueprinturbanresidences");
+  assert.equal(redirect.searchParams.get("host"), "blueprinturbanresidences.estateos.tech");
+  assert.equal(redirect.searchParams.get("entry"), "buyer");
+  assert.equal(redirect.searchParams.get("returnTo"), "/portal");
+});
+
 test("production auth redirect uses EstateOS production url instead of localhost", () => {
   const env = parseServerEnv({
     NODE_ENV: "production",

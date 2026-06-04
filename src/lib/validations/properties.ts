@@ -117,13 +117,26 @@ export const paymentPlanInputSchema = z.object({
 
 export const propertyLocationInputSchema = z.object({
   addressLine1: optionalTrimmedString,
+  formattedAddress: optionalTrimmedString,
   city: z.string().trim().min(2),
   state: z.string().trim().min(2),
   country: z.string().trim().min(2).default("Nigeria"),
   latitude: optionalNumberInput(z.number().min(-90).max(90)),
   longitude: optionalNumberInput(z.number().min(-180).max(180)),
+  mapboxPlaceId: optionalTrimmedString,
   neighborhood: optionalTrimmedString,
   postalCode: optionalTrimmedString,
+}).superRefine((value, ctx) => {
+  const hasLatitude = value.latitude != null;
+  const hasLongitude = value.longitude != null;
+
+  if (hasLatitude !== hasLongitude) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Latitude and longitude must be provided together.",
+      path: hasLatitude ? ["longitude"] : ["latitude"],
+    });
+  }
 });
 
 export const propertyPlotOptionInputSchema = z.object({
@@ -298,6 +311,9 @@ export const propertyVerifySchema = z.object({
 
 export const propertySearchParamsSchema = z.object({
   location: z.string().trim().min(1).optional(),
+  latitude: optionalNumberInput(z.number().min(-90).max(90)),
+  longitude: optionalNumberInput(z.number().min(-180).max(180)),
+  radiusKm: optionalNumberInput(z.number().positive().max(100)),
   propertyType: propertyTypeSchema.optional(),
   minPrice: z.coerce.number().positive().optional(),
   maxPrice: z.coerce.number().positive().optional(),
