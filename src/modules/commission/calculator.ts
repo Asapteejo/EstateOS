@@ -57,10 +57,10 @@ export async function recordMarketerCommission(input: {
   ruleId?: string | null;
   amount: number;
   currency: string;
-}): Promise<void> {
-  if (!featureFlags.hasDatabase) return;
+}, delegateInput?: CommissionDelegate | null, options?: { hasDatabase?: boolean }): Promise<void> {
+  if (options?.hasDatabase === false || (!options?.hasDatabase && !featureFlags.hasDatabase)) return;
 
-  const delegate = getCommissionDelegate();
+  const delegate = delegateInput ?? getCommissionDelegate();
   if (!delegate) return;
 
   // @unique on paymentId — ignore duplicate (idempotent webhook re-delivery)
@@ -68,7 +68,7 @@ export async function recordMarketerCommission(input: {
     await delegate.create({
       data: {
         companyId: input.companyId,
-        teamMemberId: input.marketerId,
+        marketerId: input.marketerId,
         paymentId: input.paymentId,
         transactionId: input.transactionId ?? null,
         ruleId: input.ruleId ?? null,
@@ -104,27 +104,29 @@ export type MarketerCommissionTotals = {
  */
 export async function getMarketerCommissionTotals(
   companyId: string,
+  delegateInput?: CommissionDelegate | null,
+  options?: { hasDatabase?: boolean },
 ): Promise<Map<string, MarketerCommissionTotals>> {
-  if (!featureFlags.hasDatabase) return new Map();
+  if (options?.hasDatabase === false || (!options?.hasDatabase && !featureFlags.hasDatabase)) return new Map();
 
-  const delegate = getCommissionDelegate();
+  const delegate = delegateInput ?? getCommissionDelegate();
   if (!delegate) return new Map();
 
   const rows = (await delegate.findMany({
     where: { companyId },
     select: {
-      teamMemberId: true,
+      marketerId: true,
       amount: true,
       status: true,
     },
-  })) as Array<{ teamMemberId: string; amount: { toNumber: () => number } | number; status: string }>;
+  })) as Array<{ marketerId: string; amount: { toNumber: () => number } | number; status: string }>;
 
   const result = new Map<string, MarketerCommissionTotals>();
 
   for (const row of rows) {
     const amount =
       typeof row.amount === "number" ? row.amount : row.amount.toNumber();
-    const marketerId = row.teamMemberId;
+    const marketerId = row.marketerId;
     const existing = result.get(marketerId) ?? { pending: 0, paid: 0, lifetime: 0 };
 
     existing.lifetime += amount;
