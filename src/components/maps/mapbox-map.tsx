@@ -4,14 +4,14 @@ import { MapPin } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Card } from "@/components/ui/card";
+import { closeBoundaryRing, type Coordinates } from "@/lib/maps/geojson";
 import { publicEnv } from "@/lib/public-env";
 import { cn } from "@/lib/utils";
-
-type Coordinates = [number, number];
 
 type MapboxMapProps = {
   center?: Coordinates | null;
   markerLabel?: string;
+  polygon?: Coordinates[];
   zoom?: number;
   interactive?: boolean;
   className?: string;
@@ -33,9 +33,68 @@ function hasValidCoordinates(coordinates: Coordinates | null | undefined) {
   );
 }
 
+function buildPolygonData(points: Coordinates[]): GeoJSON.FeatureCollection<GeoJSON.Polygon> {
+  return {
+    type: "FeatureCollection",
+    features: points.length >= 3
+      ? [
+          {
+            type: "Feature",
+            geometry: {
+              type: "Polygon",
+              coordinates: [closeBoundaryRing(points)],
+            },
+            properties: {},
+          },
+        ]
+      : [],
+  };
+}
+
+function syncPolygonLayer(map: import("mapbox-gl").Map, points: Coordinates[]) {
+  const sourceId = "estateos-property-boundary";
+  const fillLayerId = "estateos-property-boundary-fill";
+  const lineLayerId = "estateos-property-boundary-line";
+  const data = buildPolygonData(points);
+
+  if (!map.getSource(sourceId)) {
+    map.addSource(sourceId, {
+      type: "geojson",
+      data,
+    });
+  } else {
+    (map.getSource(sourceId) as import("mapbox-gl").GeoJSONSource).setData(data);
+  }
+
+  if (!map.getLayer(fillLayerId)) {
+    map.addLayer({
+      id: fillLayerId,
+      type: "fill",
+      source: sourceId,
+      paint: {
+        "fill-color": "#0b5d48",
+        "fill-opacity": 0.18,
+      },
+    });
+  }
+
+  if (!map.getLayer(lineLayerId)) {
+    map.addLayer({
+      id: lineLayerId,
+      type: "line",
+      source: sourceId,
+      paint: {
+        "line-color": "#0b5d48",
+        "line-width": 3,
+      },
+    });
+  }
+}
+
 export function MapboxMap({
   center,
   markerLabel,
+  polygon = [],
   zoom = 14,
   interactive = true,
   className,
@@ -46,9 +105,15 @@ export function MapboxMap({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<import("mapbox-gl").Map | null>(null);
   const markerRef = useRef<import("mapbox-gl").Marker | null>(null);
+  const polygonRef = useRef(polygon);
   const [error, setError] = useState<string | null>(null);
   const token = publicEnv.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
   const enabled = Boolean(token) && hasValidCoordinates(center);
+  const polygonKey = JSON.stringify(polygon);
+
+  useEffect(() => {
+    polygonRef.current = polygon;
+  }, [polygon]);
 
   useEffect(() => {
     if (!enabled || !containerRef.current || !center) return;
@@ -78,6 +143,8 @@ export function MapboxMap({
 
         markerRef.current = new mapboxgl.Marker({ element: markerElement }).setLngLat(center).addTo(map);
 
+        map.on("load", () => syncPolygonLayer(map, polygonRef.current));
+
         if (onPick) {
           map.on("click", (event) => {
             onPick([Number(event.lngLat.lng.toFixed(7)), Number(event.lngLat.lat.toFixed(7))]);
@@ -103,6 +170,11 @@ export function MapboxMap({
     };
   }, [center, enabled, interactive, markerLabel, onPick, token, zoom]);
 
+  useEffect(() => {
+    if (!mapRef.current || !mapRef.current.isStyleLoaded()) return;
+    syncPolygonLayer(mapRef.current, polygonRef.current);
+  }, [polygonKey]);
+
   if (!enabled || error) {
     return (
       <Card className={cn("flex min-h-[300px] items-center justify-center overflow-hidden border-dashed bg-[var(--sand-50)]", className)}>
@@ -123,4 +195,3 @@ export function MapboxMap({
     </div>
   );
 }
-

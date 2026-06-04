@@ -14,6 +14,7 @@ import {
   propertySearchParamsSchema,
   type PropertySearchParams,
 } from "@/lib/validations/properties";
+import { extractBoundaryPoints } from "@/lib/maps/geojson";
 import { properties as demoProperties, getPropertyBySlug } from "@/modules/properties/demo-data";
 import {
   buildPropertyVerificationPresentation,
@@ -124,6 +125,7 @@ type PropertyRow = {
     longitude: Decimalish | null;
     latitude: Decimalish | null;
     companyId: string;
+    boundaryGeoJson: unknown;
   } | null;
   media: Array<{ url: string }>;
   paymentPlans: Array<{
@@ -479,6 +481,7 @@ export async function getPublicProperties(
               state: true,
               longitude: true,
               latitude: true,
+              boundaryGeoJson: true,
               companyId: true,
             },
           },
@@ -638,6 +641,7 @@ export async function getPublicPropertyDetailBySlug(
             state: true,
             longitude: true,
             latitude: true,
+            boundaryGeoJson: true,
             companyId: true,
           },
         },
@@ -923,6 +927,7 @@ function mapPropertyRowToSummary(property: PropertyRow): PropertySummary {
     formattedAddress: property.location?.formattedAddress ?? property.location?.addressLine1 ?? undefined,
     coordinates: [longitude, latitude],
     hasCoordinates,
+    boundaryCoordinates: extractBoundaryPoints(property.location?.boundaryGeoJson),
     images: property.media.map((item) => item.url),
     paymentPlan: {
       title: paymentPlan?.title ?? "Flexible payment plan",

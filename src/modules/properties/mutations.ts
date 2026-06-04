@@ -489,6 +489,20 @@ function buildPropertyBaseData(
   };
 }
 
+function buildPropertyLocationData(input: PropertyMutationInput["location"]) {
+  const { boundaryGeoJson, ...location } = input;
+
+  return {
+    ...location,
+    boundaryGeoJson:
+      boundaryGeoJson === undefined
+        ? undefined
+        : boundaryGeoJson === null
+          ? Prisma.JsonNull
+          : (boundaryGeoJson as Prisma.InputJsonValue),
+  };
+}
+
 export async function createPropertyForAdmin(
   context: TenantContext,
   rawInput: PropertyMutationInput & Record<string, unknown>,
@@ -542,7 +556,7 @@ export async function createPropertyForAdmin(
       data: {
         companyId: context.companyId!,
         propertyId: created.id,
-        ...rawInput.location,
+        ...buildPropertyLocationData(rawInput.location),
       },
     });
 
@@ -658,11 +672,11 @@ export async function updatePropertyForAdmin(
       where: {
         propertyId,
       },
-      update: rawInput.location,
+      update: buildPropertyLocationData(rawInput.location),
       create: {
         companyId: context.companyId!,
         propertyId,
-        ...rawInput.location,
+        ...buildPropertyLocationData(rawInput.location),
       },
     });
 

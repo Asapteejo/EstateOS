@@ -1,4 +1,6 @@
 import { z } from "zod";
+
+import { isValidBoundaryGeoJson } from "@/lib/maps/geojson";
 import { parseFlexibleNumber } from "@/lib/number";
 import { SUPPORTED_CURRENCIES } from "@/lib/utils";
 
@@ -124,6 +126,9 @@ export const propertyLocationInputSchema = z.object({
   latitude: optionalNumberInput(z.number().min(-90).max(90)),
   longitude: optionalNumberInput(z.number().min(-180).max(180)),
   mapboxPlaceId: optionalTrimmedString,
+  boundaryGeoJson: z.custom((value) => value == null || isValidBoundaryGeoJson(value), {
+    message: "Boundary must be a valid GeoJSON polygon.",
+  }).optional(),
   neighborhood: optionalTrimmedString,
   postalCode: optionalTrimmedString,
 }).superRefine((value, ctx) => {

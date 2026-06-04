@@ -1,11 +1,12 @@
 "use client";
 
-import { Loader2, MapPin, Search } from "lucide-react";
+import { Loader2, MapPin, Pencil, RotateCcw, Search, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { MapboxMap } from "@/components/maps/mapbox-map";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { buildBoundaryGeoJson, extractBoundaryPoints, type Coordinates } from "@/lib/maps/geojson";
 import { publicEnv } from "@/lib/public-env";
 
 export type PropertyLocationPickerValue = {
@@ -17,6 +18,7 @@ export type PropertyLocationPickerValue = {
   latitude: string;
   longitude: string;
   mapboxPlaceId: string;
+  boundaryGeoJson: string;
   neighborhood: string;
   postalCode: string;
 };
@@ -46,6 +48,7 @@ export function PropertyLocationPicker({
   const [query, setQuery] = useState(value.formattedAddress || value.addressLine1);
   const [features, setFeatures] = useState<MapboxFeature[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isDrawingBoundary, setIsDrawingBoundary] = useState(false);
 
   const center = useMemo<[number, number] | null>(() => {
     const latitude = Number(value.latitude);
@@ -53,6 +56,15 @@ export function PropertyLocationPicker({
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
     return [longitude, latitude];
   }, [value.latitude, value.longitude]);
+  const boundaryPoints = useMemo(() => extractBoundaryPoints(value.boundaryGeoJson), [value.boundaryGeoJson]);
+
+  function updateBoundary(points: Coordinates[]) {
+    const boundary = buildBoundaryGeoJson(points);
+    onChange({
+      ...value,
+      boundaryGeoJson: boundary ? JSON.stringify(boundary, null, 2) : "",
+    });
+  }
 
   useEffect(() => {
     if (!token || query.trim().length < 3) {
@@ -161,10 +173,15 @@ export function PropertyLocationPicker({
       <MapboxMap
         center={center}
         markerLabel={value.formattedAddress || value.addressLine1 || "Property location"}
+        polygon={boundaryPoints}
         className="min-h-[260px]"
         fallbackTitle="Property map"
         fallbackDescription="Pick a location after entering coordinates."
         onPick={(coordinates) => {
+          if (isDrawingBoundary) {
+            updateBoundary([...boundaryPoints, coordinates]);
+            return;
+          }
           onChange({
             ...value,
             longitude: String(coordinates[0]),
@@ -172,7 +189,41 @@ export function PropertyLocationPicker({
           });
         }}
       />
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant={isDrawingBoundary ? "default" : "outline"}
+          size="sm"
+          onClick={() => setIsDrawingBoundary((current) => !current)}
+          disabled={!center}
+        >
+          <Pencil className="mr-2 h-4 w-4" />
+          {isDrawingBoundary ? "Finish boundary" : "Draw boundary"}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => updateBoundary(boundaryPoints.slice(0, -1))}
+          disabled={boundaryPoints.length === 0}
+        >
+          <RotateCcw className="mr-2 h-4 w-4" />
+          Undo point
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => updateBoundary([])}
+          disabled={boundaryPoints.length === 0}
+        >
+          <Trash2 className="mr-2 h-4 w-4" />
+          Clear boundary
+        </Button>
+        <span className="text-xs text-[var(--ink-500)]">
+          {boundaryPoints.length >= 3 ? `${boundaryPoints.length} boundary points saved` : "Add at least 3 points"}
+        </span>
+      </div>
     </div>
   );
 }
-

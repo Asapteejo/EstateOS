@@ -66,6 +66,7 @@ type PropertyFormState = {
     latitude: string;
     longitude: string;
     mapboxPlaceId: string;
+    boundaryGeoJson: string;
     neighborhood: string;
     postalCode: string;
   };
@@ -218,6 +219,7 @@ const PROPERTY_FIELD_LABELS: Record<string, string> = {
   "location.latitude": "Latitude",
   "location.longitude": "Longitude",
   "location.mapboxPlaceId": "Mapbox place",
+  "location.boundaryGeoJson": "Boundary",
   media: "Media",
   units: "Units",
   paymentPlans: "Payment plans",
@@ -298,6 +300,7 @@ function emptyFormState(): PropertyFormState {
       latitude: "",
       longitude: "",
       mapboxPlaceId: "",
+      boundaryGeoJson: "",
       neighborhood: "",
       postalCode: "",
     },
@@ -360,6 +363,9 @@ function toFormState(property: AdminPropertyManagementRecord): PropertyFormState
       latitude: property.location.latitude == null ? "" : String(property.location.latitude),
       longitude: property.location.longitude == null ? "" : String(property.location.longitude),
       mapboxPlaceId: property.location.mapboxPlaceId ?? "",
+      boundaryGeoJson: property.location.boundaryGeoJson
+        ? JSON.stringify(property.location.boundaryGeoJson, null, 2)
+        : "",
       neighborhood: property.location.neighborhood ?? "",
       postalCode: property.location.postalCode ?? "",
     },
@@ -427,6 +433,17 @@ function requiredNumber(value: string) {
 
 function optionalNumber(value: string) {
   return parseFlexibleNumber(value);
+}
+
+function parseBoundaryGeoJsonInput(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    return trimmed;
+  }
 }
 
 function serializeForm(state: PropertyFormState) {
@@ -497,6 +514,7 @@ function serializeForm(state: PropertyFormState) {
       latitude: optionalNumber(state.location.latitude),
       longitude: optionalNumber(state.location.longitude),
       mapboxPlaceId: state.location.mapboxPlaceId || undefined,
+      boundaryGeoJson: parseBoundaryGeoJsonInput(state.location.boundaryGeoJson),
       neighborhood: state.location.neighborhood || undefined,
       postalCode: state.location.postalCode || undefined,
     },
@@ -1190,6 +1208,12 @@ function PropertyEditor({
         <Input placeholder="Longitude" value={value.location.longitude} onChange={(event) => update("location", { ...value.location, longitude: event.target.value })} />
         <Input placeholder="Mapbox place ID" value={value.location.mapboxPlaceId} onChange={(event) => update("location", { ...value.location, mapboxPlaceId: event.target.value })} />
       </div>
+
+      <Textarea
+        placeholder="Boundary GeoJSON"
+        value={value.location.boundaryGeoJson}
+        onChange={(event) => update("location", { ...value.location, boundaryGeoJson: event.target.value })}
+      />
 
       <Textarea
         placeholder="Nearby landmarks, comma separated"

@@ -70,6 +70,7 @@ export type AdminPropertyManagementRecord = {
     latitude: number | null;
     longitude: number | null;
     mapboxPlaceId: string | null;
+    boundaryGeoJson: unknown;
     neighborhood: string | null;
     postalCode: string | null;
   };
@@ -207,6 +208,7 @@ export async function getAdminPropertyManagementList(context: TenantContext) {
             latitude: true,
             longitude: true,
             mapboxPlaceId: true,
+            boundaryGeoJson: true,
             neighborhood: true,
             postalCode: true,
             companyId: true,
@@ -330,6 +332,7 @@ export async function getAdminPropertyManagementList(context: TenantContext) {
       latitude: Decimalish | null;
       longitude: Decimalish | null;
       mapboxPlaceId: string | null;
+      boundaryGeoJson: unknown;
       neighborhood: string | null;
       postalCode: string | null;
       companyId: string;
@@ -444,6 +447,7 @@ export async function getAdminPropertyManagementList(context: TenantContext) {
           latitude: decimalToNumber(property.location?.latitude),
           longitude: decimalToNumber(property.location?.longitude),
           mapboxPlaceId: property.location?.mapboxPlaceId ?? null,
+          boundaryGeoJson: property.location?.boundaryGeoJson ?? null,
           neighborhood: property.location?.neighborhood ?? null,
           postalCode: property.location?.postalCode ?? null,
         },

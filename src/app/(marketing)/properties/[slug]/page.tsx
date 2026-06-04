@@ -107,6 +107,7 @@ export default async function PropertyDetailPage({
                     title={property.formattedAddress ?? property.locationSummary}
                     coordinates={property.coordinates}
                     hasCoordinates={property.hasCoordinates}
+                    boundaryCoordinates={property.boundaryCoordinates}
                   />
                 </div>
               </Card>

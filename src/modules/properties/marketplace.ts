@@ -12,6 +12,7 @@ import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 import { buildPublicPropertyVerificationWhere } from "@/modules/properties/verification";
 import type { PropertySummary } from "@/types/domain";
+import { extractBoundaryPoints } from "@/lib/maps/geojson";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,7 @@ type MarketplacePropertyRow = {
     state: string;
     longitude: Decimalish | null;
     latitude: Decimalish | null;
+    boundaryGeoJson: unknown;
   } | null;
   media: Array<{ url: string }>;
   paymentPlans: Array<{
@@ -240,6 +242,7 @@ function mapRowToMarketplaceSummary(row: MarketplacePropertyRow): MarketplacePro
     formattedAddress: row.location?.formattedAddress ?? row.location?.addressLine1 ?? undefined,
     coordinates: [longitude, latitude],
     hasCoordinates,
+    boundaryCoordinates: extractBoundaryPoints(row.location?.boundaryGeoJson),
     images: row.media.map((m) => m.url),
     paymentPlan: {
       title: paymentPlan?.title ?? "Flexible payment plan",
@@ -338,6 +341,7 @@ export async function getMarketplaceProperties(
             state: true,
             longitude: true,
             latitude: true,
+            boundaryGeoJson: true,
           },
         },
         media: {
@@ -442,6 +446,7 @@ export async function getMarketplacePropertyDetail(
           state: true,
           longitude: true,
           latitude: true,
+          boundaryGeoJson: true,
         },
       },
       media: {

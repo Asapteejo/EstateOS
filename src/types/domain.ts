@@ -42,6 +42,7 @@ export type PropertySummary = {
   formattedAddress?: string;
   coordinates: [number, number];
   hasCoordinates: boolean;
+  boundaryCoordinates?: [number, number][];
   images: string[];
   paymentPlan: {
     title: string;

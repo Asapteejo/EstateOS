@@ -386,6 +386,19 @@ test("property location accepts Mapbox address metadata with complete coordinate
       latitude: "6.4474000",
       longitude: "3.4723000",
       mapboxPlaceId: "dXJuOm1ieHBsYzp0ZXN0",
+      boundaryGeoJson: {
+        type: "Feature",
+        geometry: {
+          type: "Polygon",
+          coordinates: [[
+            [3.4723, 6.4474],
+            [3.4733, 6.4474],
+            [3.4733, 6.4484],
+            [3.4723, 6.4474],
+          ]],
+        },
+        properties: {},
+      },
     },
   });
 
@@ -395,6 +408,7 @@ test("property location accepts Mapbox address metadata with complete coordinate
   }
   assert.equal(parsed.data.location.formattedAddress, "10 Admiralty Way, Lekki Phase 1, Lagos, Nigeria");
   assert.equal(parsed.data.location.mapboxPlaceId, "dXJuOm1ieHBsYzp0ZXN0");
+  assert.equal((parsed.data.location.boundaryGeoJson as { type?: string }).type, "Feature");
   assert.equal(parsed.data.location.latitude, 6.4474);
   assert.equal(parsed.data.location.longitude, 3.4723);
 });

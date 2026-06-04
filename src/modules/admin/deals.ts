@@ -229,6 +229,7 @@ export async function quickCreatePropertyForDeal(
       state: branch?.state ?? "Lagos",
       country: branch?.country ?? "Nigeria",
       mapboxPlaceId: undefined,
+      boundaryGeoJson: undefined,
       neighborhood: undefined,
       postalCode: undefined,
     },
