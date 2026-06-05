@@ -3,6 +3,11 @@ import { getAppSession } from "@/lib/auth/session";
 import { fail, ok } from "@/lib/http";
 import { buyerKycSubmissionSchema } from "@/lib/validations/kyc";
 import { createBuyerKycSubmission } from "@/modules/kyc/service";
+import {
+  enforceRateLimit,
+  getClientIp,
+  kycSubmissionRateLimit,
+} from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   let tenant: Awaited<ReturnType<typeof requirePortalSession>>;
@@ -11,6 +16,13 @@ export async function POST(request: Request) {
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    kycSubmissionRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "anon"}`],
+    "Too many KYC submissions. Please wait a moment and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   let json: unknown;
   try {

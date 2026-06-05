@@ -9,6 +9,11 @@ import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import { uploadRequestSchema } from "@/lib/validations/storage";
 import { getUploadPurposeConfig } from "@/modules/uploads/config";
 import { assertUploadPurposeAllowed } from "@/lib/uploads/policy";
+import {
+  enforceRateLimit,
+  getClientIp,
+  uploadSignRateLimit,
+} from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   const json = (await request.json()) as Record<string, unknown>;
@@ -29,6 +34,13 @@ export async function POST(request: Request) {
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    uploadSignRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "anon"}`],
+    "Too many upload requests. Please wait a moment and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   const config = getUploadPurposeConfig(body.data.purpose);
   try {

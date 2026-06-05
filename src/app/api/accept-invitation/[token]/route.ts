@@ -12,17 +12,30 @@ import {
   acceptTeamMemberInvitation,
   invitationErrorStatus,
 } from "@/modules/invitations/team-invitations";
+import {
+  enforceRateLimit,
+  getClientIp,
+  invitationAcceptRateLimit,
+  invitationLookupRateLimit,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
   if (!featureFlags.hasDatabase) {
     return fail("Service unavailable.", 503);
   }
+
+  const rateLimited = await enforceRateLimit(
+    invitationLookupRateLimit,
+    `ip:${getClientIp(request)}`,
+    "Too many invitation lookups. Please wait a moment and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   const invitation = await prisma.teamMemberInvitation.findUnique({
     where: { token },
@@ -65,7 +78,7 @@ export async function GET(
 }
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
@@ -74,6 +87,13 @@ export async function POST(
   const session = featureFlags.hasClerk ? await auth() : null;
   const clerkUserId = session?.userId ?? null;
   if (!clerkUserId) return fail("Authentication required.", 401);
+
+  const rateLimited = await enforceRateLimit(
+    invitationAcceptRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${clerkUserId}`],
+    "Too many invitation attempts. Please wait a moment and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   const invitation = await prisma.teamMemberInvitation.findUnique({
     where: { token },

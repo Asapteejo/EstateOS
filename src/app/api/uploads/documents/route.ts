@@ -10,6 +10,11 @@ import { getAppSession } from "@/lib/auth/session";
 import { resolveBuyerDbUserForKyc } from "@/modules/kyc/buyer-user";
 import { getUploadPurposeConfig } from "@/modules/uploads/config";
 import { assertUploadPurposeAllowed } from "@/lib/uploads/policy";
+import {
+  enforceRateLimit,
+  getClientIp,
+  uploadCompleteRateLimit,
+} from "@/lib/rate-limit";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
@@ -32,6 +37,13 @@ export async function POST(request: Request) {
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    uploadCompleteRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "anon"}`],
+    "Too many upload requests. Please wait a moment and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   if (!tenant.companyId) {
     return fail("Tenant context is required.", 400);

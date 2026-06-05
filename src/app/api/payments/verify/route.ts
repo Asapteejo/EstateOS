@@ -7,6 +7,11 @@ import { assertPaymentReferenceBelongsToTenant } from "@/lib/payments/references
 import { requireTenantContext } from "@/lib/tenancy/context";
 import { rejectUnsafeCompanyIdInput } from "@/lib/tenancy/db";
 import { paymentVerifySchema } from "@/lib/validations/payments";
+import {
+  enforceRateLimit,
+  getClientIp,
+  paymentVerifyRateLimit,
+} from "@/lib/rate-limit";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
@@ -16,6 +21,13 @@ export async function POST(request: Request) {
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    paymentVerifyRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "anon"}`],
+    "Too many verification attempts. Please wait a moment and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   const json = (await request.json()) as Record<string, unknown>;
   try {

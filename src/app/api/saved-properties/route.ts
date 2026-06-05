@@ -2,6 +2,11 @@ import { requirePortalSession } from "@/lib/auth/guards";
 import { fail, ok } from "@/lib/http";
 import { savedPropertyMutationSchema } from "@/lib/validations/saved-properties";
 import { savePropertyForBuyer } from "@/modules/portal/mutations";
+import {
+  enforceRateLimit,
+  getClientIp,
+  savedPropertyRateLimit,
+} from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   let tenant: Awaited<ReturnType<typeof requirePortalSession>>;
@@ -10,6 +15,13 @@ export async function POST(request: Request) {
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    savedPropertyRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "anon"}`],
+    "Too many requests. Please wait a moment and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   const json = (await request.json()) as Record<string, unknown>;
   const body = savedPropertyMutationSchema.safeParse(json);

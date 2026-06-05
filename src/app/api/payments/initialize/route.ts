@@ -10,6 +10,11 @@ import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
 import { getAppSession } from "@/lib/auth/session";
 import { resolveBuyerDbUserForKyc } from "@/modules/kyc/buyer-user";
+import {
+  enforceRateLimit,
+  getClientIp,
+  paymentInitializeRateLimit,
+} from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   let tenant: Awaited<ReturnType<typeof requireTenantContext>>;
@@ -18,6 +23,14 @@ export async function POST(request: Request) {
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    paymentInitializeRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "anon"}`],
+    "Too many payment attempts. Please wait a moment and try again.",
+  );
+  if (rateLimited) return rateLimited;
+
   const json = (await request.json()) as Record<string, unknown>;
   try {
     rejectUnsafeCompanyIdInput(json);
