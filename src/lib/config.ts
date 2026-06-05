@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-import { getProductionDatabaseSafetyStatus } from "@/lib/db/production-db-guard";
+import {
+  getProductionDatabaseSafetyStatus,
+  isKnownProductionDatabase,
+} from "@/lib/db/production-db-guard";
 
 const emptyStringToUndefined = <TSchema extends z.ZodTypeAny>(schema: TSchema) =>
   z.preprocess(
@@ -453,9 +456,15 @@ export function buildFeatureFlags(env: ServerEnv) {
   return {
     isProduction: env.NODE_ENV === "production",
     isTest: env.NODE_ENV === "test",
+    // Dev bypass is opt-in for non-production runtimes, but it can NEVER be
+    // active when the configured database is the known production database.
+    // This prevents a local environment from gaining superadmin/admin access
+    // against production data, even if ESTATEOS_ENABLE_DEV_BYPASS is left on.
     allowDevBypass:
       env.NODE_ENV === "test" ||
-      (env.NODE_ENV !== "production" && env.ESTATEOS_ENABLE_DEV_BYPASS === true),
+      (env.NODE_ENV !== "production" &&
+        env.ESTATEOS_ENABLE_DEV_BYPASS === true &&
+        !isKnownProductionDatabase(env)),
     hasDatabase: Boolean(env.DATABASE_URL),
     hasClerk:
       Boolean(env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) &&

@@ -1,6 +1,9 @@
-const ESTATEOS_PRODUCTION_PROJECT_REF = "epxbejutuodmnsdfvcjr";
-const ESTATEOS_PRODUCTION_DATABASE_HOST = "aws-0-eu-west-1.pooler.supabase.com";
-
+// The production Supabase project ref and pooler host are intentionally NOT
+// hardcoded here. They are sourced from PRODUCTION_DATABASE_PROJECT_REF /
+// PRODUCTION_DATABASE_HOST (see .env.local for local development and the
+// platform environment for deploys). This keeps the production database
+// identifier out of source control. When neither is configured the guard
+// cannot identify a production database and treats the connection as safe.
 type ProductionDatabaseGuardEnv = {
   NODE_ENV?: string;
   DATABASE_URL?: string;
@@ -24,15 +27,26 @@ function getDatabaseHost(value: string | undefined) {
 }
 
 export function isKnownProductionDatabase(input: ProductionDatabaseGuardEnv) {
-  const projectRef =
-    normalize(input.PRODUCTION_DATABASE_PROJECT_REF) || ESTATEOS_PRODUCTION_PROJECT_REF;
-  const productionHost =
-    normalize(input.PRODUCTION_DATABASE_HOST) || ESTATEOS_PRODUCTION_DATABASE_HOST;
+  const projectRef = normalize(input.PRODUCTION_DATABASE_PROJECT_REF);
+  const productionHost = normalize(input.PRODUCTION_DATABASE_HOST);
+
+  // Without a configured production identifier we cannot tell whether the
+  // connection points at production, so we fail open (treat as not-production).
+  if (!projectRef && !productionHost) {
+    return false;
+  }
+
   const urls = [input.DATABASE_URL, input.DIRECT_URL].filter(Boolean) as string[];
 
   return urls.some((url) => {
     const host = getDatabaseHost(url);
-    return host === productionHost || host.includes(projectRef);
+    if (productionHost && host === productionHost) {
+      return true;
+    }
+    if (projectRef && host.includes(projectRef)) {
+      return true;
+    }
+    return false;
   });
 }
 

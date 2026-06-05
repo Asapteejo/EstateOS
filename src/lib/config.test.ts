@@ -472,3 +472,35 @@ test("dev bypass stays opt-in in development and disabled in production", () => 
   assert.equal(developmentDefault.allowDevBypass, false);
   assert.equal(production.allowDevBypass, false);
 });
+
+test("dev bypass is force-disabled when development points at the production database", () => {
+  const flags = buildFeatureFlags(
+    parseServerEnv({
+      NODE_ENV: "development",
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+      ESTATEOS_ENABLE_DEV_BYPASS: "true",
+      PRODUCTION_DATABASE_HOST: "aws-0-eu-west-1.pooler.supabase.com",
+      PRODUCTION_DATABASE_PROJECT_REF: "epxbejutuodmnsdfvcjr",
+      DATABASE_URL:
+        "postgresql://postgres:secret@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require",
+    }),
+  );
+
+  assert.equal(flags.allowDevBypass, false);
+});
+
+test("dev bypass stays available when development points at a separate local database", () => {
+  const flags = buildFeatureFlags(
+    parseServerEnv({
+      NODE_ENV: "development",
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+      ESTATEOS_ENABLE_DEV_BYPASS: "true",
+      PRODUCTION_DATABASE_HOST: "aws-0-eu-west-1.pooler.supabase.com",
+      PRODUCTION_DATABASE_PROJECT_REF: "epxbejutuodmnsdfvcjr",
+      DATABASE_URL:
+        "postgresql://postgres:postgres@localhost:5432/realestate_platform?schema=public",
+    }),
+  );
+
+  assert.equal(flags.allowDevBypass, true);
+});
