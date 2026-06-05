@@ -9,6 +9,11 @@ import {
   invitationErrorStatus,
   TENANT_INVITABLE_ROLES,
 } from "@/modules/invitations/team-invitations";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -62,6 +67,13 @@ export async function POST(request: Request) {
   } catch {
     return fail("Authentication required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    adminMutationRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many invitations sent. Please slow down and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   if (!featureFlags.hasDatabase || !tenant.companyId) {
     return fail("Service unavailable.", 503);

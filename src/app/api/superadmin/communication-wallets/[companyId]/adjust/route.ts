@@ -3,6 +3,11 @@ import { z } from "zod";
 import { isSuperadminAccessError, requireSuperAdminSession } from "@/lib/auth/guards";
 import { fail, ok, validationFail } from "@/lib/http";
 import { adjustCompanyWallet } from "@/modules/communication/wallet";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 const adjustWalletApiSchema = z.object({
   amount: z.coerce.number().int().refine((value) => value !== 0, {
@@ -17,7 +22,15 @@ export async function POST(
   { params }: { params: Promise<{ companyId: string }> },
 ) {
   try {
-    await requireSuperAdminSession({ redirectOnMissingAuth: false });
+    const session = await requireSuperAdminSession({ redirectOnMissingAuth: false });
+
+    const rateLimited = await enforceRateLimit(
+      adminMutationRateLimit,
+      [`ip:${getClientIp(request)}`, `user:${session.userId ?? "superadmin"}`],
+      "Too many requests. Please slow down and try again.",
+    );
+    if (rateLimited) return rateLimited;
+
     const { companyId } = await params;
     const parsed = adjustWalletApiSchema.safeParse(await request.json());
 

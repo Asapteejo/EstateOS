@@ -3,13 +3,26 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { requireAdminSession } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
+import {
+  aiDraftRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 export const runtime = "nodejs";
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ inquiryId: string }> },
 ) {
   const tenant = await requireAdminSession(["ADMIN", "STAFF"]);
+
+  const rateLimited = await enforceRateLimit(
+    aiDraftRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many AI draft requests. Please slow down and try again shortly.",
+  );
+  if (rateLimited) return rateLimited;
+
   const { inquiryId } = await params;
 
   if (!featureFlags.hasGeminiAi) {

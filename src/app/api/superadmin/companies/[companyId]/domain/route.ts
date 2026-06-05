@@ -9,6 +9,11 @@ import {
   setCompanyCustomDomain,
   verifyCompanyCustomDomain,
 } from "@/modules/domains/service";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -38,6 +43,14 @@ export async function PATCH(
 ) {
   try {
     const context = await requireSuperAdminSession({ redirectOnMissingAuth: false });
+
+    const rateLimited = await enforceRateLimit(
+      adminMutationRateLimit,
+      [`ip:${getClientIp(request)}`, `user:${context.userId ?? "superadmin"}`],
+      "Too many requests. Please slow down and try again.",
+    );
+    if (rateLimited) return rateLimited;
+
     const { companyId } = await params;
     const json = (await request.json()) as Record<string, unknown>;
     const body = patchSchema.safeParse(json);
@@ -76,11 +89,19 @@ export async function PATCH(
 }
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ companyId: string }> },
 ) {
   try {
     const context = await requireSuperAdminSession({ redirectOnMissingAuth: false });
+
+    const rateLimited = await enforceRateLimit(
+      adminMutationRateLimit,
+      [`ip:${getClientIp(request)}`, `user:${context.userId ?? "superadmin"}`],
+      "Too many requests. Please slow down and try again.",
+    );
+    if (rateLimited) return rateLimited;
+
     const { companyId } = await params;
     return ok(await verifyCompanyCustomDomain({
       companyId,

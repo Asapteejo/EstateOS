@@ -2,6 +2,11 @@ import { requireAdminSession } from "@/lib/auth/guards";
 import { fail, ok } from "@/lib/http";
 import { paymentRequestCreateSchema } from "@/lib/validations/payments";
 import { createPaymentRequestForAdmin, listPaymentRequestsForAdmin } from "@/modules/payment-requests/service";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export async function GET() {
   try {
@@ -16,6 +21,14 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const tenant = await requireAdminSession(["ADMIN"], { redirectOnMissingAuth: false });
+
+    const rateLimited = await enforceRateLimit(
+      adminMutationRateLimit,
+      [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+      "Too many requests. Please slow down and try again.",
+    );
+    if (rateLimited) return rateLimited;
+
     const json = (await request.json()) as Record<string, unknown>;
     const body = paymentRequestCreateSchema.safeParse(json);
     if (!body.success) {

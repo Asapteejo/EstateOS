@@ -3,12 +3,24 @@ import { buildCsv } from "@/lib/exports/csv";
 import { prisma } from "@/lib/db/prisma";
 import { findManyForTenant } from "@/lib/tenancy/db";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 type ScopedFindManyDelegate = { findMany: (args?: unknown) => Promise<unknown> };
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request: Request) {
   const tenant = await requireAdminSession(["ADMIN"]);
+
+  const rateLimited = await enforceRateLimit(
+    adminMutationRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many requests. Please slow down and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   const transactions = (await findManyForTenant(
     prisma.transaction as ScopedFindManyDelegate,

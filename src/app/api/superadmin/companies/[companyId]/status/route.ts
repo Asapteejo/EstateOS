@@ -2,6 +2,11 @@ import { isSuperadminAccessError, requireSuperAdminSession } from "@/lib/auth/gu
 import { fail, ok } from "@/lib/http";
 import { companyLifecycleUpdateSchema } from "@/lib/validations/superadmin";
 import { updateCompanyLifecycleStatus } from "@/modules/superadmin/company-lifecycle";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export async function PATCH(
   request: Request,
@@ -9,6 +14,14 @@ export async function PATCH(
 ) {
   try {
     const tenant = await requireSuperAdminSession({ redirectOnMissingAuth: false });
+
+    const rateLimited = await enforceRateLimit(
+      adminMutationRateLimit,
+      [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "superadmin"}`],
+      "Too many requests. Please slow down and try again.",
+    );
+    if (rateLimited) return rateLimited;
+
     const { companyId } = await params;
     const json = (await request.json()) as Record<string, unknown>;
     const body = companyLifecycleUpdateSchema.safeParse(json);

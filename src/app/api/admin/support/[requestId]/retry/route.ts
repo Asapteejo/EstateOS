@@ -3,11 +3,16 @@ import { fail, ok } from "@/lib/http";
 import { captureServerEvent, captureServerException } from "@/lib/integrations/posthog";
 import { supportRetrySchema } from "@/lib/validations/support";
 import { retrySupportRequestSync } from "@/modules/support/service";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ requestId: string }> },
 ) {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
@@ -16,6 +21,13 @@ export async function POST(
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    adminMutationRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many requests. Please slow down and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   const rawParams = await params;
   const parsed = supportRetrySchema.safeParse({ requestId: rawParams.requestId });

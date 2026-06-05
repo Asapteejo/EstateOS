@@ -4,6 +4,11 @@ import { requireAdminSession } from "@/lib/auth/guards";
 import { fail, ok, validationFail } from "@/lib/http";
 import { getCreditsFromAmount } from "@/modules/communication/pricing";
 import { initializeCommunicationTopUp } from "@/modules/communication/topups";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 const topUpSchema = z.object({
   amountNGN: z.coerce.number().int().positive(),
@@ -16,6 +21,13 @@ export async function POST(request: Request) {
   } catch {
     return fail("Authentication required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    adminMutationRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many requests. Please slow down and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   const parsed = topUpSchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) {

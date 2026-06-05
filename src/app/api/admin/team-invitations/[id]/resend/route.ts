@@ -13,11 +13,16 @@ import {
   invitationExpiresAt,
   requireInvitationEmailDelivery,
 } from "@/modules/invitations/team-invitations";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
@@ -26,6 +31,13 @@ export async function POST(
   } catch {
     return fail("Authentication required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    adminMutationRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many requests. Please slow down and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   if (!featureFlags.hasDatabase || !tenant.companyId) {
     return fail("Service unavailable.", 503);

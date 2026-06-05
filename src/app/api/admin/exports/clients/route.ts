@@ -1,9 +1,22 @@
 import { requireAdminSession } from "@/lib/auth/guards";
 import { buildCsv } from "@/lib/exports/csv";
 import { getAdminClientList } from "@/modules/clients/queries";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
-export async function GET() {
+export async function GET(request: Request) {
   const tenant = await requireAdminSession(["ADMIN"]);
+
+  const rateLimited = await enforceRateLimit(
+    adminMutationRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many requests. Please slow down and try again.",
+  );
+  if (rateLimited) return rateLimited;
+
   const clients = await getAdminClientList(tenant);
 
   const csv = buildCsv(
