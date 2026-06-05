@@ -6,6 +6,11 @@ import {
   getDevelopmentCalculationDetail,
   updateDevelopmentCalculation,
 } from "@/modules/development-calculations/service";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export async function GET(
   _request: Request,
@@ -32,6 +37,14 @@ export async function PATCH(
 ) {
   try {
     const tenant = await requireAdminSession(["ADMIN"], { redirectOnMissingAuth: false });
+
+    const rateLimited = await enforceRateLimit(
+      adminMutationRateLimit,
+      [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+      "Too many requests. Please slow down and try again.",
+    );
+    if (rateLimited) return rateLimited;
+
     const { calculationId } = await params;
     const json = (await request.json()) as Record<string, unknown>;
     const body = developmentCalculationSchema.safeParse(json);
@@ -52,11 +65,19 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ calculationId: string }> },
 ) {
   try {
     const tenant = await requireAdminSession(["ADMIN"], { redirectOnMissingAuth: false });
+
+    const rateLimited = await enforceRateLimit(
+      adminMutationRateLimit,
+      [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+      "Too many requests. Please slow down and try again.",
+    );
+    if (rateLimited) return rateLimited;
+
     const { calculationId } = await params;
     const archived = await archiveDevelopmentCalculation(tenant, calculationId);
     return ok(archived);

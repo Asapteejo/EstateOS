@@ -3,6 +3,11 @@ import { ok, fail, safeValidationIssues, validationFail } from "@/lib/http";
 import { propertyCreateSchema } from "@/lib/validations/properties";
 import { getAdminPropertyManagementList } from "@/modules/properties/admin-queries";
 import { createPropertyForAdmin } from "@/modules/properties/mutations";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export async function GET() {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
@@ -27,6 +32,13 @@ export async function POST(request: Request) {
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    adminMutationRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many requests. Please slow down and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   const json = (await request.json()) as Record<string, unknown>;
   const body = propertyCreateSchema.safeParse(json);

@@ -3,6 +3,11 @@ import { fail, ok } from "@/lib/http";
 import { requireTenantContext } from "@/lib/tenancy/context";
 import { companySubscriptionAssignmentSchema } from "@/lib/validations/billing";
 import { assignCompanySubscription } from "@/modules/billing/mutations";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   let tenant: Awaited<ReturnType<typeof requireTenantContext>>;
@@ -11,6 +16,13 @@ export async function POST(request: Request) {
   } catch {
     return fail("Authentication and superadmin access are required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    adminMutationRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many requests. Please slow down and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   if (!hasRequiredRole(tenant.roles, "SUPER_ADMIN")) {
     return fail("Only super admins can assign company plans.", 403);

@@ -3,6 +3,11 @@ import { fail, ok } from "@/lib/http";
 import { requireTenantContext } from "@/lib/tenancy/context";
 import { billingPlanUpsertSchema } from "@/lib/validations/billing";
 import { updatePlan } from "@/modules/billing/mutations";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export async function PATCH(
   request: Request,
@@ -14,6 +19,13 @@ export async function PATCH(
   } catch {
     return fail("Authentication and superadmin access are required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    adminMutationRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many requests. Please slow down and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   if (!hasRequiredRole(tenant.roles, "SUPER_ADMIN")) {
     return fail("Only super admins can update billing plans.", 403);

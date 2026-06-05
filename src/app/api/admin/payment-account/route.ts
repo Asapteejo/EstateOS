@@ -10,6 +10,11 @@ import {
 } from "@/lib/payments/paystack";
 import { paymentAccountSchema } from "@/lib/validations/payment-account";
 import { buildTenantPaymentProviderAccountWhere } from "@/modules/settings/payment-account";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 export const runtime = "nodejs";
 
 // ─── GET — fetch existing account ────────────────────────────────────────────
@@ -43,6 +48,13 @@ export async function POST(request: Request) {
   } catch {
     return fail("Authentication required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    adminMutationRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many requests. Please slow down and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   if (!featureFlags.hasDatabase || !tenant.companyId) {
     return fail("Service unavailable.", 503);
@@ -113,6 +125,13 @@ export async function PATCH(request: Request) {
   } catch {
     return fail("Authentication required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    adminMutationRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many requests. Please slow down and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   if (!featureFlags.hasDatabase || !tenant.companyId) {
     return fail("Service unavailable.", 503);

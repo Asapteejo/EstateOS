@@ -6,6 +6,11 @@ import {
   getCompanyContractSettings,
   upsertCompanyContractSettings,
 } from "@/modules/contracts/service";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -31,6 +36,13 @@ export async function PATCH(request: Request) {
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    adminMutationRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many requests. Please slow down and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   const json = (await request.json()) as Record<string, unknown>;
   try {

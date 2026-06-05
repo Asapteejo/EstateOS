@@ -3,6 +3,11 @@ import { ZodError } from "zod";
 import { requireAdminSession } from "@/lib/auth/guards";
 import { fail, ok, validationFail } from "@/lib/http";
 import { moderateTestimonialForAdmin } from "@/modules/testimonials/service";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export async function PATCH(
   request: Request,
@@ -14,6 +19,13 @@ export async function PATCH(
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    adminMutationRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many requests. Please slow down and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   const { testimonialId } = await params;
   const json = (await request.json().catch(() => null)) as Record<string, unknown> | null;

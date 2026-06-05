@@ -5,6 +5,11 @@ import { featureFlags } from "@/lib/env";
 import { fail, ok } from "@/lib/http";
 import { tenantSettingsSchema } from "@/lib/validations/settings";
 import { getTenantAdminSettings, updateTenantAdminSettings } from "@/modules/settings/service";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export async function GET() {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
@@ -45,6 +50,13 @@ export async function PATCH(request: Request) {
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    adminMutationRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many requests. Please slow down and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   const json = (await request.json()) as Record<string, unknown>;
   const body = tenantSettingsSchema.safeParse(json);

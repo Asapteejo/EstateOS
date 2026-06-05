@@ -4,6 +4,11 @@ import { requireAdminSession } from "@/lib/auth/guards";
 import { featureFlags } from "@/lib/env";
 import { fail, ok } from "@/lib/http";
 import { getCompanyDomainSetup, setCompanyCustomDomain } from "@/modules/domains/service";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 export const runtime = "nodejs";
 
 const schema = z.object({
@@ -19,6 +24,13 @@ export async function PATCH(request: Request) {
   } catch {
     return fail("Authentication required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    adminMutationRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many requests. Please slow down and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   if (!featureFlags.hasDatabase || !tenant.companyId) {
     return fail("Service unavailable.", 503);

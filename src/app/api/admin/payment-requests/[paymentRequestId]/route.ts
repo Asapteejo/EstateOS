@@ -3,6 +3,11 @@ import { writeAuditLog } from "@/lib/audit/service";
 import { prisma } from "@/lib/db/prisma";
 import { fail, ok } from "@/lib/http";
 import { paymentRequestStatusUpdateSchema } from "@/lib/validations/payments";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 export const runtime = "nodejs";
 
 export async function PATCH(
@@ -11,6 +16,14 @@ export async function PATCH(
 ) {
   try {
     const tenant = await requireAdminSession(["ADMIN"], { redirectOnMissingAuth: false });
+
+    const rateLimited = await enforceRateLimit(
+      adminMutationRateLimit,
+      [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+      "Too many requests. Please slow down and try again.",
+    );
+    if (rateLimited) return rateLimited;
+
     const params = await context.params;
     const json = (await request.json()) as Record<string, unknown>;
     const body = paymentRequestStatusUpdateSchema.safeParse(json);

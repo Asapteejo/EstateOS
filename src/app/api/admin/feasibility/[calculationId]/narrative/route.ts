@@ -1,12 +1,25 @@
 import { requireAdminSession } from "@/lib/auth/guards";
 import { featureFlags } from "@/lib/env";
 import { generateFeasibilityNarrative } from "@/modules/development-calculations/recommendations";
+import {
+  aiDraftRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ calculationId: string }> },
 ) {
   const tenant = await requireAdminSession(["ADMIN"]);
+
+  const rateLimited = await enforceRateLimit(
+    aiDraftRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many AI narrative requests. Please slow down and try again shortly.",
+  );
+  if (rateLimited) return rateLimited;
+
   const { calculationId } = await params;
 
   if (!featureFlags.hasGeminiAi) {

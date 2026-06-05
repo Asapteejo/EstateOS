@@ -1,3 +1,5 @@
+import { revalidateTag } from "next/cache";
+
 import { requireAdminSession } from "@/lib/auth/guards";
 import { fail, ok, safeValidationIssues, validationFail } from "@/lib/http";
 import { featureFlags } from "@/lib/env";
@@ -10,6 +12,11 @@ import {
   saveDraftBrandingForAdmin,
 } from "@/modules/branding/service";
 import { getBrandingPublishIssues } from "@/modules/branding/theme";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export async function GET() {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
@@ -37,6 +44,13 @@ export async function PATCH(request: Request) {
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    adminMutationRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many requests. Please slow down and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   const json = (await request.json()) as Record<string, unknown>;
   const body = brandingConfigSchema.safeParse(json);
@@ -67,6 +81,13 @@ export async function POST(request: Request) {
     return fail("Authentication and tenant context are required.", 401);
   }
 
+  const rateLimited = await enforceRateLimit(
+    adminMutationRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many requests. Please slow down and try again.",
+  );
+  if (rateLimited) return rateLimited;
+
   const json = (await request.json()) as Record<string, unknown>;
   const body = brandingActionSchema.safeParse(json);
   if (!body.success) {
@@ -76,7 +97,12 @@ export async function POST(request: Request) {
   try {
     const state =
       body.data.action === "publish"
-        ? await publishDraftBrandingForAdmin(tenant)
+        ? await publishDraftBrandingForAdmin(tenant).then((publishedState) => {
+            if (tenant.companyId) {
+              revalidateTag(`tenant-presentation:${tenant.companyId}`, "max");
+            }
+            return publishedState;
+          })
         : await resetDraftBrandingForAdmin(tenant);
 
     return ok({

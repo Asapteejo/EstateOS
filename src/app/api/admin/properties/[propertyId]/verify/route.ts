@@ -2,6 +2,11 @@ import { requireAdminSession } from "@/lib/auth/guards";
 import { fail, ok } from "@/lib/http";
 import { propertyVerifySchema } from "@/lib/validations/properties";
 import { verifyPropertyForAdmin } from "@/modules/properties/mutations";
+import {
+  adminMutationRateLimit,
+  enforceRateLimit,
+  getClientIp,
+} from "@/lib/rate-limit";
 
 export async function PATCH(
   request: Request,
@@ -13,6 +18,13 @@ export async function PATCH(
   } catch {
     return fail("Authentication and tenant context are required.", 401);
   }
+
+  const rateLimited = await enforceRateLimit(
+    adminMutationRateLimit,
+    [`ip:${getClientIp(request)}`, `user:${tenant.userId ?? "admin"}`],
+    "Too many requests. Please slow down and try again.",
+  );
+  if (rateLimited) return rateLimited;
 
   const { propertyId } = await params;
   const json = (await request.json().catch(() => ({}))) as Record<string, unknown>;
