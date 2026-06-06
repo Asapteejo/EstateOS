@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 
 import { Container } from "@/components/shared/container";
 import { Logo } from "@/components/shared/logo";
+import { DashboardMobileNav } from "@/components/portal/dashboard-mobile-nav";
 import { LiveSurfaceSync } from "@/components/realtime/live-surface-sync";
 import { Avatar } from "@/components/ui/avatar";
 import { requireAdminSession, requirePortalSession } from "@/lib/auth/guards";
@@ -53,6 +55,13 @@ const adminLinks = [
   ["Audit Logs", "/admin/audit-logs"],
 ] as const;
 
+type PortalUserRow = {
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+  profileImageUrl: string | null;
+};
+
 export async function DashboardShell({
   area,
   title,
@@ -68,21 +77,46 @@ export async function DashboardShell({
   const tenant = area === "portal"
     ? await requirePortalSession({ redirectOnMissingAuth: false })
     : await requireAdminSession(["ADMIN"], { redirectOnMissingAuth: false });
-  const presentation = await getTenantPresentation(tenant);
+  // Tenant branding/presentation is company-level data (identical for every user
+  // of the company) and changes only when an admin publishes branding. Cache it
+  // briefly per company so it is not re-queried on every page navigation. The
+  // cache is keyed by companyId to preserve tenant isolation; it is invalidated
+  // immediately via the `tenant-presentation:<companyId>` tag when branding is
+  // published (see publishDraftBrandingForAdmin) and is otherwise bounded by the
+  // 60s TTL. No user-specific data is stored here.
+  const loadPresentation = tenant.companyId
+    ? unstable_cache(
+        () => getTenantPresentation(tenant),
+        ["dashboard-tenant-presentation", tenant.companyId, tenant.companySlug ?? "none"],
+        { revalidate: 60, tags: [`tenant-presentation:${tenant.companyId}`] },
+      )
+    : () => getTenantPresentation(tenant);
+
+  // getAppSession reads request cookies (dynamic) and is never cached. It is
+  // independent of presentation, so resolve the two concurrently.
+  const [presentation, appSession] = await Promise.all([
+    loadPresentation(),
+    area === "portal" ? getAppSession("portal") : Promise.resolve(null),
+  ]);
   const branding = presentation.branding;
-  const appSession = area === "portal" ? await getAppSession("portal") : null;
+
   const profileTenant =
     area === "portal" && tenant.roles.includes("BUYER")
       ? await resolveBuyerTenantContextForKyc(tenant, { email: appSession?.email }).catch(() => tenant)
       : tenant;
-  const portalUserRows =
+
+  const notificationCompanyId = tenant.companyId;
+  const notificationUserId = area === "portal" ? profileTenant.userId : tenant.userId;
+
+  // The buyer identity row and the unread-notification count both depend only on
+  // profileTenant, so fetch them concurrently rather than sequentially. The
+  // notification count is per-user and changes frequently, so it is cached only
+  // very briefly (15s) and keyed by companyId + userId (tenant- and user-scoped)
+  // — enough to absorb rapid re-navigation without showing a materially stale
+  // badge. See the invalidation caveat in the change notes.
+  const [portalUserRows, unreadNotificationCount] = await Promise.all([
     area === "portal" && featureFlags.hasDatabase && profileTenant.userId && profileTenant.companyId
-      ? await prisma.$queryRaw<Array<{
-            firstName: string | null;
-            lastName: string | null;
-            email: string;
-            profileImageUrl: string | null;
-          }>>`
+      ? prisma.$queryRaw<PortalUserRow[]>`
             SELECT "firstName", "lastName", "email", "profileImageUrl"
             FROM "User"
             WHERE "id" = ${profileTenant.userId}
@@ -95,24 +129,18 @@ export async function DashboardShell({
               queryName: "portal-user",
               ...buildSafeErrorLogContext(error),
             });
-            return [];
+            return [] as PortalUserRow[];
           })
-      : [];
-  const portalUser = portalUserRows[0] ?? null;
-  const portalUserName =
-    [portalUser?.firstName, portalUser?.lastName].filter(Boolean).join(" ") ||
-    portalUser?.email ||
-    "Buyer";
-  const notificationUserId = area === "portal" ? profileTenant.userId : tenant.userId;
-  const unreadNotificationCount =
-    featureFlags.hasDatabase && tenant.companyId && notificationUserId
-      ? await prisma.notification.count({
-          where: {
-            companyId: tenant.companyId,
-            userId: notificationUserId,
-            readAt: null,
-          },
-        }).catch((error) => {
+      : Promise.resolve([] as PortalUserRow[]),
+    featureFlags.hasDatabase && notificationCompanyId && notificationUserId
+      ? unstable_cache(
+          () =>
+            prisma.notification.count({
+              where: { companyId: notificationCompanyId, userId: notificationUserId, readAt: null },
+            }),
+          ["dashboard-unread-notifications", notificationCompanyId, notificationUserId],
+          { revalidate: 15, tags: [`notifications:${notificationCompanyId}:${notificationUserId}`] },
+        )().catch((error) => {
           logError("Dashboard shell notification count failed; using empty state.", {
             route: `/${area}`,
             component: "DashboardShell",
@@ -121,12 +149,33 @@ export async function DashboardShell({
           });
           return 0;
         })
-      : 0;
+      : Promise.resolve(0),
+  ]);
+
+  const portalUser = portalUserRows[0] ?? null;
+  const portalUserName =
+    [portalUser?.firstName, portalUser?.lastName].filter(Boolean).join(" ") ||
+    portalUser?.email ||
+    "Buyer";
 
   return (
     <Container className="tenant-page-enter grid min-w-0 gap-6 py-5 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8 lg:py-0">
       {tenant.companyId ? <LiveSurfaceSync channel="company" surface={area} /> : null}
-      <aside className="tenant-panel tenant-sidebar-scroll min-w-0 rounded-[var(--radius-xl)] border border-[var(--tenant-nav-border)] bg-[var(--tenant-nav-surface)] p-4 shadow-[var(--tenant-nav-shadow)] lg:sticky lg:top-0 lg:max-h-screen lg:self-start lg:overflow-y-auto lg:p-5">
+      {/* Mobile/tablet (below lg): sticky top bar + slide-in drawer. Hidden on desktop. */}
+      <DashboardMobileNav
+        area={area}
+        links={links}
+        companyName={presentation.companyName}
+        logoUrl={branding.logoUrl}
+        unreadNotificationCount={unreadNotificationCount}
+        portalUser={
+          area === "portal"
+            ? { name: portalUserName, imageUrl: portalUser?.profileImageUrl ?? null }
+            : null
+        }
+      />
+      {/* Desktop sidebar: unchanged behavior, now hidden below lg (drawer replaces it). */}
+      <aside className="tenant-panel tenant-sidebar-scroll hidden min-w-0 rounded-[var(--radius-xl)] border border-[var(--tenant-nav-border)] bg-[var(--tenant-nav-surface)] p-4 shadow-[var(--tenant-nav-shadow)] lg:block lg:sticky lg:top-0 lg:max-h-screen lg:self-start lg:overflow-y-auto lg:p-5">
         <div className="min-w-0 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--tenant-nav-border)]/60 bg-white/40 p-4">
           <Logo href={`/${area}`} name={presentation.companyName} tagline={area === "portal" ? "Buyer workspace" : "Company workspace"} logoUrl={branding.logoUrl} />
           {area === "portal" ? (
