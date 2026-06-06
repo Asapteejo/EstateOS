@@ -378,43 +378,70 @@ export async function getDevSession(
     return null;
   }
 
+  if (area === "marketing") {
+    return null;
+  }
+
   const company = await resolveDemoCompanyContext();
-  const role = getDefaultDemoSessionRole(area) ?? "superadmin";
+  const role = getDefaultDemoSessionRole(area);
+  if (!role) {
+    return null;
+  }
+
   const session = buildDemoSession(role, company);
 
-  if (role === "superadmin") {
-    return {
-      ...session,
-      userId: "dev-superadmin",
-      dbUserId: "dev-superadmin",
-      email: "dev@estateos.local",
-      firstName: "Dev",
-      lastName: "Superadmin",
-      roles: ["SUPER_ADMIN"],
-    };
+  if (!featureFlags.hasDatabase) {
+    return session;
   }
 
-  if (role === "admin") {
-    return {
-      ...session,
-      userId: "dev-admin",
-      dbUserId: "dev-admin",
-      email: "dev-admin@estateos.local",
-      firstName: "Dev",
-      lastName: "Admin",
-      roles: ["ADMIN"],
-    };
+  try {
+    const user = await prisma.user.findUnique({
+      where: { clerkUserId: session.userId },
+      select: {
+        id: true,
+        clerkUserId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        companyId: true,
+        branchId: true,
+        company: {
+          select: {
+            slug: true,
+          },
+        },
+      },
+    });
+
+    if (user) {
+      return {
+        ...session,
+        userId: user.clerkUserId ?? session.userId,
+        dbUserId: user.id,
+        email: user.email,
+        firstName: user.firstName ?? session.firstName,
+        lastName: user.lastName ?? session.lastName,
+        companyId: user.companyId ?? company.companyId,
+        companySlug: user.company?.slug ?? company.companySlug,
+        branchId: user.branchId ?? company.branchId,
+      };
+    }
+
+    logWarn("Development access user was not found in the database; using fallback session.", {
+      area,
+      clerkUserId: session.userId,
+      role,
+    });
+  } catch (error) {
+    logWarn("Development access user lookup failed; using fallback session.", {
+      area,
+      clerkUserId: session.userId,
+      role,
+      ...buildSafeErrorLogContext(error),
+    });
   }
 
-  return {
-    ...session,
-    userId: "dev-buyer",
-    dbUserId: "dev-buyer",
-    email: "dev-buyer@estateos.local",
-    firstName: "Dev",
-    lastName: "Buyer",
-    roles: ["BUYER"],
-  };
+  return session;
 }
 
 export async function getAppSession(

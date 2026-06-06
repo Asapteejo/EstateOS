@@ -182,6 +182,15 @@ async function main() {
     },
   });
 
+  const superAdmin = await prisma.user.create({
+    data: {
+      clerkUserId: "demo-superadmin",
+      email: "owner@estateos.dev",
+      firstName: "Maya",
+      lastName: "Cole",
+    },
+  });
+
   await prisma.userRole.createMany({
     data: [
       {
@@ -195,7 +204,7 @@ async function main() {
         companyId: company.id,
       },
       {
-        userId: admin.id,
+        userId: superAdmin.id,
         roleId: superAdminRole.id,
       },
     ],

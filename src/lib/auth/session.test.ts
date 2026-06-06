@@ -108,10 +108,21 @@ test("dev access mode session helper is wired before Clerk auth", () => {
 
   assert.match(sessionSource, /export async function getDevSession/);
   assert.match(sessionSource, /if \(!featureFlags\.devAccessMode\)/);
+  assert.match(sessionSource, /if \(area === "marketing"\)/);
   assert.match(sessionSource, /const devSession = await getDevSession\(area\)/);
-  assert.match(sessionSource, /userId: "dev-superadmin"/);
+  assert.match(sessionSource, /where: \{ clerkUserId: session\.userId \}/);
+  assert.match(sessionSource, /dbUserId: user\.id/);
   assert.match(sessionSource, /x-estateos-dev-tenant/);
-  assert.match(guardsSource, /startsWith\("dev-"\)/);
+  assert.doesNotMatch(sessionSource, /userId: "dev-/);
+  assert.doesNotMatch(guardsSource, /startsWith\("dev-"\)/);
+  assert.match(guardsSource, /startsWith\("demo-"\)/);
   assert.match(layoutSource, /DEV ACCESS MODE ACTIVE/);
   assert.match(layoutSource, /AUTHENTICATION BYPASSED/);
+});
+
+test("local seed creates a persisted demo superadmin identity", () => {
+  const seedSource = readFileSync(join(process.cwd(), "prisma", "seed.ts"), "utf8");
+
+  assert.match(seedSource, /clerkUserId: "demo-superadmin"/);
+  assert.match(seedSource, /email: "owner@estateos\.dev"/);
 });
