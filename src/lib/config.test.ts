@@ -473,6 +473,62 @@ test("dev bypass stays opt-in in development and disabled in production", () => 
   assert.equal(production.allowDevBypass, false);
 });
 
+test("dev access mode is local-only and disabled in production", () => {
+  const development = buildFeatureFlags(
+    parseServerEnv({
+      NODE_ENV: "development",
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+      DEV_ACCESS_MODE: "true",
+    }),
+  );
+  const developmentDefault = buildFeatureFlags(
+    parseServerEnv({
+      NODE_ENV: "development",
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+    }),
+  );
+  const production = buildFeatureFlags(
+    parseServerEnv({
+      NODE_ENV: "production",
+      NEXT_PUBLIC_APP_URL: "https://estateos.example.com",
+      DEV_ACCESS_MODE: "true",
+    }),
+  );
+
+  assert.equal(development.devAccessMode, true);
+  assert.equal(developmentDefault.devAccessMode, false);
+  assert.equal(production.devAccessMode, false);
+});
+
+test("dev access mode never activates on Vercel", () => {
+  const flags = buildFeatureFlags(
+    parseServerEnv({
+      NODE_ENV: "development",
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+      DEV_ACCESS_MODE: "true",
+      VERCEL: "true",
+    }),
+  );
+
+  assert.equal(flags.devAccessMode, false);
+});
+
+test("dev access mode is force-disabled when development points at production database", () => {
+  const flags = buildFeatureFlags(
+    parseServerEnv({
+      NODE_ENV: "development",
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+      DEV_ACCESS_MODE: "true",
+      PRODUCTION_DATABASE_HOST: "aws-0-eu-west-1.pooler.supabase.com",
+      PRODUCTION_DATABASE_PROJECT_REF: "epxbejutuodmnsdfvcjr",
+      DATABASE_URL:
+        "postgresql://postgres:secret@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require",
+    }),
+  );
+
+  assert.equal(flags.devAccessMode, false);
+});
+
 test("dev bypass is force-disabled when development points at the production database", () => {
   const flags = buildFeatureFlags(
     parseServerEnv({

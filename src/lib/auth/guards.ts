@@ -77,7 +77,10 @@ export async function requireSuperAdminSession(options?: {
     email: session.email,
     isProduction: featureFlags.isProduction,
     superadminEmails: env.SUPERADMIN_EMAILS,
-    mode: session.userId?.startsWith("demo-") ? "demo" : "clerk",
+    mode:
+      session.userId?.startsWith("demo-") || session.userId?.startsWith("dev-")
+        ? "demo"
+        : "clerk",
   })) {
     if (options?.redirectOnMissingAuth === false) {
       throw new SuperadminAccessError();

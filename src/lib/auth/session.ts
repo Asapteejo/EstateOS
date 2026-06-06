@@ -1,6 +1,7 @@
 import type { AppRole } from "@prisma/client";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
+import { headers } from "next/headers";
 
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
@@ -186,6 +187,40 @@ export function getDefaultDemoSessionRole(
   return null;
 }
 
+function readDevTenantFromHeader(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const url = new URL(value, "http://localhost:3000");
+    const devTenant = url.searchParams.get("devTenant");
+    return devTenant && /^[a-z0-9-]+$/.test(devTenant) ? devTenant : null;
+  } catch {
+    return null;
+  }
+}
+
+function sanitizeDevTenantSlug(value: string | null) {
+  return value && /^[a-z0-9-]+$/.test(value) ? value : null;
+}
+
+async function resolveDevAccessTenantSlug() {
+  if (!featureFlags.devAccessMode) {
+    return null;
+  }
+
+  const headerStore = await headers();
+  return (
+    sanitizeDevTenantSlug(headerStore.get("x-estateos-dev-tenant")) ??
+    readDevTenantFromHeader(headerStore.get("x-invoke-path")) ??
+    readDevTenantFromHeader(headerStore.get("x-matched-path")) ??
+    readDevTenantFromHeader(headerStore.get("next-url")) ??
+    readDevTenantFromHeader(headerStore.get("x-url")) ??
+    null
+  );
+}
+
 export async function resolveDemoSessionRole(
   area: AppArea,
 ): Promise<DemoSessionRole | null> {
@@ -220,7 +255,10 @@ export async function resolveDemoSessionRole(
 async function resolveDemoCompanyContext() {
   const cookieStore = await cookies();
   const cookieCompanyId = cookieStore.get(DEV_SESSION_COMPANY_ID_COOKIE)?.value ?? null;
-  const cookieCompanySlug = cookieStore.get(DEV_SESSION_COMPANY_SLUG_COOKIE)?.value ?? null;
+  const cookieCompanySlug =
+    (await resolveDevAccessTenantSlug()) ??
+    cookieStore.get(DEV_SESSION_COMPANY_SLUG_COOKIE)?.value ??
+    null;
   const cookieBranchId = cookieStore.get(DEV_SESSION_BRANCH_ID_COOKIE)?.value ?? null;
 
   if (!featureFlags.hasDatabase) {
@@ -333,9 +371,60 @@ export async function getPreferredTenantSiteCompanySlug() {
   return company.companySlug;
 }
 
+export async function getDevSession(
+  area: AppArea = "marketing",
+): Promise<AppSession | null> {
+  if (!featureFlags.devAccessMode) {
+    return null;
+  }
+
+  const company = await resolveDemoCompanyContext();
+  const role = getDefaultDemoSessionRole(area) ?? "superadmin";
+  const session = buildDemoSession(role, company);
+
+  if (role === "superadmin") {
+    return {
+      ...session,
+      userId: "dev-superadmin",
+      dbUserId: "dev-superadmin",
+      email: "dev@estateos.local",
+      firstName: "Dev",
+      lastName: "Superadmin",
+      roles: ["SUPER_ADMIN"],
+    };
+  }
+
+  if (role === "admin") {
+    return {
+      ...session,
+      userId: "dev-admin",
+      dbUserId: "dev-admin",
+      email: "dev-admin@estateos.local",
+      firstName: "Dev",
+      lastName: "Admin",
+      roles: ["ADMIN"],
+    };
+  }
+
+  return {
+    ...session,
+    userId: "dev-buyer",
+    dbUserId: "dev-buyer",
+    email: "dev-buyer@estateos.local",
+    firstName: "Dev",
+    lastName: "Buyer",
+    roles: ["BUYER"],
+  };
+}
+
 export async function getAppSession(
   area: AppArea = "marketing",
 ): Promise<AppSession | null> {
+  const devSession = await getDevSession(area);
+  if (devSession) {
+    return devSession;
+  }
+
   if (!featureFlags.hasClerk) {
     const role = await resolveDemoSessionRole(area);
     const company = await resolveDemoCompanyContext();

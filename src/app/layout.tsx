@@ -3,6 +3,7 @@ import { Inter, Libre_Baskerville } from "next/font/google";
 
 import { AppProviders } from "@/components/providers/app-providers";
 import { DevAccessSwitcher } from "@/components/shared/dev-access-switcher";
+import { featureFlags } from "@/lib/env";
 import { logStartupReadinessOnce } from "@/lib/ops/startup";
 import "./globals.css";
 
@@ -45,6 +46,26 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${fontSans.variable} ${fontSerif.variable}`}>
       <body>
+        {featureFlags.devAccessMode ? (
+          <div
+            style={{
+              position: "sticky",
+              top: 0,
+              zIndex: 2147483647,
+              background: "#b91c1c",
+              color: "white",
+              padding: "10px 16px",
+              textAlign: "center",
+              fontFamily: "Arial, sans-serif",
+              fontSize: "14px",
+              fontWeight: 800,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            DEV ACCESS MODE ACTIVE | AUTHENTICATION BYPASSED
+          </div>
+        ) : null}
         <AppProviders>
           {children}
           <DevAccessSwitcher />

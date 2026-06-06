@@ -123,7 +123,9 @@ const serverEnvSchema = z
     PORTAL_BASE_URL: optionalUrl,
     VERCEL_PROJECT_PRODUCTION_URL: optionalString,
     VERCEL_URL: optionalString,
+    VERCEL: optionalBoolean,
     DEFAULT_COMPANY_SLUG: optionalSlug,
+    DEV_ACCESS_MODE: optionalBoolean,
     ESTATEOS_ENABLE_DEV_BYPASS: optionalBoolean,
     ALLOW_PRODUCTION_DB_WRITES: optionalBoolean,
     PRODUCTION_DATABASE_PROJECT_REF: optionalString,
@@ -465,6 +467,11 @@ export function buildFeatureFlags(env: ServerEnv) {
       (env.NODE_ENV !== "production" &&
         env.ESTATEOS_ENABLE_DEV_BYPASS === true &&
         !isKnownProductionDatabase(env)),
+    devAccessMode:
+      env.NODE_ENV !== "production" &&
+      env.DEV_ACCESS_MODE === true &&
+      env.VERCEL !== true &&
+      !isKnownProductionDatabase(env),
     hasDatabase: Boolean(env.DATABASE_URL),
     hasClerk:
       Boolean(env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) &&

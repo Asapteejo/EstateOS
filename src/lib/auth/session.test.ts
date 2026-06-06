@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import {
   buildDemoSession,
@@ -88,4 +90,28 @@ test("unpersisted Clerk identity cannot be used as a database user id", () => {
       userId: null,
     },
   );
+});
+
+test("dev access mode session helper is wired before Clerk auth", () => {
+  const sessionSource = readFileSync(
+    join(process.cwd(), "src", "lib", "auth", "session.ts"),
+    "utf8",
+  );
+  const guardsSource = readFileSync(
+    join(process.cwd(), "src", "lib", "auth", "guards.ts"),
+    "utf8",
+  );
+  const layoutSource = readFileSync(
+    join(process.cwd(), "src", "app", "layout.tsx"),
+    "utf8",
+  );
+
+  assert.match(sessionSource, /export async function getDevSession/);
+  assert.match(sessionSource, /if \(!featureFlags\.devAccessMode\)/);
+  assert.match(sessionSource, /const devSession = await getDevSession\(area\)/);
+  assert.match(sessionSource, /userId: "dev-superadmin"/);
+  assert.match(sessionSource, /x-estateos-dev-tenant/);
+  assert.match(guardsSource, /startsWith\("dev-"\)/);
+  assert.match(layoutSource, /DEV ACCESS MODE ACTIVE/);
+  assert.match(layoutSource, /AUTHENTICATION BYPASSED/);
 });
