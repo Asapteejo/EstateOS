@@ -16,7 +16,7 @@
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:seed": "prisma db seed",
     "seed:mock-company": "tsx scripts/seed-mock-company.ts",
     "audit:superadmins": "tsx scripts/audit-superadmins.ts",
     "audit:demo-data": "tsx scripts/audit-demo-data.ts",

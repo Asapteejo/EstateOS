@@ -38,4 +38,9 @@ loadEnvFile(".env");
 
 export default defineConfig({
   schema: path.join("prisma", "schema.prisma"),
+  migrations: {
+    // Run via `prisma db seed` / auto-run on `prisma migrate reset`. Prisma loads
+    // .env.local (above) before spawning this, so the seed inherits DATABASE_URL.
+    seed: "tsx prisma/seed.ts",
+  },
 });
