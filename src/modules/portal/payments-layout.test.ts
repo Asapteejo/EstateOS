@@ -42,6 +42,7 @@ test("payment summary cards wrap long values instead of clipping", () => {
   const headerSource = readFileSync(join(process.cwd(), "src", "components", "marketing", "marketing-header.tsx"), "utf8");
   const platformHeaderSource = readFileSync(join(process.cwd(), "src", "components", "platform", "platform-header.tsx"), "utf8");
   const logoSource = readFileSync(join(process.cwd(), "src", "components", "shared", "logo.tsx"), "utf8");
+  const dashboardShellSource = readFileSync(join(process.cwd(), "src", "components", "portal", "dashboard-shell.tsx"), "utf8");
   const globalsSource = readFileSync(join(process.cwd(), "src", "app", "globals.css"), "utf8");
 
   assert.match(portalPaymentsSource, /sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5/);
@@ -77,12 +78,13 @@ test("payment summary cards wrap long values instead of clipping", () => {
   assert.match(platformHeaderSource, /mobileLinks/);
   assert.match(platformHeaderSource, /2xl:inline/);
   assert.match(logoSource, /tenant-logo-tagline/);
-  assert.match(logoSource, /\[container-type:inline-size\]/);
+  assert.match(logoSource, /showTagline = true/);
+  assert.match(logoSource, /showTagline && tagline/);
+  assert.match(dashboardShellSource, /showTagline=\{false\}/);
   assert.match(logoSource, /overflow-visible/);
   assert.doesNotMatch(logoSource, /tenant-logo-tagline[^\n]+whitespace-nowrap/);
   assert.match(globalsSource, /--duration-fast: 120ms/);
   assert.match(globalsSource, /--tenant-motion-duration: 160ms/);
   assert.match(globalsSource, /transform: translateY\(4px\)/);
-  assert.match(globalsSource, /@container \(max-width: 16rem\)/);
   assert.match(globalsSource, /word-break: keep-all/);
 });

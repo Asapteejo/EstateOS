@@ -177,7 +177,13 @@ export async function DashboardShell({
       {/* Desktop sidebar: unchanged behavior, now hidden below lg (drawer replaces it). */}
       <aside className="tenant-panel tenant-sidebar-scroll hidden min-w-0 rounded-[var(--radius-xl)] border border-[var(--tenant-nav-border)] bg-[var(--tenant-nav-surface)] p-4 shadow-[var(--tenant-nav-shadow)] lg:block lg:sticky lg:top-0 lg:max-h-screen lg:self-start lg:overflow-y-auto lg:p-5">
         <div className="min-w-0 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--tenant-nav-border)]/60 bg-white/40 p-4">
-          <Logo href={`/${area}`} name={presentation.companyName} tagline={area === "portal" ? "Buyer workspace" : "Company workspace"} logoUrl={branding.logoUrl} />
+          <Logo
+            href={`/${area}`}
+            name={presentation.companyName}
+            tagline={area === "portal" ? "Buyer workspace" : "Company workspace"}
+            logoUrl={branding.logoUrl}
+            showTagline={false}
+          />
           {area === "portal" ? (
             <div className="mt-4 flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--tenant-nav-border)]/60 bg-white/60 px-3 py-3">
               <Avatar name={portalUserName} imageUrl={portalUser?.profileImageUrl} size="md" />

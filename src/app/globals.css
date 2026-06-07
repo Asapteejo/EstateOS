@@ -336,12 +336,6 @@ a {
     word-break: keep-all;
   }
 
-  @container (max-width: 16rem) {
-    .tenant-logo-tagline {
-      display: none;
-    }
-  }
-
   .tenant-sidebar-scroll {
     scrollbar-width: thin;
     scrollbar-color: color-mix(in srgb, var(--tenant-primary) 26%, transparent) transparent;
