@@ -52,11 +52,12 @@ export default async function SignInPage({
         entry: "superadmin",
       })
     : null;
+  const shouldRenderClerk = featureFlags.hasClerk && !featureFlags.allowDevBypass;
 
   return (
-    <AuthProviders>
+    <AuthProviders disableClerkForDev={featureFlags.allowDevBypass}>
     <Container className="flex min-h-[70vh] items-center justify-center py-16">
-      {featureFlags.hasClerk ? (
+      {shouldRenderClerk ? (
         <SignIn forceRedirectUrl={completionUrl} fallbackRedirectUrl={completionUrl} />
       ) : (
         <Card className="max-w-xl p-8 text-center">

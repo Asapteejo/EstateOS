@@ -364,10 +364,6 @@ export async function getPreferredTenantSiteCompanySlug() {
     return null;
   }
 
-  if (featureFlags.hasDatabase && company.companyId === demoCompany.companyId) {
-    return null;
-  }
-
   return company.companySlug;
 }
 

@@ -2,6 +2,7 @@ import { requirePortalSession } from "@/lib/auth/guards";
 import { AuthProviders } from "@/components/providers/auth-providers";
 import { TenantThemeShell } from "@/components/branding/tenant-theme-shell";
 import { getPublishedTenantBranding } from "@/modules/branding/service";
+import { featureFlags } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export default async function PortalLayout({
   const tenant = await requirePortalSession();
   const branding = await getPublishedTenantBranding(tenant);
   return (
-    <AuthProviders>
+    <AuthProviders disableClerkForDev={featureFlags.allowDevBypass}>
       <TenantThemeShell branding={branding} surface="app">{children}</TenantThemeShell>
     </AuthProviders>
   );

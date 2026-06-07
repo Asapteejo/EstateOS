@@ -10,6 +10,7 @@ import {
   sanitizeTenantSlug,
 } from "@/lib/domains";
 import { publicEnv } from "@/lib/public-env";
+import { featureFlags } from "@/lib/env";
 import { AuthAccessActions } from "./auth-access-actions";
 
 function readParam(value: string | string[] | undefined) {
@@ -57,7 +58,7 @@ export default async function AuthAccessPage({
   const entryLabel = resolveEntryLabel(entry);
 
   return (
-    <AuthProviders>
+    <AuthProviders disableClerkForDev={featureFlags.allowDevBypass}>
       <main className="min-h-screen bg-[var(--sand-50)] px-4 py-16">
         <Container className="max-w-3xl">
           <Card className="overflow-hidden rounded-[32px] border-[var(--line)] bg-white shadow-[0_20px_70px_rgba(15,23,42,0.08)]">
@@ -101,6 +102,7 @@ export default async function AuthAccessPage({
               <AuthAccessActions
                 currentDashboard={currentDashboard}
                 switchAccountUrl={switchAccountUrl}
+                disableClerkForDev={featureFlags.allowDevBypass}
               />
             </div>
           </Card>

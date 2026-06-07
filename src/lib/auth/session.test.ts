@@ -113,6 +113,7 @@ test("dev access mode session helper is wired before Clerk auth", () => {
   assert.match(sessionSource, /where: \{ clerkUserId: session\.userId \}/);
   assert.match(sessionSource, /dbUserId: user\.id/);
   assert.match(sessionSource, /x-estateos-dev-tenant/);
+  assert.doesNotMatch(sessionSource, /company\.companyId === demoCompany\.companyId/);
   assert.doesNotMatch(sessionSource, /userId: "dev-/);
   assert.doesNotMatch(guardsSource, /startsWith\("dev-"\)/);
   assert.match(guardsSource, /startsWith\("demo-"\)/);

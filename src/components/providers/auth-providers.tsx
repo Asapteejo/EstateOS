@@ -5,8 +5,14 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { PostHogClerkIdentity } from "@/components/providers/posthog-clerk-identity";
 import { clientFlags, publicEnv } from "@/lib/public-env";
 
-export function AuthProviders({ children }: { children: React.ReactNode }) {
-  if (!clientFlags.hasClerk) {
+export function AuthProviders({
+  children,
+  disableClerkForDev = false,
+}: {
+  children: React.ReactNode;
+  disableClerkForDev?: boolean;
+}) {
+  if (!clientFlags.hasClerk || disableClerkForDev) {
     return <>{children}</>;
   }
 

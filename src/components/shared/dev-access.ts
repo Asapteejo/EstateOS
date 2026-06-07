@@ -56,7 +56,10 @@ export function buildDevTenantSiteUrl(input: {
   }
 
   if (hostname.includes("localhost") || hostname.startsWith("127.0.0.1")) {
-    return `${input.currentProtocol}://${slug}.localhost${port ? `:${port}` : ""}${pathname}`;
+    const query = `devTenant=${encodeURIComponent(slug)}`;
+    const separator = pathname.includes("?") ? "&" : "?";
+    const localHost = hostname.startsWith("127.0.0.1") ? resolvedHost : `localhost${port ? `:${port}` : ""}`;
+    return `${input.currentProtocol}://${localHost}${pathname}${separator}${query}`;
   }
 
   if (hostname.split(".").length >= 2) {

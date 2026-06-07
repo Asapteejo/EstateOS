@@ -131,6 +131,10 @@ export async function resolveTenantContext(
 ): Promise<TenantContext> {
   const requestHeaders = await headers();
   const host = requestHeaders.get("host");
+  const devTenantSlug =
+    featureFlags.allowDevBypass
+      ? sanitizeTenantSlug(requestHeaders.get("x-estateos-dev-tenant"))
+      : null;
   const cookieStore = await cookies();
   const tenantHintSlug = sanitizeTenantSlug(cookieStore.get(TENANT_HINT_COOKIE)?.value ?? null);
   const hostResolution = getHostResolution(host);
@@ -202,7 +206,12 @@ export async function resolveTenantContext(
 
   const hintedCompany =
     hostHintCompany ??
-    (tenantHintSlug
+    (area === "marketing" && devTenantSlug
+      ? await lookupCompanyForRequest({
+          companySlug: devTenantSlug,
+        })
+      : null) ??
+    (area !== "marketing" && tenantHintSlug
       ? await lookupCompanyForRequest({
           companySlug: tenantHintSlug,
         })
@@ -230,7 +239,7 @@ export async function resolveTenantContext(
 
   const resolvedCompany =
     area === "marketing"
-      ? hostHintCompany
+      ? hintedCompany
       : selectAuthenticatedCompany({
           sessionCompany,
           hintedCompany,
@@ -244,6 +253,7 @@ export async function resolveTenantContext(
       hostResolutionSlug: hostResolution.companySlug,
       sessionCompanySlug: sessionCompany?.slug ?? null,
       tenantHintSlug,
+      devTenantSlug,
       fallbackSlug: fallbackSlug ?? null,
       resolvedCompanyId: resolvedCompany?.id ?? null,
       resolvedCompanySlug: resolvedCompany?.slug ?? null,
@@ -251,7 +261,9 @@ export async function resolveTenantContext(
       fallbackReason:
         hostResolution.companySlug && !hostHintCompany
           ? "tenant-host-detected-but-no-company-matched-slug"
-          : !resolvedCompany
+          : devTenantSlug && !resolvedCompany
+            ? "dev-tenant-detected-but-no-company-matched-slug"
+            : !resolvedCompany
             ? "no-tenant-host-match"
             : null,
     });
@@ -278,6 +290,8 @@ export async function resolveTenantContext(
         area === "marketing"
           ? hostHintCompany
             ? hostHintResolutionSource
+            : devTenantSlug && resolvedCompany
+              ? "session"
             : "none"
           : hostResolution.companySlug
             ? hostResolution.resolutionSource
@@ -315,6 +329,8 @@ export async function resolveTenantContext(
       area === "marketing"
         ? hostHintCompany
           ? hostHintResolutionSource
+          : devTenantSlug && resolvedCompany
+            ? "session"
           : "none"
         : hostResolution.companySlug
           ? hostResolution.resolutionSource

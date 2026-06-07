@@ -43,10 +43,27 @@ test("central authenticated surfaces still mount the scoped Clerk provider", () 
   const signUpPage = source("src", "app", "sign-up", "[[...sign-up]]", "page.tsx");
 
   assert.match(authProviders, /ClerkProvider/);
-  assert.match(adminLayout, /<AuthProviders>/);
-  assert.match(portalLayout, /<AuthProviders>/);
-  assert.match(superadminLayout, /<AuthProviders>/);
-  assert.match(appLayout, /<AuthProviders>/);
-  assert.match(signInPage, /<AuthProviders>/);
-  assert.match(signUpPage, /<AuthProviders>/);
+  assert.match(adminLayout, /<AuthProviders disableClerkForDev=\{featureFlags\.allowDevBypass\}>/);
+  assert.match(portalLayout, /<AuthProviders disableClerkForDev=\{featureFlags\.allowDevBypass\}>/);
+  assert.match(superadminLayout, /<AuthProviders disableClerkForDev=\{featureFlags\.allowDevBypass\}>/);
+  assert.match(appLayout, /<AuthProviders disableClerkForDev=\{featureFlags\.allowDevBypass\}>/);
+  assert.match(signInPage, /<AuthProviders disableClerkForDev=\{featureFlags\.allowDevBypass\}>/);
+  assert.match(signUpPage, /<AuthProviders disableClerkForDev=\{featureFlags\.allowDevBypass\}>/);
+});
+
+test("dev bypass can skip Clerk client widgets without changing production Clerk support", () => {
+  const authProviders = source("src", "components", "providers", "auth-providers.tsx");
+  const signInPage = source("src", "app", "sign-in", "[[...sign-in]]", "page.tsx");
+  const signUpPage = source("src", "app", "sign-up", "[[...sign-up]]", "page.tsx");
+  const invitationPage = source("src", "app", "accept-invitation", "[token]", "page.tsx");
+  const authAccessPage = source("src", "app", "auth", "access", "page.tsx");
+  const authAccessActions = source("src", "app", "auth", "access", "auth-access-actions.tsx");
+
+  assert.match(authProviders, /disableClerkForDev/);
+  assert.match(authProviders, /!clientFlags\.hasClerk \|\| disableClerkForDev/);
+  assert.match(signInPage, /featureFlags\.hasClerk && !featureFlags\.allowDevBypass/);
+  assert.match(signUpPage, /featureFlags\.hasClerk && !featureFlags\.allowDevBypass/);
+  assert.match(invitationPage, /hasClerk=\{featureFlags\.hasClerk && !featureFlags\.allowDevBypass\}/);
+  assert.match(authAccessPage, /disableClerkForDev=\{featureFlags\.allowDevBypass\}/);
+  assert.match(authAccessActions, /clientFlags\.hasClerk && !disableClerkForDev/);
 });
