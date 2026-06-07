@@ -1,5 +1,5 @@
 import { SuperadminActivityFeed } from "@/components/superadmin/superadmin-activity-feed";
-import { SuperadminMetricCard } from "@/components/superadmin/superadmin-metric-card";
+import { StatCard } from "@/components/admin/admin-ui";
 import { SuperadminRangeTabs } from "@/components/superadmin/superadmin-range-tabs";
 import { SuperadminShell } from "@/components/superadmin/superadmin-shell";
 import { requireSuperAdminSession } from "@/lib/auth/guards";
@@ -22,11 +22,11 @@ export default async function SuperadminActivityPage({
       subtitle="Watch platform inflow, onboarding, requests, collections, and risk alerts in one running feed."
       actions={<SuperadminRangeTabs pathname="/superadmin/activity" current={range} />}
     >
-      <div className="grid gap-6 md:grid-cols-4">
-        <SuperadminMetricCard label="Payments" value={String(activity.counts.payments)} detail="Successful payment events in the current feed" tone="revenue" />
-        <SuperadminMetricCard label="Payment requests" value={String(activity.counts.paymentRequests)} detail="Recently issued payment requests" />
-        <SuperadminMetricCard label="Onboarding" value={String(activity.counts.onboarding)} detail="New companies and activation milestones" />
-        <SuperadminMetricCard label="Risk alerts" value={String(activity.counts.risk)} detail="Overdue, webhook, and job issues" tone="risk" />
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <StatCard label="Payments" value={String(activity.counts.payments)} hint="Successful payment events in the current feed" tone="success" />
+        <StatCard label="Payment requests" value={String(activity.counts.paymentRequests)} hint="Recently issued payment requests" />
+        <StatCard label="Onboarding" value={String(activity.counts.onboarding)} hint="New companies and activation milestones" />
+        <StatCard label="Risk alerts" value={String(activity.counts.risk)} hint="Overdue, webhook, and job issues" tone="danger" />
       </div>
 
       <SuperadminActivityFeed

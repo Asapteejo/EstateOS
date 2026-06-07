@@ -12,10 +12,35 @@ test("payment summary cards wrap long values instead of clipping", () => {
     join(process.cwd(), "src", "app", "(admin)", "admin", "payments", "page.tsx"),
     "utf8",
   );
+  const portalOverviewSource = readFileSync(
+    join(process.cwd(), "src", "app", "(portal)", "portal", "page.tsx"),
+    "utf8",
+  );
+  const superadminCompaniesSource = readFileSync(
+    join(process.cwd(), "src", "app", "(superadmin)", "superadmin", "companies", "page.tsx"),
+    "utf8",
+  );
+  const superadminCompanySource = readFileSync(
+    join(process.cwd(), "src", "app", "(superadmin)", "superadmin", "companies", "[companyId]", "page.tsx"),
+    "utf8",
+  );
+  const superadminRevenueSource = readFileSync(
+    join(process.cwd(), "src", "app", "(superadmin)", "superadmin", "revenue", "page.tsx"),
+    "utf8",
+  );
+  const superadminOverviewSource = readFileSync(
+    join(process.cwd(), "src", "app", "(superadmin)", "superadmin", "page.tsx"),
+    "utf8",
+  );
+  const superadminActivitySource = readFileSync(
+    join(process.cwd(), "src", "app", "(superadmin)", "superadmin", "activity", "page.tsx"),
+    "utf8",
+  );
   const buttonSource = readFileSync(join(process.cwd(), "src", "components", "ui", "button.tsx"), "utf8");
   const cardSource = readFileSync(join(process.cwd(), "src", "components", "ui", "card.tsx"), "utf8");
   const adminUiSource = readFileSync(join(process.cwd(), "src", "components", "admin", "admin-ui.tsx"), "utf8");
   const headerSource = readFileSync(join(process.cwd(), "src", "components", "marketing", "marketing-header.tsx"), "utf8");
+  const platformHeaderSource = readFileSync(join(process.cwd(), "src", "components", "platform", "platform-header.tsx"), "utf8");
   const logoSource = readFileSync(join(process.cwd(), "src", "components", "shared", "logo.tsx"), "utf8");
   const globalsSource = readFileSync(join(process.cwd(), "src", "app", "globals.css"), "utf8");
 
@@ -23,6 +48,18 @@ test("payment summary cards wrap long values instead of clipping", () => {
   assert.match(portalPaymentsSource, /StatCard label="Total payable"/);
   assert.match(adminPaymentsSource, /sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5/);
   assert.match(adminPaymentsSource, /<StatCard key=\{label\} label=\{label\} value=\{value\}/);
+  assert.match(portalOverviewSource, /StatCard key=\{label\} label=\{label\} value=\{value\}/);
+  assert.match(portalOverviewSource, /sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5/);
+  for (const source of [
+    superadminCompaniesSource,
+    superadminCompanySource,
+    superadminRevenueSource,
+    superadminOverviewSource,
+    superadminActivitySource,
+  ]) {
+    assert.match(source, /StatCard/);
+    assert.doesNotMatch(source, /SuperadminMetricCard/);
+  }
   assert.match(buttonSource, /whitespace-nowrap/);
   assert.match(buttonSource, /shrink-0/);
   assert.match(buttonSource, /active:scale-\[0\.98\]/);
@@ -32,8 +69,13 @@ test("payment summary cards wrap long values instead of clipping", () => {
   assert.match(adminUiSource, /export const StatCard = AdminMetricCard/);
   assert.match(adminUiSource, /numeric mt-2 min-w-0 break-words text-xl font-semibold/);
   assert.match(headerSource, /whitespace-nowrap text-sm font-medium/);
-  assert.match(logoSource, /hidden whitespace-nowrap/);
+  assert.match(platformHeaderSource, /Resources/);
+  assert.match(platformHeaderSource, /whitespace-nowrap text-\[13px\] font-medium/);
+  assert.match(platformHeaderSource, /2xl:inline/);
+  assert.match(logoSource, /tenant-logo-tagline/);
+  assert.match(logoSource, /\[container-type:inline-size\]/);
   assert.match(globalsSource, /--duration-fast: 120ms/);
   assert.match(globalsSource, /--tenant-motion-duration: 160ms/);
   assert.match(globalsSource, /transform: translateY\(4px\)/);
+  assert.match(globalsSource, /@container \(max-width: 13rem\)/);
 });

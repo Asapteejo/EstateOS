@@ -1,5 +1,6 @@
 import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { Timeline } from "@/components/shared/timeline";
+import { StatCard } from "@/components/admin/admin-ui";
 import { Card } from "@/components/ui/card";
 import { requirePortalSession } from "@/lib/auth/guards";
 import { formatCurrency } from "@/lib/utils";
@@ -39,7 +40,7 @@ export default async function PortalDashboardPage() {
       title="Buyer Portal"
       subtitle="A calm workspace for profile completion, reservations, payments, documents, and transaction updates."
     >
-      <div className="grid gap-6 md:grid-cols-5">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {[
           ["Profile completion", `${summary.overview.completion}%`],
           ["Outstanding balance", formatCurrency(summary.overview.outstandingBalance)],
@@ -47,10 +48,7 @@ export default async function PortalDashboardPage() {
           ["Payment state", paymentExperience.paymentStatus],
           ["Unread updates", String(summary.overview.notificationsUnread)],
         ].map(([label, value]) => (
-          <Card key={label} className="p-6">
-            <div className="text-sm text-[var(--ink-500)]">{label}</div>
-            <div className="mt-3 text-2xl font-semibold text-[var(--ink-950)]">{value}</div>
-          </Card>
+          <StatCard key={label} label={label} value={value} />
         ))}
       </div>
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
@@ -93,31 +91,11 @@ export default async function PortalDashboardPage() {
             style={{ width: `${paymentExperience.progress.progressPercent}%` }}
           />
         </div>
-        <div className="mt-6 grid gap-4 md:grid-cols-4">
-          <div className="rounded-3xl bg-[var(--sand-100)] p-5">
-            <div className="text-sm text-[var(--ink-500)]">Total payable</div>
-            <div className="mt-2 text-xl font-semibold text-[var(--ink-950)]">
-              {formatCurrency(paymentExperience.progress.totalPayableAmount)}
-            </div>
-          </div>
-          <div className="rounded-3xl bg-[var(--sand-100)] p-5">
-            <div className="text-sm text-[var(--ink-500)]">Paid so far</div>
-            <div className="mt-2 text-xl font-semibold text-[var(--ink-950)]">
-              {formatCurrency(paymentExperience.progress.amountPaidSoFar)}
-            </div>
-          </div>
-          <div className="rounded-3xl bg-[var(--sand-100)] p-5">
-            <div className="text-sm text-[var(--ink-500)]">Outstanding</div>
-            <div className="mt-2 text-xl font-semibold text-[var(--ink-950)]">
-              {formatCurrency(paymentExperience.progress.outstandingBalance)}
-            </div>
-          </div>
-          <div className="rounded-3xl bg-[var(--sand-100)] p-5">
-            <div className="text-sm text-[var(--ink-500)]">Selected plan</div>
-            <div className="mt-2 text-xl font-semibold text-[var(--ink-950)]">
-              {paymentExperience.selectedPaymentPlan ?? "Unselected"}
-            </div>
-          </div>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <StatCard label="Total payable" value={formatCurrency(paymentExperience.progress.totalPayableAmount)} />
+          <StatCard label="Paid so far" value={formatCurrency(paymentExperience.progress.amountPaidSoFar)} />
+          <StatCard label="Outstanding" value={formatCurrency(paymentExperience.progress.outstandingBalance)} />
+          <StatCard label="Selected plan" value={paymentExperience.selectedPaymentPlan ?? "Unselected"} />
         </div>
       </Card>
       <Card className="p-8">

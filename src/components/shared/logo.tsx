@@ -25,7 +25,7 @@ export function Logo({
   const monogram = buildMonogram(name);
 
   return (
-    <Link href={href} className="tenant-logo inline-flex max-w-full min-w-0 items-center gap-3" aria-label={`${name} home`} title={name}>
+    <Link href={href} className="tenant-logo inline-flex max-w-full min-w-0 items-center gap-3 [container-type:inline-size]" aria-label={`${name} home`} title={name}>
       <div className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-[var(--tenant-primary,var(--brand-700))] text-sm font-semibold text-[var(--tenant-primary-foreground,#fff)] ring-1 ring-[var(--tenant-border,var(--line))]">
         {logoUrl ? (
           <OptimizedImage src={logoUrl} alt={`${name} logo`} fill preset="thumbnail" className="bg-white object-contain p-1.5" />
@@ -37,7 +37,7 @@ export function Logo({
         <div className="tenant-logo-name font-serif text-lg font-semibold leading-tight text-[var(--ink-950)]">
           {name}
         </div>
-        <div className="mt-1 hidden whitespace-nowrap text-xs uppercase tracking-[0.2em] text-[var(--ink-500)] sm:block">
+        <div className="tenant-logo-tagline mt-1 hidden whitespace-nowrap text-xs uppercase tracking-[0.2em] text-[var(--ink-500)] sm:block">
           {tagline}
         </div>
       </div>

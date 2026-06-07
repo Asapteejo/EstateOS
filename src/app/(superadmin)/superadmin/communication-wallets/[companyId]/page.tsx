@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { SuperadminShell } from "@/components/superadmin/superadmin-shell";
+import { StatCard } from "@/components/admin/admin-ui";
 import { Card } from "@/components/ui/card";
 import { requireSuperAdminSession } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
@@ -10,10 +11,6 @@ import { buildSafeErrorLogContext, logError } from "@/lib/ops/logger";
 import { formatDate } from "@/lib/utils";
 import { buildDefaultWalletSnapshot, getCompanyWalletOverview } from "@/modules/communication/wallet";
 import { adjustCommunicationWalletAction } from "@/app/(superadmin)/superadmin/communication-wallets/actions";
-
-function balanceClassName(balance: number) {
-  return balance < 0 ? "text-rose-700" : "text-emerald-700";
-}
 
 export default async function SuperadminCompanyWalletPage({
   params,
@@ -79,23 +76,15 @@ export default async function SuperadminCompanyWalletPage({
       {error ? <Card className="border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{error}</Card> : null}
       {adjusted ? <Card className="border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">Wallet adjusted successfully.</Card> : null}
 
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card className="p-5">
-          <div className="text-sm text-[var(--ink-500)]">Credit Balance</div>
-          <div className={`mt-2 text-3xl font-semibold ${balanceClassName(wallet.balance)}`}>{wallet.balance}</div>
-        </Card>
-        <Card className="p-5">
-          <div className="text-sm text-[var(--ink-500)]">Currency</div>
-          <div className="mt-2 text-2xl font-semibold text-[var(--ink-950)]">{wallet.currency}</div>
-        </Card>
-        <Card className="p-5">
-          <div className="text-sm text-[var(--ink-500)]">Low balance threshold</div>
-          <div className="mt-2 text-2xl font-semibold text-[var(--ink-950)]">{wallet.lowBalanceThreshold ?? "Not set"}</div>
-        </Card>
-        <Card className="p-5">
-          <div className="text-sm text-[var(--ink-500)]">Blocked status</div>
-          <div className="mt-2 text-2xl font-semibold text-[var(--ink-950)]">{wallet.isBlocked ? "Blocked" : "Not blocked"}</div>
-        </Card>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <StatCard
+          label="Credit Balance"
+          value={wallet.balance}
+          tone={wallet.balance < 0 ? "danger" : "success"}
+        />
+        <StatCard label="Currency" value={wallet.currency} />
+        <StatCard label="Low balance threshold" value={wallet.lowBalanceThreshold ?? "Not set"} />
+        <StatCard label="Blocked status" value={wallet.isBlocked ? "Blocked" : "Not blocked"} />
       </div>
 
       <Card className="p-6">
@@ -147,7 +136,7 @@ export default async function SuperadminCompanyWalletPage({
                 <tr key={entry.id}>
                   <td className="px-6 py-4 font-medium text-[var(--ink-950)]">{entry.type}</td>
                   <td className={`px-6 py-4 font-semibold ${entry.amount < 0 ? "text-rose-700" : "text-emerald-700"}`}>{entry.amount > 0 ? `+${entry.amount}` : entry.amount}</td>
-                  <td className={`px-6 py-4 font-semibold ${balanceClassName(entry.balanceAfter)}`}>{entry.balanceAfter}</td>
+                  <td className={`px-6 py-4 font-semibold ${entry.balanceAfter < 0 ? "text-rose-700" : "text-emerald-700"}`}>{entry.balanceAfter}</td>
                   <td className="px-6 py-4 text-[var(--ink-700)]">{entry.reference ?? "—"}</td>
                   <td className="px-6 py-4 text-[var(--ink-700)]">{formatDate(entry.createdAt, "PPP p")}</td>
                 </tr>

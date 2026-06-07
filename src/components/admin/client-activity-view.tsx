@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { AdminAttentionBadge, AdminEmptyState, AdminStateBanner } from "@/components/admin/admin-ui";
+import { AdminAttentionBadge, AdminEmptyState, AdminStateBanner, StatCard } from "@/components/admin/admin-ui";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -103,7 +103,7 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
         <PrintableAdminBuyerProfile client={client} />
       </section>
       <div className="print:hidden">
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {[
           ["Wishlist items", String(client.summary.wishlistCount)],
           ["Reservations", String(client.summary.reservationCount)],
@@ -111,10 +111,7 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
           ["Outstanding", client.summary.outstandingBalance],
           ["Latest activity", client.summary.latestActivity],
         ].map(([label, value]) => (
-          <Card key={label} className="rounded-[28px] border-[var(--line)] bg-white p-5">
-            <div className="text-sm text-[var(--ink-500)]">{label}</div>
-            <div className="mt-3 text-xl font-semibold text-[var(--ink-950)]">{value}</div>
-          </Card>
+          <StatCard key={label} label={label} value={value} />
         ))}
       </div>
 

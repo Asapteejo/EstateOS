@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { DealBoardCard, DealBoardData } from "@/modules/admin/deal-board";
+import { StatCard } from "@/components/admin/admin-ui";
 import { DealBoardActivationCard } from "@/components/admin/deal-board-activation-card";
 import { DealBoardSetupPrompt } from "@/components/admin/deal-board-setup-prompt";
 import { LoadSampleWorkspaceButton } from "@/components/admin/load-sample-workspace-button";
@@ -81,19 +82,7 @@ function MetricCard({
   tone?: "default" | "danger" | "success";
 }) {
   return (
-    <Card
-      className={cn(
-        "rounded-[28px] p-5",
-        tone === "danger" && "border-rose-200 bg-rose-50",
-        tone === "success" && "border-emerald-200 bg-emerald-50",
-      )}
-    >
-      <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-500)]">
-        {label}
-      </div>
-      <div className="mt-3 text-2xl font-semibold text-[var(--ink-950)]">{value}</div>
-      <p className="mt-2 text-sm leading-6 text-[var(--ink-600)]">{detail}</p>
-    </Card>
+    <StatCard label={label} value={value} hint={detail} tone={tone} />
   );
 }
 

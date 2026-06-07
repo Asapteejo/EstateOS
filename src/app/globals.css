@@ -328,6 +328,16 @@ a {
     -webkit-line-clamp: 2;
   }
 
+  .tenant-logo-tagline {
+    max-width: 100%;
+  }
+
+  @container (max-width: 13rem) {
+    .tenant-logo-tagline {
+      display: none;
+    }
+  }
+
   .tenant-sidebar-scroll {
     scrollbar-width: thin;
     scrollbar-color: color-mix(in srgb, var(--tenant-primary) 26%, transparent) transparent;
