@@ -18,6 +18,8 @@ const resourceLinks = [
   { href: "/platform/pricing", label: "Hybrid pricing" },
 ];
 
+const mobileLinks = [...links, ...resourceLinks];
+
 export function PlatformHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-black/5 bg-[rgba(245,247,244,0.92)] backdrop-blur-xl">
@@ -34,7 +36,7 @@ export function PlatformHeader() {
           </div>
         </Link>
 
-        <nav className="hidden items-center gap-4 xl:flex">
+        <nav className="hidden items-center gap-3 lg:flex xl:gap-4">
           {links.map((link) => (
             <Link
               key={link.href}
@@ -63,6 +65,27 @@ export function PlatformHeader() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <details className="relative lg:hidden">
+            <summary className="admin-focus inline-flex h-10 w-10 list-none items-center justify-center rounded-full border border-[var(--border-subtle)] bg-white text-[var(--ink-900)] shadow-[var(--shadow-xs)] transition hover:bg-[var(--sand-100)] hover:cursor-pointer [&::-webkit-details-marker]:hidden">
+              <span className="sr-only">Open navigation menu</span>
+              <span className="flex flex-col gap-1" aria-hidden="true">
+                <span className="block h-0.5 w-4 rounded-full bg-current" />
+                <span className="block h-0.5 w-4 rounded-full bg-current" />
+                <span className="block h-0.5 w-4 rounded-full bg-current" />
+              </span>
+            </summary>
+            <div className="absolute right-0 top-12 z-50 w-64 rounded-2xl border border-[var(--border-subtle)] bg-white p-2 shadow-[var(--shadow-md)]">
+              {mobileLinks.map((link) => (
+                <Link
+                  key={`${link.href}-${link.label}`}
+                  href={link.href}
+                  className="block whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium text-[var(--ink-700)] hover:bg-[var(--sand-100)] hover:text-[var(--ink-950)]"
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </details>
           <Link href="/demo" className="hidden whitespace-nowrap text-sm font-medium text-[var(--ink-700)] 2xl:inline">
             View demo
           </Link>

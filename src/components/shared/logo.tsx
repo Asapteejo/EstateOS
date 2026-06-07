@@ -33,11 +33,11 @@ export function Logo({
           monogram
         )}
       </div>
-      <div className="min-w-0 flex-1 overflow-hidden sm:min-w-[11rem]">
+      <div className="min-w-0 flex-1 overflow-visible sm:min-w-[11rem]">
         <div className="tenant-logo-name font-serif text-lg font-semibold leading-tight text-[var(--ink-950)]">
           {name}
         </div>
-        <div className="tenant-logo-tagline mt-1 hidden whitespace-nowrap text-xs uppercase tracking-[0.2em] text-[var(--ink-500)] sm:block">
+        <div className="tenant-logo-tagline mt-1 hidden text-xs uppercase leading-tight tracking-[0.18em] text-[var(--ink-500)] sm:block">
           {tagline}
         </div>
       </div>

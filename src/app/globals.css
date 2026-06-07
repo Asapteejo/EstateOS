@@ -330,9 +330,13 @@ a {
 
   .tenant-logo-tagline {
     max-width: 100%;
+    overflow-wrap: normal;
+    text-wrap: balance;
+    white-space: normal;
+    word-break: keep-all;
   }
 
-  @container (max-width: 13rem) {
+  @container (max-width: 16rem) {
     .tenant-logo-tagline {
       display: none;
     }
