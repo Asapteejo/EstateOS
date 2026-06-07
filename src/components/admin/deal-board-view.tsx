@@ -138,7 +138,7 @@ function BoardCard({
   return (
     <div
       className={cn(
-        "rounded-[26px] border p-4 shadow-[0_12px_34px_rgba(15,23,42,0.08)] transition",
+        "min-w-0 rounded-[var(--radius-lg)] border p-4 shadow-[var(--shadow-sm)] transition",
         tone.cardClass,
         highlighted && "ring-2 ring-emerald-300 shadow-[0_0_0_6px_rgba(16,185,129,0.12)]",
       )}
@@ -149,17 +149,17 @@ function BoardCard({
         </div>
       ) : null}
 
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-base font-semibold text-[var(--ink-950)]">{card.buyerName}</div>
-          <div className="mt-1 text-sm text-[var(--ink-600)]">{card.propertyLabel}</div>
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-base font-semibold text-[var(--ink-950)]">{card.buyerName}</div>
+          <div className="mt-1 line-clamp-2 text-sm text-[var(--ink-600)]">{card.propertyLabel}</div>
         </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", tone.badgeClass)}>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <span className={cn("whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold", tone.badgeClass)}>
             {isOverdue ? "Overdue" : card.stageLabel}
           </span>
           {card.isAtRisk && !isOverdue ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-300">
+            <span className="numeric inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-300">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
               AT RISK · {card.riskScore}
             </span>
@@ -172,7 +172,7 @@ function BoardCard({
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-500)]">
             Deal value
           </div>
-          <div className="mt-1 text-sm font-semibold text-[var(--ink-950)]">
+          <div className="numeric mt-1 break-words text-sm font-semibold text-[var(--ink-950)]">
             {formatCurrency(card.totalValue)}
           </div>
         </div>
@@ -180,7 +180,7 @@ function BoardCard({
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-500)]">
             Amount paid
           </div>
-          <div className="mt-1 text-sm font-semibold text-emerald-700">
+          <div className="numeric mt-1 break-words text-sm font-semibold text-emerald-700">
             {formatCurrency(card.amountPaid)}
           </div>
         </div>
@@ -197,12 +197,12 @@ function BoardCard({
             <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-500)]">
               Outstanding
             </div>
-            <div className={cn("mt-1 text-base font-semibold", isOverdue && "text-rose-700")}>
+            <div className={cn("numeric mt-1 break-words text-base font-semibold", isOverdue && "text-rose-700")}>
               {formatCurrency(card.outstandingBalance)}
             </div>
           </div>
           {isOverdue && card.overdueDays ? (
-            <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-rose-700 ring-1 ring-rose-200">
+            <div className="numeric whitespace-nowrap rounded-full bg-white px-3 py-1 text-xs font-semibold text-rose-700 ring-1 ring-rose-200">
               {card.overdueDays} day{card.overdueDays === 1 ? "" : "s"} overdue
             </div>
           ) : null}
@@ -471,19 +471,19 @@ export function DealBoardView({
           </p>
 
           <div className="mt-5 grid gap-3">
-            <div className="rounded-[22px] border border-[var(--line)] bg-[var(--sand-50)] p-4">
+            <div className="rounded-[22px] border border-[var(--border-subtle,var(--line))] bg-[var(--sand-50)] p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-500)]">
                 Inquiry → reservation
               </div>
-              <div className="mt-1 text-lg font-semibold text-[var(--ink-950)]">
+              <div className="numeric mt-1 text-lg font-semibold text-[var(--ink-950)]">
                 {board.summary.inquiryToReservationConversion}%
               </div>
             </div>
-            <div className="rounded-[22px] border border-[var(--line)] bg-[var(--sand-50)] p-4">
+            <div className="rounded-[22px] border border-[var(--border-subtle,var(--line))] bg-[var(--sand-50)] p-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-500)]">
                 Reservation → payment
               </div>
-              <div className="mt-1 text-lg font-semibold text-[var(--ink-950)]">
+              <div className="numeric mt-1 text-lg font-semibold text-[var(--ink-950)]">
                 {board.summary.reservationToPaymentConversion}%
               </div>
             </div>
@@ -505,22 +505,23 @@ export function DealBoardView({
       ) : null}
 
       <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="grid gap-4 xl:grid-cols-2 3xl:grid-cols-3">
+        <div className="overflow-x-auto pb-2">
+        <div className="grid min-w-[960px] gap-4 xl:grid-cols-2 3xl:grid-cols-3">
           {visibleColumns.map((column) => (
-            <Card key={column.key} className={cn("rounded-[32px] p-5", stageTone[column.key].columnClass)}>
+            <Card key={column.key} className={cn("min-w-0 rounded-[32px] p-5", stageTone[column.key].columnClass)}>
               {inspect && column.key === "OVERDUE" ? (
                 <div className="mb-4">
                   <InspectPill label="Overdue Queue" />
                 </div>
               ) : null}
-              <div className="flex items-start justify-between gap-3">
-                <div>
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <div className="min-w-0">
                   <div className="text-lg font-semibold text-[var(--ink-950)]">{column.label}</div>
                   <p className="mt-1 text-sm leading-6 text-[var(--ink-600)]">{column.subtitle}</p>
                 </div>
                 <div
                   className={cn(
-                    "rounded-full px-3 py-1 text-xs font-semibold",
+                    "numeric shrink-0 rounded-full px-3 py-1 text-xs font-semibold",
                     column.key === "OVERDUE"
                       ? "bg-rose-600 text-white"
                       : "bg-white text-[var(--ink-700)] ring-1 ring-black/5",
@@ -557,6 +558,7 @@ export function DealBoardView({
             </Card>
           ))}
         </div>
+        </div>
 
         <Card className="rounded-[32px] p-6 sm:p-7">
           <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--ink-500)]">
@@ -568,10 +570,10 @@ export function DealBoardView({
           <div className="mt-5 space-y-4">
             {board.recentEvents.length > 0 ? (
               board.recentEvents.map((event) => (
-                <div key={event.id} className="rounded-[22px] border border-[var(--line)] bg-[var(--sand-50)] p-4">
+                <div key={event.id} className="rounded-[22px] border border-[var(--border-subtle,var(--line))] bg-[var(--sand-50)] p-4">
                   <div className="text-sm font-semibold text-[var(--ink-950)]">{event.title}</div>
                   <div className="mt-1 text-sm text-[var(--ink-600)]">{event.detail}</div>
-                  <div className="mt-2 text-xs font-medium uppercase tracking-[0.14em] text-[var(--ink-500)]">
+                  <div className="numeric mt-2 text-xs font-medium uppercase tracking-[0.14em] text-[var(--ink-500)]">
                     {event.createdAt}
                   </div>
                 </div>

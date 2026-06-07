@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import type { AdminPropertyManagementRecord } from "@/modules/properties/admin-queries";
+import { AdminEmptyState } from "@/components/admin/admin-ui";
 import { PropertyLocationPicker } from "@/components/admin/property-location-picker";
 import { MultiUploadDropzone } from "@/components/uploads/multi-upload-dropzone";
 import { UploadField } from "@/components/uploads/upload-field";
@@ -766,38 +767,38 @@ export function PropertyManagement({
       </Card>
 
       <div className="grid gap-6 xl:grid-cols-[0.38fr_0.62fr]">
-        <Card className="p-6">
+        <Card className="admin-surface p-6">
           <SectionTitle
             title="Existing inventory"
             description="Select a listing to adjust inventory, media, and publishing state."
           />
-          <div className="mt-5 space-y-3">
-            {properties.map((property) => (
+          <div className="mt-5 grid gap-3">
+            {properties.length > 0 ? properties.map((property) => (
               <button
                 key={property.id}
                 type="button"
                 onClick={() => setEditingId(property.id)}
-                className={`w-full rounded-3xl border px-4 py-4 text-left transition ${
+                className={`admin-focus admin-interactive w-full min-w-0 rounded-[var(--radius-lg)] border px-4 py-4 text-left transition ${
                   editingId === property.id
-                    ? "border-[var(--brand-500)] bg-[var(--sand-100)]"
-                    : "border-[var(--line)] bg-white"
+                    ? "border-[var(--brand-500)] bg-[var(--sand-100)] shadow-[var(--shadow-sm)]"
+                    : "border-[var(--border-subtle,var(--line))] bg-white shadow-[var(--shadow-xs)] hover:border-[var(--line)] hover:bg-[var(--sand-50)]"
                 }`}
               >
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <div className="font-semibold text-[var(--ink-950)]">{property.title}</div>
-                      <div className="mt-1 text-sm text-[var(--ink-500)]">{property.location.city}, {property.location.state}</div>
-                      <div className="mt-2 text-xs font-medium text-[var(--ink-500)]">{property.verification.label}</div>
-                    </div>
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <Badge>{property.status.toLowerCase()}</Badge>
+                <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="truncate font-semibold text-[var(--ink-950)]">{property.title}</div>
+                    <div className="mt-1 truncate text-sm text-[var(--ink-500)]">{property.location.city}, {property.location.state}</div>
+                    <div className="mt-2 text-xs font-medium uppercase tracking-[0.14em] text-[var(--ink-500)]">{property.verification.label}</div>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
+                    <Badge className="whitespace-nowrap">{property.status.toLowerCase()}</Badge>
                     <Badge
                       className={
                         property.verification.tone === "success"
-                          ? "bg-emerald-100 text-emerald-800"
+                          ? "whitespace-nowrap bg-emerald-100 text-emerald-800"
                           : property.verification.tone === "warning"
-                            ? "bg-amber-100 text-amber-800"
-                            : "bg-slate-200 text-slate-800"
+                            ? "whitespace-nowrap bg-amber-100 text-amber-800"
+                            : "whitespace-nowrap bg-slate-200 text-slate-800"
                       }
                     >
                       {property.verificationStatus.toLowerCase()}
@@ -805,11 +806,16 @@ export function PropertyManagement({
                   </div>
                 </div>
               </button>
-            ))}
+            )) : (
+              <AdminEmptyState
+                title="No listings yet"
+                description="Create your first property to begin managing inventory, media, and public visibility."
+              />
+            )}
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="admin-surface p-6">
           {editingProperty && editingId ? (
             <>
               <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -876,7 +882,7 @@ export function PropertyManagement({
                       }))
                     }
                   />
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col items-start gap-2 md:items-end">
                     <Badge
                       className={
                         editingProperty.verification.tone === "success"
@@ -888,7 +894,7 @@ export function PropertyManagement({
                     >
                       {editingProperty.verification.label}
                     </Badge>
-                    <Badge>
+                    <Badge className="whitespace-nowrap">
                       {editingProperty.isPubliclyVisible ? "Publicly visible" : "Hidden from public"}
                     </Badge>
                   </div>
@@ -896,9 +902,10 @@ export function PropertyManagement({
               </div>
             </>
           ) : (
-            <div className="rounded-3xl border border-dashed border-[var(--line)] p-10 text-center text-sm text-[var(--ink-500)]">
-              Select a property to start editing.
-            </div>
+            <AdminEmptyState
+              title="Select a property to start editing"
+              description="Choose an inventory item on the left to adjust copy, pricing, media, and visibility."
+            />
           )}
         </Card>
       </div>

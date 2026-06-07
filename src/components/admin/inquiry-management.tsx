@@ -226,8 +226,8 @@ export function InquiryManagement({
 
         return (
         <AdminFormSection key={inquiry.id} title={inquiry.fullName} description={inquiry.propertyTitle} density="dense">
-          <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-            <div>
+          <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+            <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-3">
                 <label className="inline-flex items-center gap-2 text-sm text-[var(--ink-500)]">
                   <input
@@ -237,10 +237,10 @@ export function InquiryManagement({
                   />
                   Select
                 </label>
-                <span className="rounded-full bg-[var(--sand-100)] px-3 py-1 text-xs font-medium text-[var(--ink-700)]">
+                <span className="whitespace-nowrap rounded-full bg-[var(--sand-100)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--ink-700)]">
                   {workflowVocabulary.inquiries.statusLabels[status as keyof typeof workflowVocabulary.inquiries.statusLabels] ?? status.replaceAll("_", " ")}
                 </span>
-                <span className="rounded-full border border-[var(--line)] px-3 py-1 text-xs text-[var(--ink-500)]">
+                <span className="whitespace-nowrap rounded-full border border-[var(--border-subtle,var(--line))] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--ink-500)]">
                   {inquiry.source.replaceAll("_", " ")}
                 </span>
                 {attention ? (
@@ -250,13 +250,13 @@ export function InquiryManagement({
                   />
                 ) : null}
               </div>
-              <p className="mt-2 text-sm text-[var(--ink-500)]">{inquiry.propertyTitle}</p>
-              <div className="mt-3 text-sm text-[var(--ink-600)]">
+              <p className="mt-2 break-words text-sm text-[var(--ink-500)]">{inquiry.propertyTitle}</p>
+              <div className="mt-3 break-words text-sm text-[var(--ink-600)]">
                 {inquiry.email}
                 {inquiry.phone ? `  -  ${inquiry.phone}` : ""}
               </div>
               <p className="mt-4 text-sm leading-7 text-[var(--ink-700)]">{inquiry.message}</p>
-              <div className="mt-3 text-xs uppercase tracking-[0.16em] text-[var(--ink-500)]">
+              <div className="numeric mt-3 text-xs uppercase tracking-[0.16em] text-[var(--ink-500)]">
                 Received {new Date(inquiry.createdAt).toLocaleString()}
               </div>
               <div className="mt-4">
@@ -268,11 +268,11 @@ export function InquiryManagement({
               </div>
             </div>
 
-            <div className="admin-surface-muted space-y-4 p-5">
+            <div className="admin-surface-muted min-w-0 space-y-4 p-5">
               <div className="grid gap-3 sm:grid-cols-2">
                 <AdminField label="Status">
                   <select
-                    className="admin-focus admin-interactive w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm"
+                    className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm"
                     value={state[inquiry.id]?.status ?? inquiry.status}
                     onChange={(event) =>
                       setState((current) => ({
@@ -294,7 +294,7 @@ export function InquiryManagement({
 
                 <AdminField label="Assigned staff">
                   <select
-                    className="admin-focus admin-interactive w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm"
+                    className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm"
                     value={state[inquiry.id]?.assignedStaffId ?? ""}
                     onChange={(event) =>
                       setState((current) => ({
@@ -363,14 +363,14 @@ export function InquiryManagement({
                 ]}
               />
 
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm text-[var(--ink-500)]">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0 text-sm text-[var(--ink-500)]">
                   Current owner: {inquiry.assignedStaffName}
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 lg:justify-end">
                   <Link
                     href={`/admin/inquiries/${inquiry.id}`}
-                    className="admin-interactive admin-focus inline-flex h-11 items-center justify-center rounded-full border border-[var(--line)] px-5 text-sm font-semibold text-[var(--ink-900)] hover:bg-[var(--sand-100)]"
+                    className="admin-interactive admin-focus inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-[var(--line)] px-5 text-sm font-semibold text-[var(--ink-900)] hover:bg-[var(--sand-100)]"
                   >
                     View
                   </Link>

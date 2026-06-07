@@ -116,7 +116,7 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[0.42fr_0.58fr]">
-        <Card className="rounded-[30px] border-[var(--line)] bg-white p-6">
+        <Card className="admin-surface p-6">
           <h2 className="text-xl font-semibold text-[var(--ink-950)]">Client profile</h2>
           <div className="mt-5 space-y-4 text-sm text-[var(--ink-600)]">
             <div className="flex items-center gap-3">
@@ -126,30 +126,30 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
                 <div className="mt-1 text-lg font-semibold text-[var(--ink-950)]">{client.name}</div>
               </div>
             </div>
-            <div>{client.email}</div>
-            {client.phone ? <div>{client.phone}</div> : null}
-            <div>KYC: <strong>{client.kycStatus}</strong></div>
-            <div>Assigned marketer: <strong>{client.assignedMarketer ?? "Unassigned"}</strong></div>
-            <div>Location: <strong>{[client.city, client.state].filter(Boolean).join(", ") || "Not completed"}</strong></div>
-            <div>Occupation: <strong>{client.occupation ?? "Not completed"}</strong></div>
+            <div className="break-words">{client.email}</div>
+            {client.phone ? <div className="numeric">{client.phone}</div> : null}
+            <div>KYC: <strong className="text-[var(--ink-900)]">{client.kycStatus}</strong></div>
+            <div>Assigned marketer: <strong className="text-[var(--ink-900)]">{client.assignedMarketer ?? "Unassigned"}</strong></div>
+            <div>Location: <strong className="text-[var(--ink-900)]">{[client.city, client.state].filter(Boolean).join(", ") || "Not completed"}</strong></div>
+            <div>Occupation: <strong className="text-[var(--ink-900)]">{client.occupation ?? "Not completed"}</strong></div>
           </div>
         </Card>
 
-        <Card className="rounded-[30px] border-[var(--line)] bg-white p-6">
+        <Card className="admin-surface p-6">
           <h2 className="text-xl font-semibold text-[var(--ink-950)]">Recent client activity</h2>
           <div className="mt-5 space-y-4">
             {client.timeline.map((event) => (
-              <div key={`${event.title}-${event.time}`} className="rounded-3xl bg-[var(--sand-100)] p-4">
+              <div key={`${event.title}-${event.time}`} className="rounded-[var(--radius-lg)] border border-[var(--border-subtle,var(--line))] bg-[var(--sand-50)] p-4">
                 <div className="text-sm font-semibold text-[var(--ink-950)]">{event.title}</div>
                 <div className="mt-2 text-sm leading-6 text-[var(--ink-600)]">{event.detail}</div>
-                <div className="mt-2 text-xs uppercase tracking-[0.16em] text-[var(--ink-500)]">{event.time}</div>
+                <div className="numeric mt-2 text-xs uppercase tracking-[0.16em] text-[var(--ink-500)]">{event.time}</div>
               </div>
             ))}
           </div>
         </Card>
       </div>
 
-      <Card className="rounded-[30px] border-[var(--line)] bg-white p-6">
+      <Card className="admin-surface p-6">
         <h2 className="text-xl font-semibold text-[var(--ink-950)]">Wishlist intent and follow-up</h2>
         <div className="mt-5 space-y-4">
           {sortedWishlistItems.map((item) => {
@@ -157,16 +157,16 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
             const followUpStatus = drafts[item.id]?.followUpStatus ?? item.followUpStatus;
 
             return (
-            <div key={item.id} className="rounded-[28px] border border-[var(--line)] p-5">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
+            <div key={item.id} className="rounded-[var(--radius-lg)] border border-[var(--border-subtle,var(--line))] bg-white p-5 shadow-[var(--shadow-xs)]">
+              <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0">
                   <div className="text-lg font-semibold text-[var(--ink-950)]">{item.propertyTitle}</div>
-                  <div className="mt-1 text-sm text-[var(--ink-500)]">
+                  <div className="numeric mt-1 text-sm text-[var(--ink-500)]">
                     Saved {item.savedAt} - {item.timeLabel}
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Badge>{item.status}</Badge>
+                <div className="flex shrink-0 flex-wrap gap-2 lg:justify-end">
+                  <Badge className="whitespace-nowrap">{item.status}</Badge>
                   <Badge>
                     {workflowVocabulary.clients.followUpStatusLabels[
                       followUpStatus as keyof typeof workflowVocabulary.clients.followUpStatusLabels
@@ -181,9 +181,9 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
                 </div>
               </div>
 
-              <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_1fr_auto]">
+              <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
                 <select
-                  className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+                  className="admin-focus admin-interactive h-11 min-w-0 rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
                   value={drafts[item.id]?.assignedStaffId ?? ""}
                   onChange={(event) =>
                     setDrafts((current) => ({
@@ -203,7 +203,7 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
                   ))}
                 </select>
                 <select
-                  className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+                  className="admin-focus admin-interactive h-11 min-w-0 rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
                   value={drafts[item.id]?.followUpStatus ?? "NONE"}
                   onChange={(event) =>
                     setDrafts((current) => ({
@@ -221,7 +221,7 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
                   <option value="FOLLOW_UP_SCHEDULED">{workflowVocabulary.clients.followUpStatusLabels.FOLLOW_UP_SCHEDULED}</option>
                   <option value="CLOSED">{workflowVocabulary.clients.followUpStatusLabels.CLOSED}</option>
                 </select>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 lg:justify-end">
                   {item.whatsappHref ? (
                     <a href={item.whatsappHref} target="_blank" rel="noreferrer">
                       <Button variant="outline">WhatsApp</Button>
@@ -268,7 +268,7 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
                   <Button variant="ghost">Open property</Button>
                 </Link>
                 {item.assignedStaffName ? (
-                  <div className="text-sm text-[var(--ink-500)]">Owner: {item.assignedStaffName}</div>
+                  <div className="self-center text-sm text-[var(--ink-500)]">Owner: {item.assignedStaffName}</div>
                 ) : null}
               </div>
             </div>
@@ -409,15 +409,15 @@ function SimpleListCard({
   emptyTitle: string;
 }) {
   return (
-    <Card className="rounded-[30px] border-[var(--line)] bg-white p-6">
+    <Card className="admin-surface p-6">
       <h2 className="text-xl font-semibold text-[var(--ink-950)]">{title}</h2>
       <div className="mt-5 space-y-3">
         {rows.length > 0 ? (
           rows.map((row) => (
-            <div key={`${title}-${row.title}-${row.meta}`} className="rounded-3xl bg-[var(--sand-100)] p-4">
-              <div className="text-sm font-semibold text-[var(--ink-950)]">{row.title}</div>
-              <div className="mt-1 text-sm text-[var(--ink-600)]">{row.subtitle}</div>
-              <div className="mt-2 text-xs uppercase tracking-[0.16em] text-[var(--ink-500)]">{row.meta}</div>
+            <div key={`${title}-${row.title}-${row.meta}`} className="rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-[var(--sand-50)] p-4">
+              <div className="break-words text-sm font-semibold text-[var(--ink-950)]">{row.title}</div>
+              <div className="mt-1 break-words text-sm text-[var(--ink-600)]">{row.subtitle}</div>
+              <div className="numeric mt-2 text-xs uppercase tracking-[0.16em] text-[var(--ink-500)]">{row.meta}</div>
             </div>
           ))
         ) : (
