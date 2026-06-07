@@ -216,6 +216,22 @@ test("production env parse allows build-time config inspection", () => {
   assert.equal(env.NODE_ENV, "production");
 });
 
+test("optional boolean env values parse Vercel 1/0 forms", () => {
+  const vercelEnabled = parseServerEnv({
+    NODE_ENV: "production",
+    NEXT_PUBLIC_APP_URL: "https://estateos.example.com",
+    VERCEL: "1",
+  });
+  const vercelDisabled = parseServerEnv({
+    NODE_ENV: "production",
+    NEXT_PUBLIC_APP_URL: "https://estateos.example.com",
+    VERCEL: "0",
+  });
+
+  assert.equal(vercelEnabled.VERCEL, true);
+  assert.equal(vercelDisabled.VERCEL, false);
+});
+
 test("production base url never falls back to localhost", () => {
   const env = parseServerEnv({
     NODE_ENV: "production",

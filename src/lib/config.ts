@@ -27,11 +27,11 @@ const optionalBoolean = z.preprocess((value) => {
       return undefined;
     }
 
-    if (normalized === "true") {
+    if (["true", "1", "yes", "on"].includes(normalized)) {
       return true;
     }
 
-    if (normalized === "false") {
+    if (["false", "0", "no", "off"].includes(normalized)) {
       return false;
     }
   }
