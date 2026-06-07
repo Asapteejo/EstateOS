@@ -11,7 +11,11 @@ export default async function AdminBillingPage() {
     <DashboardShell
       area="admin"
       title="Billing & Monetization"
-      subtitle="Plans, grants, commission behavior, payout readiness, and platform revenue visibility."
+      subtitle={
+        tenant.isSuperAdmin
+          ? "Plans, grants, commission behavior, payout readiness, and platform revenue visibility."
+          : "Plan status, payout readiness, and billing access for this company."
+      }
     >
       <BillingManagement
         isSuperAdmin={tenant.isSuperAdmin}

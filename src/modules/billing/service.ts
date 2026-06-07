@@ -405,23 +405,32 @@ export async function getBillingDashboardData(context: TenantContext) {
   const companyPlanStatus = await getCompanyPlanStatus({ context });
 
   if (!featureFlags.hasDatabase || (!context.companyId && !context.isSuperAdmin)) {
+    const demoCompanyBilling = {
+      defaultCurrency: "NGN",
+      transactionProvider: "PAYSTACK",
+      requireActivePlanForTransactions: true,
+      payoutReadiness: "Ready",
+      ...(context.isSuperAdmin
+        ? { commissionRule: "Flat NGN 25,000 per successful payment" }
+        : {}),
+    };
+    const demoCompanySummary = {
+      activeSubscriptions: 1,
+      grantedPlans: 1,
+      expiredSubscriptions: 0,
+      ...(context.isSuperAdmin
+        ? {
+            commissionEarned: "NGN 25,000",
+            subscriptionRevenue: "NGN 0",
+          }
+        : {}),
+      payoutIssues: 0,
+    };
+
     return {
       companyPlanStatus,
-      companyBilling: {
-        defaultCurrency: "NGN",
-        transactionProvider: "PAYSTACK",
-        requireActivePlanForTransactions: true,
-        payoutReadiness: "Ready",
-        commissionRule: "Flat NGN 25,000 per successful payment",
-      },
-      companySummary: {
-        activeSubscriptions: 1,
-        grantedPlans: 1,
-        expiredSubscriptions: 0,
-        commissionEarned: "NGN 25,000",
-        subscriptionRevenue: "NGN 0",
-        payoutIssues: 0,
-      },
+      companyBilling: demoCompanyBilling,
+      companySummary: demoCompanySummary,
       plans: [
         {
           id: "demo-plan-growth-monthly",
@@ -479,6 +488,7 @@ export async function getBillingDashboardData(context: TenantContext) {
   const [
     plansRaw,
     companySettings,
+    defaultCommissionRule,
     activePayoutAccount,
     commissionRecordsCount,
     commissionRecordsSum,
@@ -504,10 +514,17 @@ export async function getBillingDashboardData(context: TenantContext) {
     companyId
       ? prisma.companyBillingSettings.findUnique({
           where: { companyId },
-          include: {
-            defaultCommissionRule: true,
-          },
         })
+      : Promise.resolve(null),
+    context.isSuperAdmin && companyId
+      ? prisma.companyBillingSettings
+          .findUnique({
+            where: { companyId },
+            select: {
+              defaultCommissionRule: true,
+            },
+          })
+          .then((settings) => settings?.defaultCommissionRule ?? null)
       : Promise.resolve(null),
     companyId
       ? prisma.companyPaymentProviderAccount.findFirst({
@@ -517,12 +534,12 @@ export async function getBillingDashboardData(context: TenantContext) {
           },
         })
       : Promise.resolve(null),
-    companyId
+    context.isSuperAdmin && companyId
       ? countForTenant(prisma.commissionRecord as ScopedCountDelegate, context, {
           where: {},
         } as Parameters<typeof prisma.commissionRecord.count>[0])
-      : Promise.resolve(0),
-    companyId
+      : Promise.resolve(null),
+    context.isSuperAdmin && companyId
       ? prisma.commissionRecord.aggregate({
           where: {
             companyId,
@@ -531,7 +548,7 @@ export async function getBillingDashboardData(context: TenantContext) {
             platformCommission: true,
           },
         })
-      : Promise.resolve({ _sum: { platformCommission: null } }),
+      : Promise.resolve(null),
     companyId
       ? countForTenant(prisma.companySubscription as ScopedCountDelegate, context, {
           where: {
@@ -572,19 +589,33 @@ export async function getBillingDashboardData(context: TenantContext) {
     commissionRule: string;
   }> = [];
 
-  let platformSummary = {
+  let platformSummary: {
+    activeSubscriptions: number;
+    grantedPlans: number;
+    expiredSubscriptions: number;
+    commissionEarned?: string;
+    subscriptionRevenue?: string;
+    payoutIssues: number;
+  } = {
     activeSubscriptions: Number(currentCompanySubscriptionCount),
     grantedPlans: companyPlanStatus.isGranted ? 1 : 0,
     expiredSubscriptions: companyPlanStatus.state === "EXPIRED" ? 1 : 0,
-    commissionEarned: `${companySettings?.defaultCurrency ?? "NGN"} ${decimalToNumber(
-      (commissionRecordsSum as { _sum: { platformCommission: { toNumber?: () => number } | null } })._sum.platformCommission,
-    ).toLocaleString()}`,
-    subscriptionRevenue:
-      companyPlanStatus.isActive && !companyPlanStatus.isGranted && companyPlanStatus.plan
-        ? `${companyPlanStatus.plan.interval === "MONTHLY" ? "MRR" : "ARR"} ${companyPlanStatus.plan.name}`
-        : `${companySettings?.defaultCurrency ?? "NGN"} 0`,
     payoutIssues: activePayoutAccount?.status === "ACTIVE" ? 0 : 1,
   };
+
+  if (context.isSuperAdmin) {
+    platformSummary = {
+      ...platformSummary,
+      commissionEarned: `${companySettings?.defaultCurrency ?? "NGN"} ${decimalToNumber(
+        (commissionRecordsSum as { _sum: { platformCommission: { toNumber?: () => number } | null } } | null)
+          ?._sum.platformCommission,
+      ).toLocaleString()}`,
+      subscriptionRevenue:
+        companyPlanStatus.isActive && !companyPlanStatus.isGranted && companyPlanStatus.plan
+          ? `${companyPlanStatus.plan.interval === "MONTHLY" ? "MRR" : "ARR"} ${companyPlanStatus.plan.name}`
+          : `${companySettings?.defaultCurrency ?? "NGN"} 0`,
+    };
+  }
 
   if (context.isSuperAdmin) {
     const [allCompanies, activeSubscriptions, grantedPlans, expiredSubscriptions, commissionEarned] =
@@ -693,14 +724,18 @@ export async function getBillingDashboardData(context: TenantContext) {
       requireActivePlanForTransactions:
         companySettings?.requireActivePlanForTransactions ?? true,
       payoutReadiness: activePayoutAccount?.status === "ACTIVE" ? "Ready" : "Needs configuration",
-      commissionRule: companySettings?.defaultCommissionRule
-        ? companySettings.defaultCommissionRule.feeType === "PERCENTAGE"
-          ? `${decimalToNumber(companySettings.defaultCommissionRule.percentageRate)}% per successful transaction`
-          : `Flat ${companySettings.defaultCommissionRule.currency} ${decimalToNumber(
-              companySettings.defaultCommissionRule.flatAmount,
-            ).toLocaleString()} per successful transaction`
-        : "No default commission rule configured",
-      commissionRecordsCount: Number(commissionRecordsCount),
+      ...(context.isSuperAdmin
+        ? {
+            commissionRule: defaultCommissionRule
+              ? defaultCommissionRule.feeType === "PERCENTAGE"
+                ? `${decimalToNumber(defaultCommissionRule.percentageRate)}% per successful transaction`
+                : `Flat ${defaultCommissionRule.currency} ${decimalToNumber(
+                    defaultCommissionRule.flatAmount,
+                  ).toLocaleString()} per successful transaction`
+              : "No default commission rule configured",
+            commissionRecordsCount: Number(commissionRecordsCount ?? 0),
+          }
+        : {}),
     },
     companySummary: platformSummary,
     plans,
