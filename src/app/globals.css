@@ -38,6 +38,21 @@
   --radius-lg: 1.25rem;
   --radius-xl: 1.5rem;
   --transition-fast: 160ms ease;
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 120ms;
+  --duration: 160ms;
+  --duration-slow: 240ms;
+  --surface: #ffffff;
+  --surface-muted: var(--sand-50);
+  --border-subtle: var(--line);
+  --text-primary: var(--ink-950);
+  --text-secondary: var(--ink-600);
+  --text-tertiary: var(--ink-500);
+  --accent: var(--brand-700);
 }
 
 @theme inline {
@@ -50,7 +65,9 @@
 }
 
 html {
+  -webkit-font-smoothing: antialiased;
   scroll-behavior: smooth;
+  text-rendering: optimizeLegibility;
 }
 
 body {
@@ -59,6 +76,7 @@ body {
     linear-gradient(180deg, #fcfbf7, #f8f6f0 35%, #f4f1e8);
   color: var(--foreground);
   font-family: var(--font-sans-web), "Aptos", "Segoe UI", "Helvetica Neue", sans-serif;
+  line-height: 1.55;
 }
 
 a {
@@ -105,11 +123,11 @@ a {
 
   .admin-interactive {
     transition:
-      background-color var(--transition-fast),
-      border-color var(--transition-fast),
-      color var(--transition-fast),
-      box-shadow var(--transition-fast),
-      transform var(--transition-fast);
+      background-color var(--duration-fast) var(--ease-standard),
+      border-color var(--duration-fast) var(--ease-standard),
+      color var(--duration-fast) var(--ease-standard),
+      box-shadow var(--duration-fast) var(--ease-standard),
+      transform var(--duration-fast) var(--ease-standard);
   }
 
   .admin-interactive:hover {
@@ -123,6 +141,53 @@ a {
   .admin-focus:focus-visible {
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-500) 18%, white);
     border-color: color-mix(in srgb, var(--brand-500) 26%, var(--line));
+  }
+
+  .text-eyebrow {
+    font-size: 0.6875rem;
+    font-weight: 650;
+    letter-spacing: 0.14em;
+    line-height: 1;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+
+  .text-display,
+  .text-title,
+  .text-section {
+    font-family: var(--font-serif-web), "Baskerville Old Face", "Palatino Linotype", "Book Antiqua", serif;
+    letter-spacing: 0;
+    line-height: 1.05;
+    color: var(--text-primary);
+  }
+
+  .text-display {
+    font-size: clamp(2.25rem, 5vw, 4.75rem);
+  }
+
+  .text-title {
+    font-size: clamp(1.875rem, 3vw, 3rem);
+  }
+
+  .text-section {
+    font-size: clamp(1.5rem, 2vw, 2.25rem);
+  }
+
+  .text-body {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  .text-caption {
+    color: var(--text-tertiary);
+    font-size: 0.8125rem;
+    line-height: 1.45;
+  }
+
+  .numeric {
+    font-feature-settings: "tnum";
+    font-variant-numeric: tabular-nums;
   }
 
   .admin-table-shell {
@@ -186,23 +251,26 @@ a {
   }
 
   .tenant-theme-shell {
-    --tenant-motion-duration: 220ms;
+    --tenant-motion-duration: 160ms;
+    --tenant-enter-duration: min(var(--tenant-motion-duration), var(--duration));
   }
 
   .tenant-page-enter {
-    animation: tenant-fade-up var(--tenant-motion-duration) ease-out both;
+    opacity: 1;
+    animation: tenant-fade-up var(--tenant-enter-duration) var(--ease-out) both;
   }
 
   .tenant-content-reveal > * {
-    animation: tenant-fade-up 260ms ease-out both;
+    opacity: 1;
+    animation: tenant-fade-up var(--duration) var(--ease-out) both;
   }
 
   .tenant-content-reveal > *:nth-child(2) {
-    animation-delay: 40ms;
+    animation-delay: 16ms;
   }
 
   .tenant-content-reveal > *:nth-child(3) {
-    animation-delay: 80ms;
+    animation-delay: 32ms;
   }
 
   .tenant-panel,
@@ -218,7 +286,7 @@ a {
   .tenant-panel:hover,
   .tenant-content-reveal .tenant-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+    box-shadow: var(--shadow-md);
   }
 
   .tenant-nav-link {
@@ -287,8 +355,8 @@ a {
 
 @keyframes tenant-fade-up {
   from {
-    opacity: 0;
-    transform: translateY(8px);
+    opacity: 0.96;
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
@@ -304,10 +372,10 @@ a {
   *,
   *::before,
   *::after {
-    animation-duration: 1ms !important;
+    animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
-    transition-duration: 1ms !important;
+    transition-duration: 0.01ms !important;
   }
 }
 

@@ -1,22 +1,27 @@
+import type * as React from "react";
+
 import { cn } from "@/lib/utils";
 
 export function Card({
   className,
   children,
+  interactive = false,
   style,
 }: {
   className?: string;
   children: React.ReactNode;
+  interactive?: boolean;
   style?: React.CSSProperties;
 }) {
   return (
     <div
       className={cn(
-        "tenant-card rounded-[28px] border border-[var(--line)] bg-[var(--tenant-card,#fff)] shadow-[0_18px_60px_rgba(15,23,42,0.06)]",
+        "tenant-card rounded-[24px] border border-[var(--border-subtle)] bg-[var(--tenant-card,#fff)] shadow-[var(--shadow-sm)]",
+        interactive && "transition-[box-shadow,transform] duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]",
         className,
       )}
       style={{
-        borderRadius: "var(--tenant-card-radius, 28px)",
+        borderRadius: "var(--tenant-card-radius, 24px)",
         ...style,
       }}
     >

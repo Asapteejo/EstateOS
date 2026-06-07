@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
+import { StatCard } from "@/components/admin/admin-ui";
 import { requirePortalSession } from "@/lib/auth/guards";
 import { formatCurrency } from "@/lib/utils";
 import { getBuyerPaymentExperience } from "@/modules/portal/queries";
@@ -13,50 +14,30 @@ export default async function PortalPaymentsPage() {
 
   return (
     <DashboardShell area="portal" title="Payments" subtitle="Verified payments, receipts, and provider-level tracking live here.">
-      <div className="grid gap-6 md:grid-cols-5">
-        <Card className="p-6">
-          <div className="text-sm text-[var(--ink-500)]">Total payable</div>
-          <div className="mt-3 text-2xl font-semibold text-[var(--ink-950)]">
-            {formatCurrency(paymentExperience.progress.totalPayableAmount)}
-          </div>
-        </Card>
-        <Card className="p-6">
-          <div className="text-sm text-[var(--ink-500)]">Paid so far</div>
-          <div className="mt-3 text-2xl font-semibold text-[var(--ink-950)]">
-            {formatCurrency(paymentExperience.progress.amountPaidSoFar)}
-          </div>
-        </Card>
-        <Card className="p-6">
-          <div className="text-sm text-[var(--ink-500)]">Outstanding balance</div>
-          <div className="mt-3 text-2xl font-semibold text-[var(--ink-950)]">
-            {formatCurrency(paymentExperience.progress.outstandingBalance)}
-          </div>
-        </Card>
-        <Card className="p-6">
-          <div className="text-sm text-[var(--ink-500)]">Payment state</div>
-          <div className="mt-3 text-2xl font-semibold text-[var(--ink-950)]">
-            {paymentExperience.paymentStatus}
-          </div>
-        </Card>
-        <Card className="p-6">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <StatCard label="Total payable" value={formatCurrency(paymentExperience.progress.totalPayableAmount)} />
+        <StatCard label="Paid so far" value={formatCurrency(paymentExperience.progress.amountPaidSoFar)} />
+        <StatCard label="Outstanding balance" value={formatCurrency(paymentExperience.progress.outstandingBalance)} />
+        <StatCard label="Payment state" value={paymentExperience.paymentStatus} />
+        <Card className="h-full min-w-0 p-6">
           <div className="text-sm text-[var(--ink-500)]">Selected marketer</div>
           {paymentExperience.selectedMarketer ? (
-            <div className="mt-3 flex items-center gap-3">
+            <div className="mt-3 flex min-w-0 items-center gap-3">
               <Avatar
                 name={paymentExperience.selectedMarketer.fullName}
                 imageUrl={paymentExperience.selectedMarketer.avatarUrl}
                 size="md"
                 className="rounded-2xl"
               />
-              <div>
-                <div className="text-lg font-semibold text-[var(--ink-950)]">
+              <div className="min-w-0">
+                <div className="break-words text-lg font-semibold text-[var(--ink-950)]">
                   {paymentExperience.selectedMarketer.fullName}
                 </div>
                 <div className="text-sm text-[var(--brand-700)]">{paymentExperience.selectedMarketer.title}</div>
               </div>
             </div>
           ) : (
-            <div className="mt-3 text-2xl font-semibold text-[var(--ink-950)]">Unassigned</div>
+            <div className="mt-3 min-w-0 break-words text-xl font-semibold text-[var(--ink-950)]">Unassigned</div>
           )}
         </Card>
       </div>
