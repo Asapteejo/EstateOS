@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Download, Eye, EyeOff, ShieldCheck, Users } from "lucide-react";
 
+import { AdminEmptyState } from "@/components/admin/admin-ui";
 import { UploadField } from "@/components/uploads/upload-field";
 import { InviteMemberModal } from "@/components/admin/invite-member-modal";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +15,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { TeamMemberManagementRecord } from "@/modules/team/queries";
+import { buildWhatsAppHref } from "@/modules/team/contact";
 
 type PendingInvitation = {
   id: string;
@@ -136,10 +138,10 @@ function SectionTitle({ title, description }: { title: string; description: stri
 function StatusPills({ member }: { member: TeamMemberManagementRecord }) {
   return (
     <div className="flex flex-wrap gap-2">
-      <Badge className={member.isActive ? "" : "bg-[var(--sand-100)] text-[var(--ink-500)]"}>
+      <Badge className={member.isActive ? "whitespace-nowrap" : "bg-[var(--sand-100)] text-[var(--ink-500)] whitespace-nowrap"}>
         {member.isActive ? "Active" : "Inactive"}
       </Badge>
-      <Badge className={member.isPublished ? "" : "bg-[var(--sand-100)] text-[var(--ink-500)]"}>
+      <Badge className={member.isPublished ? "whitespace-nowrap" : "bg-[var(--sand-100)] text-[var(--ink-500)] whitespace-nowrap"}>
         {member.isPublished ? "Public" : "Private"}
       </Badge>
     </div>
@@ -211,14 +213,14 @@ export function TeamManagement({
 
   return (
     <div className="space-y-8">
-      <Card className="overflow-hidden border-[var(--line)] bg-white">
-        <div className="border-b border-[var(--line)] bg-[linear-gradient(135deg,#f7f1e7,#edf5f0)] px-6 py-5">
+      <Card className="overflow-hidden border-[var(--border-subtle,var(--line))] bg-white shadow-[var(--shadow-sm)]">
+        <div className="border-b border-[var(--line)] bg-[var(--sand-50,#f7f1e7)] px-6 py-5">
           <div className="flex items-start justify-between gap-4">
             <SectionTitle
               title="Create staff profile"
               description="Profiles here power the public staff directory, buyer contact experience, and printable branded ID cards."
             />
-            <Badge className="gap-2">
+            <Badge className="gap-2 whitespace-nowrap">
               <ShieldCheck className="h-3.5 w-3.5" />
               Tenant-admin only
             </Badge>
@@ -236,13 +238,13 @@ export function TeamManagement({
       </Card>
 
       <div className="grid gap-6 xl:grid-cols-[0.38fr_0.62fr]">
-        <Card className="border-[var(--line)] bg-white p-6">
-          <div className="flex items-start justify-between gap-4">
+        <Card className="border-[var(--border-subtle,var(--line))] bg-white p-6 shadow-[var(--shadow-sm)]">
+          <div className="flex min-w-0 items-start justify-between gap-4">
             <SectionTitle
               title="Current team directory"
               description="Activate, hide, reorder, or open a profile to refine what appears on your public staff pages."
             />
-            <Badge className="gap-2 bg-[var(--sand-100)] text-[var(--ink-600)]">
+            <Badge className="gap-2 bg-[var(--sand-100)] text-[var(--ink-600)] whitespace-nowrap">
               <Users className="h-3.5 w-3.5" />
               {members.length} profiles
             </Badge>
@@ -256,20 +258,20 @@ export function TeamManagement({
                 key={member.id}
                 type="button"
                 onClick={() => setEditingId(member.id)}
-                className={`w-full rounded-3xl border px-4 py-4 text-left transition ${
+                className={`admin-focus admin-interactive w-full min-w-0 rounded-[var(--radius-lg)] border px-4 py-4 text-left shadow-[var(--shadow-xs)] transition ${
                   editingId === member.id
                     ? "border-[var(--brand-500)] bg-[var(--sand-100)]"
-                    : "border-[var(--line)] bg-white hover:border-[var(--brand-300)]"
+                    : "border-[var(--border-subtle,var(--line))] bg-white hover:border-[var(--brand-300)]"
                 }`}
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-2">
-                    <div>
-                      <div className="font-semibold text-[var(--ink-950)]">{member.fullName}</div>
-                      <div className="mt-1 text-sm text-[var(--ink-500)]">{member.title}</div>
+                <div className="flex min-w-0 items-start justify-between gap-4">
+                  <div className="min-w-0 space-y-2">
+                    <div className="min-w-0">
+                      <div className="truncate font-semibold text-[var(--ink-950)]">{member.fullName}</div>
+                      <div className="mt-1 truncate text-sm text-[var(--ink-500)]">{member.title}</div>
                     </div>
                     <StatusPills member={member} />
-                    <div className="text-xs uppercase tracking-[0.18em] text-[var(--ink-400)]">
+                    <div className="numeric text-xs uppercase tracking-[0.18em] text-[var(--ink-400)]">
                       {member.staffCode ?? "No staff code"}  -  order {member.sortOrder}
                     </div>
                   </div>
@@ -281,33 +283,48 @@ export function TeamManagement({
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--brand-600)] underline underline-offset-2 hover:text-[var(--brand-800)]"
+                        className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--brand-600)] underline underline-offset-2 hover:text-[var(--brand-800)] whitespace-nowrap"
                       >
                         View profile
                       </a>
                     )}
+                    {(() => {
+                      const waHref = buildWhatsAppHref(member.whatsappNumber || member.phone);
+                      return waHref ? (
+                        <a
+                          href={waHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(event) => event.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--success-700)] underline underline-offset-2 hover:text-[var(--success-800,#15803d)] whitespace-nowrap"
+                        >
+                          WhatsApp
+                        </a>
+                      ) : null;
+                    })()}
                   </div>
                 </div>
               </button>
             ))}
             {members.length === 0 ? (
-              <div className="rounded-3xl border border-dashed border-[var(--line)] px-4 py-10 text-center text-sm text-[var(--ink-500)]">
-                No staff profiles yet. Create the first profile to populate the tenant directory.
-              </div>
+              <AdminEmptyState
+                title="No staff profiles yet"
+                description="Create the first profile to populate the tenant directory."
+              />
             ) : null}
           </div>
         </Card>
 
-        <Card className="border-[var(--line)] bg-white p-6">
+        <Card className="border-[var(--border-subtle,var(--line))] bg-white p-6 shadow-[var(--shadow-sm)]">
           {editingMember && editingId ? (
             <>
-              <div className="mb-6 flex items-start justify-between gap-4">
+              <div className="mb-6 flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <SectionTitle
                   title={`Edit ${editingMember.fullName}`}
                   description="Adjust visibility, contact details, branding fields, and public profile content without crossing tenant boundaries."
                 />
                 <Link href={`/api/admin/team-members/${editingId}/id-card`} target="_blank">
-                  <Button type="button" variant="outline" className="gap-2">
+                  <Button type="button" variant="outline" className="gap-2 whitespace-nowrap">
                     <Download className="h-4 w-4" />
                     Download ID card
                   </Button>
@@ -327,9 +344,10 @@ export function TeamManagement({
               />
             </>
           ) : (
-            <div className="rounded-3xl border border-dashed border-[var(--line)] p-10 text-center text-sm text-[var(--ink-500)]">
-              Select a staff profile to edit its public presence and ID-card details.
-            </div>
+            <AdminEmptyState
+              title="Select a staff profile"
+              description="Select a staff profile to edit its public presence and ID-card details."
+            />
           )}
         </Card>
       </div>
@@ -360,15 +378,15 @@ function TeamMemberEditor({
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2">
-        <Input placeholder="Full name" value={value.fullName} onChange={(event) => update("fullName", event.target.value)} />
-        <Input placeholder="Role or title" value={value.title} onChange={(event) => update("title", event.target.value)} />
-        <Input placeholder="Profile slug (optional)" value={value.slug} onChange={(event) => update("slug", event.target.value)} />
-        <Input placeholder="Staff code" value={value.staffCode} onChange={(event) => update("staffCode", event.target.value)} />
-        <Input placeholder="Office location" value={value.officeLocation} onChange={(event) => update("officeLocation", event.target.value)} />
-        <Input placeholder="Email" value={value.email} onChange={(event) => update("email", event.target.value)} />
-        <Input placeholder="Phone" value={value.phone} onChange={(event) => update("phone", event.target.value)} />
-        <Input placeholder="WhatsApp number" value={value.whatsappNumber} onChange={(event) => update("whatsappNumber", event.target.value)} />
-        <Input placeholder="Display order" value={value.sortOrder} onChange={(event) => update("sortOrder", event.target.value)} />
+        <Input className="min-w-0" placeholder="Full name" value={value.fullName} onChange={(event) => update("fullName", event.target.value)} />
+        <Input className="min-w-0" placeholder="Role or title" value={value.title} onChange={(event) => update("title", event.target.value)} />
+        <Input className="min-w-0" placeholder="Profile slug (optional)" value={value.slug} onChange={(event) => update("slug", event.target.value)} />
+        <Input className="min-w-0" placeholder="Staff code" value={value.staffCode} onChange={(event) => update("staffCode", event.target.value)} />
+        <Input className="min-w-0" placeholder="Office location" value={value.officeLocation} onChange={(event) => update("officeLocation", event.target.value)} />
+        <Input className="min-w-0" placeholder="Email" value={value.email} onChange={(event) => update("email", event.target.value)} />
+        <Input className="numeric min-w-0" placeholder="Phone" value={value.phone} onChange={(event) => update("phone", event.target.value)} />
+        <Input className="numeric min-w-0" placeholder="WhatsApp number" value={value.whatsappNumber} onChange={(event) => update("whatsappNumber", event.target.value)} />
+        <Input className="numeric min-w-0" placeholder="Display order" value={value.sortOrder} onChange={(event) => update("sortOrder", event.target.value)} />
       </div>
 
       <UploadField
@@ -426,7 +444,7 @@ function TeamMemberEditor({
         <label className="block space-y-2">
           <span className="text-sm font-medium text-[var(--ink-700)]">Existing uploaded resume</span>
           <select
-            className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+            className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm text-[var(--ink-700)]"
             value={value.resumeDocumentId}
             onChange={(event) => update("resumeDocumentId", event.target.value)}
           >
@@ -440,8 +458,8 @@ function TeamMemberEditor({
         </label>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 rounded-3xl border border-[var(--line)] bg-[var(--sand-50)] px-4 py-4">
-        <label className="flex items-center gap-2 text-sm text-[var(--ink-700)]">
+      <div className="flex flex-wrap items-center gap-4 rounded-[var(--radius-lg)] border border-[var(--border-subtle,var(--line))] bg-[var(--sand-50)] px-4 py-4">
+        <label className="flex items-center gap-2 text-sm text-[var(--ink-700)] whitespace-nowrap">
           <input
             type="checkbox"
             checked={value.isActive}
@@ -449,7 +467,7 @@ function TeamMemberEditor({
           />
           Active profile
         </label>
-        <label className="flex items-center gap-2 text-sm text-[var(--ink-700)]">
+        <label className="flex items-center gap-2 text-sm text-[var(--ink-700)] whitespace-nowrap">
           <input
             type="checkbox"
             checked={value.isPublished}
@@ -457,7 +475,7 @@ function TeamMemberEditor({
           />
           Visible on public team pages
         </label>
-        <Button type="button" onClick={onSubmit}>
+        <Button className="whitespace-nowrap" type="button" onClick={onSubmit}>
           {submitLabel}
         </Button>
       </div>

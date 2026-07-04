@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { AdminAttentionBadge, AdminBulkActionBar, AdminEmptyState, AdminField, AdminFormSection, AdminLifecycleSteps, AdminQuickActions, AdminStateBanner } from "@/components/admin/admin-ui";
 import { Button } from "@/components/ui/button";
+import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { Input } from "@/components/ui/input";
 import { compareAttentionPriority, getAttentionTone, workflowVocabulary } from "@/modules/admin/workflow-vocabulary";
 import type { InspectionManagementItem } from "@/modules/inspections/service";
@@ -382,7 +383,13 @@ export function InspectionManagement({
                 <div className="text-sm text-[var(--ink-500)]">
                   Current owner: {booking.assignedStaffName}
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {booking.phone ? (
+                    <WhatsAppButton
+                      phone={booking.phone}
+                      message={`Hi ${booking.fullName}, about your viewing of ${booking.propertyTitle} — looking forward to it. Let us know if you need anything.`}
+                    />
+                  ) : null}
                   <Button variant="outline" onClick={() => resetBooking(booking)} disabled={!isDirty(booking) || pendingId === booking.id}>
                     Reset
                   </Button>

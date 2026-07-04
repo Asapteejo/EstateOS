@@ -41,6 +41,7 @@ import { featureFlags } from "@/lib/env";
 import { sendTransactionalEmail } from "@/lib/notifications/email";
 import { inngest } from "@/lib/notifications/events";
 import { renderMorningBriefingEmail } from "@/lib/notifications/templates";
+import { broadcastAnnouncementWhatsApp } from "@/modules/announcements/service";
 import { runScheduledOperationalJobs } from "@/modules/automation/service";
 import { getMorningBriefingData } from "@/modules/morning-briefing/aggregator";
 import { syncPropertyVerificationStates } from "@/modules/properties/verification";
@@ -154,6 +155,31 @@ export const notificationFunctions = [
 
       return step.run("send-reminder", () =>
         sendWishlistReminder(event.data.savedPropertyId as string),
+      );
+    },
+  ),
+
+  // ─────────────────────────────────────────────────────────────────────────
+  //  ANNOUNCEMENT BROADCAST — event-triggered on publish
+  //
+  //    When an operator posts an announcement, fan out a WhatsApp message to
+  //    everyone in the target audience (buyers / staff / all) who has a phone.
+  //    Runs in the background so a large recipient set never blocks the request;
+  //    each send is wallet-gated and no-ops safely without Twilio credentials.
+  // ─────────────────────────────────────────────────────────────────────────
+  inngest.createFunction(
+    {
+      id: "broadcast-announcement-whatsapp",
+      retries: 1,
+      triggers: [{ event: "announcement/published" }],
+    },
+    async ({ event, step }) => {
+      const announcementId = event.data?.announcementId;
+      if (typeof announcementId !== "string") {
+        return { skipped: true, reason: "missing-id" };
+      }
+      return step.run("broadcast-announcement", () =>
+        broadcastAnnouncementWhatsApp(announcementId),
       );
     },
   ),

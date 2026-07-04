@@ -3,6 +3,7 @@ import type { AppRole } from "@prisma/client";
 
 import { hasRequiredRole } from "@/lib/auth/roles";
 import { adminRoles } from "@/lib/auth/roles";
+import { adminLandingPath } from "@/lib/auth/admin-sections";
 import { requireTenantContext } from "@/lib/tenancy/context";
 import { canAccessSuperadmin } from "@/lib/auth/superadmin";
 import { env, featureFlags } from "@/lib/env";
@@ -60,6 +61,13 @@ export async function requireAdminSession(
   if (!hasRequiredRole(session.roles, allowedRoles)) {
     if (options?.redirectOnMissingAuth === false) {
       throw new Error("Tenant operator access is required.");
+    }
+    // An operator (e.g. accountant or front desk) who simply lacks THIS section's
+    // role is sent to their own role-appropriate landing page rather than being
+    // bounced out to the buyer portal. adminLandingPath always returns a path the
+    // role can access, so this cannot loop. Non-operators fall through to /portal.
+    if (hasRequiredRole(session.roles, adminRoles)) {
+      redirect(adminLandingPath(session.roles));
     }
     redirect("/portal");
   }

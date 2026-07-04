@@ -48,7 +48,7 @@ export default async function AcceptInvitationPage({
     (invitation.status === "PENDING" && invitation.expiresAt < new Date());
 
   return (
-    <AuthProviders>
+    <AuthProviders disableClerkForDev={featureFlags.allowDevBypass}>
     <AcceptInvitationClient
       token={token}
       inviteeName={invitation.fullName}
@@ -58,7 +58,7 @@ export default async function AcceptInvitationPage({
       roleLabel={ROLE_LABELS[invitation.role] ?? invitation.role}
       isAccepted={invitation.status === "ACCEPTED"}
       isExpired={isExpired}
-      hasClerk={featureFlags.hasClerk}
+      hasClerk={featureFlags.hasClerk && !featureFlags.allowDevBypass}
     />
     </AuthProviders>
   );

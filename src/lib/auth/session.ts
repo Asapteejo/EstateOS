@@ -1,6 +1,7 @@
 import type { AppRole } from "@prisma/client";
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
+import { headers } from "next/headers";
 
 import { prisma } from "@/lib/db/prisma";
 import { env, featureFlags } from "@/lib/env";
@@ -24,7 +25,7 @@ export type AppSession = {
   mode: "clerk" | "demo";
 };
 
-export type DemoSessionRole = "buyer" | "admin" | "superadmin";
+export type DemoSessionRole = "buyer" | "admin" | "superadmin" | "finance" | "frontdesk";
 export const DEV_SESSION_COOKIE = "estateos_dev_role";
 export const DEV_SESSION_COMPANY_ID_COOKIE = "estateos_dev_company_id";
 export const DEV_SESSION_COMPANY_SLUG_COOKIE = "estateos_dev_company_slug";
@@ -60,6 +61,32 @@ const demoAdmin: AppSession = {
   mode: "demo",
 };
 
+const demoFinance: AppSession = {
+  userId: "demo-finance",
+  dbUserId: "demo-finance",
+  email: "accountant@acmerealty.dev",
+  firstName: "Ngozi",
+  lastName: "Eze",
+  roles: ["FINANCE"],
+  companyId: demoCompany.companyId,
+  companySlug: demoCompany.companySlug,
+  branchId: demoCompany.branchId,
+  mode: "demo",
+};
+
+const demoFrontdesk: AppSession = {
+  userId: "demo-frontdesk",
+  dbUserId: "demo-frontdesk",
+  email: "frontdesk@acmerealty.dev",
+  firstName: "Bisi",
+  lastName: "Lawal",
+  roles: ["STAFF"],
+  companyId: demoCompany.companyId,
+  companySlug: demoCompany.companySlug,
+  branchId: demoCompany.branchId,
+  mode: "demo",
+};
+
 const demoSuperAdmin: AppSession = {
   userId: "demo-superadmin",
   dbUserId: "demo-superadmin",
@@ -80,7 +107,13 @@ type DemoCompanyContext = {
 };
 
 function isDemoSessionRole(value: string | undefined | null): value is DemoSessionRole {
-  return value === "buyer" || value === "admin" || value === "superadmin";
+  return (
+    value === "buyer" ||
+    value === "admin" ||
+    value === "superadmin" ||
+    value === "finance" ||
+    value === "frontdesk"
+  );
 }
 
 export function buildDemoSession(
@@ -99,6 +132,24 @@ export function buildDemoSession(
   if (role === "admin") {
     return {
       ...demoAdmin,
+      companyId: company.companyId,
+      companySlug: company.companySlug,
+      branchId: company.branchId,
+    };
+  }
+
+  if (role === "finance") {
+    return {
+      ...demoFinance,
+      companyId: company.companyId,
+      companySlug: company.companySlug,
+      branchId: company.branchId,
+    };
+  }
+
+  if (role === "frontdesk") {
+    return {
+      ...demoFrontdesk,
       companyId: company.companyId,
       companySlug: company.companySlug,
       branchId: company.branchId,
@@ -186,6 +237,40 @@ export function getDefaultDemoSessionRole(
   return null;
 }
 
+function readDevTenantFromHeader(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const url = new URL(value, "http://localhost:3000");
+    const devTenant = url.searchParams.get("devTenant");
+    return devTenant && /^[a-z0-9-]+$/.test(devTenant) ? devTenant : null;
+  } catch {
+    return null;
+  }
+}
+
+function sanitizeDevTenantSlug(value: string | null) {
+  return value && /^[a-z0-9-]+$/.test(value) ? value : null;
+}
+
+async function resolveDevAccessTenantSlug() {
+  if (!featureFlags.devAccessMode) {
+    return null;
+  }
+
+  const headerStore = await headers();
+  return (
+    sanitizeDevTenantSlug(headerStore.get("x-estateos-dev-tenant")) ??
+    readDevTenantFromHeader(headerStore.get("x-invoke-path")) ??
+    readDevTenantFromHeader(headerStore.get("x-matched-path")) ??
+    readDevTenantFromHeader(headerStore.get("next-url")) ??
+    readDevTenantFromHeader(headerStore.get("x-url")) ??
+    null
+  );
+}
+
 export async function resolveDemoSessionRole(
   area: AppArea,
 ): Promise<DemoSessionRole | null> {
@@ -203,7 +288,11 @@ export async function resolveDemoSessionRole(
   }
 
   if (area === "admin") {
-    return cookieRole === "superadmin" ? "superadmin" : "admin";
+    if (cookieRole === "superadmin") return "superadmin";
+    // Honor the operator-role presets (accountant / front desk) so each role-based
+    // dashboard can be previewed in dev. Any other value falls back to the owner.
+    if (cookieRole === "finance" || cookieRole === "frontdesk") return cookieRole;
+    return "admin";
   }
 
   if (area === "portal") {
@@ -220,7 +309,10 @@ export async function resolveDemoSessionRole(
 async function resolveDemoCompanyContext() {
   const cookieStore = await cookies();
   const cookieCompanyId = cookieStore.get(DEV_SESSION_COMPANY_ID_COOKIE)?.value ?? null;
-  const cookieCompanySlug = cookieStore.get(DEV_SESSION_COMPANY_SLUG_COOKIE)?.value ?? null;
+  const cookieCompanySlug =
+    (await resolveDevAccessTenantSlug()) ??
+    cookieStore.get(DEV_SESSION_COMPANY_SLUG_COOKIE)?.value ??
+    null;
   const cookieBranchId = cookieStore.get(DEV_SESSION_BRANCH_ID_COOKIE)?.value ?? null;
 
   if (!featureFlags.hasDatabase) {
@@ -326,16 +418,92 @@ export async function getPreferredTenantSiteCompanySlug() {
     return null;
   }
 
-  if (featureFlags.hasDatabase && company.companyId === demoCompany.companyId) {
+  return company.companySlug;
+}
+
+export async function getDevSession(
+  area: AppArea = "marketing",
+): Promise<AppSession | null> {
+  if (!featureFlags.devAccessMode) {
     return null;
   }
 
-  return company.companySlug;
+  if (area === "marketing") {
+    return null;
+  }
+
+  const company = await resolveDemoCompanyContext();
+  // Honor the dev role cookie (admin / accountant / front desk / superadmin) so
+  // each role-based dashboard can be previewed; fall back to the area default.
+  const role = (await resolveDemoSessionRole(area)) ?? getDefaultDemoSessionRole(area);
+  if (!role) {
+    return null;
+  }
+
+  const session = buildDemoSession(role, company);
+
+  if (!featureFlags.hasDatabase) {
+    return session;
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { clerkUserId: session.userId },
+      select: {
+        id: true,
+        clerkUserId: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        companyId: true,
+        branchId: true,
+        company: {
+          select: {
+            slug: true,
+          },
+        },
+      },
+    });
+
+    if (user) {
+      return {
+        ...session,
+        userId: user.clerkUserId ?? session.userId,
+        dbUserId: user.id,
+        email: user.email,
+        firstName: user.firstName ?? session.firstName,
+        lastName: user.lastName ?? session.lastName,
+        companyId: user.companyId ?? company.companyId,
+        companySlug: user.company?.slug ?? company.companySlug,
+        branchId: user.branchId ?? company.branchId,
+      };
+    }
+
+    logWarn("Development access user was not found in the database; using fallback session.", {
+      area,
+      clerkUserId: session.userId,
+      role,
+    });
+  } catch (error) {
+    logWarn("Development access user lookup failed; using fallback session.", {
+      area,
+      clerkUserId: session.userId,
+      role,
+      ...buildSafeErrorLogContext(error),
+    });
+  }
+
+  return session;
 }
 
 export async function getAppSession(
   area: AppArea = "marketing",
 ): Promise<AppSession | null> {
+  const devSession = await getDevSession(area);
+  if (devSession) {
+    return devSession;
+  }
+
   if (!featureFlags.hasClerk) {
     const role = await resolveDemoSessionRole(area);
     const company = await resolveDemoCompanyContext();

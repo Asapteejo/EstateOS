@@ -1,6 +1,7 @@
 import type { AppArea } from "@/lib/auth/session";
 import type { AppRole } from "@prisma/client";
 import { adminRoles, buyerRoles, hasRequiredRole } from "@/lib/auth/roles";
+import { adminLandingPath } from "@/lib/auth/admin-sections";
 import { isSuperadminEmailAllowlisted } from "@/lib/auth/superadmin";
 import { env } from "@/lib/env";
 
@@ -53,7 +54,7 @@ export function defaultDashboardForRoles(roles: AppRole[]) {
   }
 
   if (hasRequiredRole(roles, adminRoles)) {
-    return "/admin";
+    return adminLandingPath(roles);
   }
 
   if (hasRequiredRole(roles, buyerRoles)) {

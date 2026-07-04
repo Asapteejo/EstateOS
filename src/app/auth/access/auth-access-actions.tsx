@@ -9,16 +9,18 @@ import { clientFlags } from "@/lib/public-env";
 export function AuthAccessActions({
   currentDashboard,
   switchAccountUrl,
+  disableClerkForDev = false,
 }: {
   currentDashboard: string;
   switchAccountUrl: string;
+  disableClerkForDev?: boolean;
 }) {
   return (
     <div className="flex flex-wrap gap-3">
       <Link href={currentDashboard}>
         <Button>Continue to your current dashboard</Button>
       </Link>
-      {clientFlags.hasClerk ? (
+      {clientFlags.hasClerk && !disableClerkForDev ? (
         <SignOutButton redirectUrl={switchAccountUrl}>
           <Button type="button" variant="outline">
             Sign out and continue as another user

@@ -11,16 +11,26 @@ ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'RECEIPT_AVAILABLE';
 ALTER TYPE "NotificationType" ADD VALUE IF NOT EXISTS 'INSTALLMENT_DUE';
 
 ALTER TABLE "InspectionBooking"
-ADD COLUMN "assignedStaffId" TEXT,
-ADD COLUMN "userId" TEXT;
+ADD COLUMN IF NOT EXISTS "assignedStaffId" TEXT,
+ADD COLUMN IF NOT EXISTS "userId" TEXT;
 
-CREATE INDEX "InspectionBooking_companyId_assignedStaffId_status_idx"
+CREATE INDEX IF NOT EXISTS "InspectionBooking_companyId_assignedStaffId_status_idx"
 ON "InspectionBooking"("companyId", "assignedStaffId", "status");
 
-ALTER TABLE "InspectionBooking"
-ADD CONSTRAINT "InspectionBooking_userId_fkey"
-FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+  ALTER TABLE "InspectionBooking"
+  ADD CONSTRAINT "InspectionBooking_userId_fkey"
+  FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE "InspectionBooking"
-ADD CONSTRAINT "InspectionBooking_assignedStaffId_fkey"
-FOREIGN KEY ("assignedStaffId") REFERENCES "StaffProfile"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+  ALTER TABLE "InspectionBooking"
+  ADD CONSTRAINT "InspectionBooking_assignedStaffId_fkey"
+  FOREIGN KEY ("assignedStaffId") REFERENCES "StaffProfile"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;

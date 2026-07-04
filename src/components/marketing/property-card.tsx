@@ -20,9 +20,15 @@ export function PropertyCard({ property }: { property: PropertySummary }) {
     .filter(Boolean);
 
   return (
-    <Card className="overflow-hidden">
-      <div className="relative h-72">
-        <OptimizedImage src={property.images[0]} alt={property.title} fill preset="card" className="object-cover" />
+    <Card className="group overflow-hidden transition-[transform,box-shadow] duration-300 ease-[var(--ease-out)] hover:-translate-y-1 hover:shadow-[var(--shadow-md)]">
+      <div className="relative h-72 overflow-hidden">
+        <OptimizedImage
+          src={property.images[0]}
+          alt={property.title}
+          fill
+          preset="card"
+          className="object-cover transition-transform duration-500 ease-[var(--ease-out)] group-hover:scale-105"
+        />
         <div className="absolute left-4 top-4 flex flex-wrap gap-2">
           <Badge className="bg-white/90">{property.status}</Badge>
           <Badge

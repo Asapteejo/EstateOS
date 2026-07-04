@@ -4,6 +4,7 @@ import { SuperadminCompanyStatusBadge } from "@/components/superadmin/superadmin
 import { SuperadminHealthBadge } from "@/components/superadmin/superadmin-health-badge";
 import { SuperadminRangeTabs } from "@/components/superadmin/superadmin-range-tabs";
 import { SuperadminShell } from "@/components/superadmin/superadmin-shell";
+import { StatCard } from "@/components/admin/admin-ui";
 import { Card } from "@/components/ui/card";
 import { requireSuperAdminSession } from "@/lib/auth/guards";
 import {
@@ -72,12 +73,12 @@ export default async function SuperadminCompaniesPage({
         </div>
       }
     >
-      <div className="grid gap-4 md:grid-cols-5">
-        <Card className="p-5"><div className="text-sm text-[var(--ink-500)]">Healthy</div><div className="mt-2 text-2xl font-semibold">{dashboard.healthCounts.healthy}</div></Card>
-        <Card className="p-5"><div className="text-sm text-[var(--ink-500)]">Collections risk</div><div className="mt-2 text-2xl font-semibold text-rose-700">{dashboard.healthCounts.collectionsRisk}</div></Card>
-        <Card className="p-5"><div className="text-sm text-[var(--ink-500)]">Inactive</div><div className="mt-2 text-2xl font-semibold">{dashboard.healthCounts.inactive}</div></Card>
-        <Card className="p-5"><div className="text-sm text-[var(--ink-500)]">Onboarding incomplete</div><div className="mt-2 text-2xl font-semibold">{dashboard.healthCounts.onboardingIncomplete}</div></Card>
-        <Card className="p-5"><div className="text-sm text-[var(--ink-500)]">High value</div><div className="mt-2 text-2xl font-semibold text-[var(--brand-700)]">{dashboard.healthCounts.highValue}</div></Card>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <StatCard label="Healthy" value={dashboard.healthCounts.healthy} />
+        <StatCard label="Collections risk" value={dashboard.healthCounts.collectionsRisk} tone="danger" />
+        <StatCard label="Inactive" value={dashboard.healthCounts.inactive} />
+        <StatCard label="Onboarding incomplete" value={dashboard.healthCounts.onboardingIncomplete} />
+        <StatCard label="High value" value={dashboard.healthCounts.highValue} tone="accent" />
       </div>
 
       <Card className="overflow-hidden">

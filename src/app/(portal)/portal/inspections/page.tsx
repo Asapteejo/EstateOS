@@ -1,5 +1,6 @@
 import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { requirePortalSession } from "@/lib/auth/guards";
 import { getBuyerInspectionBookings } from "@/modules/inspections/service";
 
@@ -15,9 +16,10 @@ export default async function PortalInspectionsPage() {
     >
       <div className="space-y-4">
         {bookings.length === 0 ? (
-          <Card className="p-8 text-sm text-[var(--ink-600)]">
-            No inspection bookings yet. Use a property page to request a site visit.
-          </Card>
+          <EmptyState
+            title="No inspection bookings yet"
+            description="Request a site visit from any property page and your requested, confirmed, and rescheduled visits will appear here."
+          />
         ) : (
           bookings.map((booking) => (
             <Card key={booking.id} className="p-6">

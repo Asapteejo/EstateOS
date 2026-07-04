@@ -42,19 +42,19 @@ export function PlatformFooter() {
             Platform
           </h4>
           <div className="space-y-2 text-sm text-[var(--ink-700)]">
-            <Link href="/" className="block">
+            <Link href="/" className="footer-link admin-focus block w-fit rounded">
               Platform home
             </Link>
-            <Link href="/app/onboarding" className="block">
+            <Link href="/app/onboarding" className="footer-link admin-focus block w-fit rounded">
               Get started
             </Link>
-            <Link href="/demo" className="block">
+            <Link href="/demo" className="footer-link admin-focus block w-fit rounded">
               View demo
             </Link>
-            <Link href="/platform/features" className="block">
+            <Link href="/platform/features" className="footer-link admin-focus block w-fit rounded">
               Features
             </Link>
-            <Link href="/platform/pricing" className="block">
+            <Link href="/platform/pricing" className="footer-link admin-focus block w-fit rounded">
               Pricing
             </Link>
           </div>
@@ -65,13 +65,13 @@ export function PlatformFooter() {
             App
           </h4>
           <div className="space-y-2 text-sm text-[var(--ink-700)]">
-            <Link href="/app/onboarding" className="block">
+            <Link href="/app/onboarding" className="footer-link admin-focus block w-fit rounded">
               Create company
             </Link>
-            <Link href={buyerPortalHref} className="block">
+            <Link href={buyerPortalHref} className="footer-link admin-focus block w-fit rounded">
               Buyer portal
             </Link>
-            <Link href={adminPortalHref} className="block">
+            <Link href={adminPortalHref} className="footer-link admin-focus block w-fit rounded">
               Tenant admin
             </Link>
           </div>

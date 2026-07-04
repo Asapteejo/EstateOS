@@ -92,11 +92,11 @@ export default async function AdminMarketersPage({
     >
       <AdminToolbar>
         <form method="GET" className="grid w-full gap-3 lg:grid-cols-[minmax(0,1fr)_180px_220px_auto]">
-          <Input name="q" placeholder="Search marketer name or role" defaultValue={search} />
+          <Input className="min-w-0" name="q" placeholder="Search marketer name or role" defaultValue={search} />
           <select
             name="period"
             defaultValue={period}
-            className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+            className="admin-focus admin-interactive h-11 min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm text-[var(--ink-700)]"
           >
             {PERIOD_OPTIONS.map(([value, label]) => (
               <option key={value} value={value}>
@@ -107,7 +107,7 @@ export default async function AdminMarketersPage({
           <select
             name="sort"
             defaultValue={sortBy}
-            className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+            className="admin-focus admin-interactive h-11 min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm text-[var(--ink-700)]"
           >
             {SORT_OPTIONS.map(([value, label]) => (
               <option key={value} value={value}>
@@ -115,7 +115,7 @@ export default async function AdminMarketersPage({
               </option>
             ))}
           </select>
-          <Button type="submit">Apply</Button>
+          <Button className="whitespace-nowrap" type="submit">Apply</Button>
         </form>
       </AdminToolbar>
 
@@ -162,13 +162,13 @@ export default async function AdminMarketersPage({
                 <p className="mt-1 text-sm text-[var(--ink-500)]">{dashboard.topPerformer.title}</p>
                 <p className="mt-3 text-sm leading-6 text-[var(--ink-600)]">{dashboard.topPerformer.summary}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <span className="rounded-full border border-[var(--line)] bg-[var(--sand-50)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-500)]">
+                  <span className="numeric rounded-full border border-[var(--border-subtle,var(--line))] bg-[var(--sand-50)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-500)] whitespace-nowrap">
                     Score {dashboard.topPerformer.score}
                   </span>
-                  <span className="rounded-full border border-[var(--line)] bg-[var(--sand-50)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-500)]">
+                  <span className="numeric rounded-full border border-[var(--border-subtle,var(--line))] bg-[var(--sand-50)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-500)] whitespace-nowrap">
                     Revenue {formatCurrency(dashboard.topPerformer.revenue[dashboard.period.toLowerCase() as "weekly" | "monthly" | "lifetime"])}
                   </span>
-                  <span className="rounded-full border border-[var(--line)] bg-[var(--sand-50)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-500)]">
+                  <span className="numeric rounded-full border border-[var(--border-subtle,var(--line))] bg-[var(--sand-50)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--ink-500)] whitespace-nowrap">
                     Rating {dashboard.topPerformer.starRating.toFixed(1)}
                   </span>
                 </div>
@@ -187,7 +187,7 @@ export default async function AdminMarketersPage({
           description="Use staff settings and the public team page to keep marketer profiles current."
         >
           <div className="space-y-4">
-            <div className="rounded-[18px] border border-[var(--line)] bg-[var(--sand-50)] px-4 py-4">
+            <div className="rounded-[var(--radius-lg)] border border-[var(--border-subtle,var(--line))] bg-[var(--sand-50)] px-4 py-4 shadow-[var(--shadow-xs)]">
               <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--ink-400)]">
                 Ranking note
               </div>
@@ -197,13 +197,13 @@ export default async function AdminMarketersPage({
             </div>
             <div className="flex flex-wrap gap-3">
               <Link href="/admin/team">
-                <Button variant="outline">Manage team profiles</Button>
+                <Button className="whitespace-nowrap" variant="outline">Manage team profiles</Button>
               </Link>
               <Link href="/admin/team/commission-rules">
-                <Button variant="outline">Commission rules</Button>
+                <Button className="whitespace-nowrap" variant="outline">Commission rules</Button>
               </Link>
               <Link href="/team">
-                <Button variant="outline">Open public team page</Button>
+                <Button className="whitespace-nowrap" variant="outline">Open public team page</Button>
               </Link>
             </div>
           </div>
@@ -216,8 +216,8 @@ export default async function AdminMarketersPage({
         className="px-0 py-0"
       >
         {dashboard.rows.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="admin-table">
+          <div className="overflow-x-auto pb-1">
+            <table className="admin-table min-w-[1180px]">
               <thead>
                 <tr>
                   {["Rank", "Marketer", "Score", "Stars", "Weekly revenue", "Monthly revenue", "Lifetime revenue", "Commission earned", "Deals", "Payments", "Inspections", "Reservations", "Trend"].map((column) => (
@@ -228,7 +228,7 @@ export default async function AdminMarketersPage({
               <tbody>
                 {dashboard.rows.map((row) => (
                   <tr key={row.id} className="align-top">
-                    <td className="font-semibold text-[var(--ink-950)]">#{row.rank}</td>
+                    <td className="numeric font-semibold text-[var(--ink-950)] whitespace-nowrap">#{row.rank}</td>
                     <td>
                       <div className="flex min-w-[220px] items-center gap-3">
                         <Avatar
@@ -241,30 +241,30 @@ export default async function AdminMarketersPage({
                           <div className="font-semibold text-[var(--ink-950)]">{row.fullName}</div>
                           <div className="text-[var(--ink-500)]">{row.title}</div>
                           <div className="mt-1 flex flex-wrap gap-2 text-xs text-[var(--ink-500)]">
-                            {!row.isActive ? <span className="rounded-full border border-[var(--line)] bg-[var(--sand-50)] px-2.5 py-1">Inactive</span> : null}
-                            {!row.isPublished ? <span className="rounded-full border border-[var(--line)] bg-[var(--sand-50)] px-2.5 py-1">Private</span> : null}
+                            {!row.isActive ? <span className="rounded-full border border-[var(--border-subtle,var(--line))] bg-[var(--sand-50)] px-2.5 py-1 whitespace-nowrap">Inactive</span> : null}
+                            {!row.isPublished ? <span className="rounded-full border border-[var(--border-subtle,var(--line))] bg-[var(--sand-50)] px-2.5 py-1 whitespace-nowrap">Private</span> : null}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="font-semibold text-[var(--ink-950)]">{row.score}</td>
-                    <td>{row.starRating.toFixed(1)}</td>
-                    <td>{formatCurrency(row.revenue.weekly)}</td>
-                    <td>{formatCurrency(row.revenue.monthly)}</td>
-                    <td>{formatCurrency(row.revenue.lifetime)}</td>
+                    <td className="numeric font-semibold text-[var(--ink-950)] whitespace-nowrap">{row.score}</td>
+                    <td className="numeric whitespace-nowrap">{row.starRating.toFixed(1)}</td>
+                    <td className="numeric whitespace-nowrap">{formatCurrency(row.revenue.weekly)}</td>
+                    <td className="numeric whitespace-nowrap">{formatCurrency(row.revenue.monthly)}</td>
+                    <td className="numeric whitespace-nowrap">{formatCurrency(row.revenue.lifetime)}</td>
                     <td>
-                      <div className="font-medium text-[var(--ink-950)]">{formatCurrency(row.commissionTotal)}</div>
+                      <div className="numeric font-medium text-[var(--ink-950)] whitespace-nowrap">{formatCurrency(row.commissionTotal)}</div>
                       {row.commissionPending > 0 && (
-                        <div className="mt-0.5 text-xs text-[var(--ink-400)]">
+                        <div className="numeric mt-0.5 text-xs text-[var(--ink-400)] whitespace-nowrap">
                           {formatCurrency(row.commissionPending)} pending
                         </div>
                       )}
                     </td>
-                    <td>{row.metrics.completedDeals}</td>
-                    <td>{row.metrics.successfulPayments}</td>
-                    <td>{row.metrics.inspectionsHandled}</td>
-                    <td>{row.metrics.reservations}</td>
-                    <td className="text-[var(--ink-600)]">{trendLabel(row.trend)}</td>
+                    <td className="numeric whitespace-nowrap">{row.metrics.completedDeals}</td>
+                    <td className="numeric whitespace-nowrap">{row.metrics.successfulPayments}</td>
+                    <td className="numeric whitespace-nowrap">{row.metrics.inspectionsHandled}</td>
+                    <td className="numeric whitespace-nowrap">{row.metrics.reservations}</td>
+                    <td className="numeric text-[var(--ink-600)] whitespace-nowrap">{trendLabel(row.trend)}</td>
                   </tr>
                 ))}
               </tbody>

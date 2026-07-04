@@ -466,6 +466,7 @@ export async function getAdminPaymentMonitoring(context: TenantContext) {
             firstName: true,
             lastName: true,
             email: true,
+            phone: true,
           },
         },
       },
@@ -539,7 +540,7 @@ export async function getAdminPaymentMonitoring(context: TenantContext) {
       transferBankName: string | null;
       transferAccountNumber: string | null;
       transferAccountName: string | null;
-      user: { firstName: string | null; lastName: string | null; email: string | null };
+      user: { firstName: string | null; lastName: string | null; email: string | null; phone: string | null };
     }>).map((row) => ({
       id: row.id,
       title: row.title,
@@ -549,6 +550,7 @@ export async function getAdminPaymentMonitoring(context: TenantContext) {
       collectionMethod: row.collectionMethod.replaceAll("_", " "),
       dueAt: row.dueAt ? formatDate(row.dueAt, "PPP") : null,
       buyer: `${row.user.firstName ?? ""} ${row.user.lastName ?? ""}`.trim() || row.user.email || "Client",
+      buyerPhone: row.user.phone ?? null,
       reference: row.providerReference,
       transferSummary:
         row.transferAccountNumber

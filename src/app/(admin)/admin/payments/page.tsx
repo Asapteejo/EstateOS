@@ -1,14 +1,16 @@
 import Link from "next/link";
 
 import { DashboardShell } from "@/components/portal/dashboard-shell";
+import { StatCard } from "@/components/admin/admin-ui";
 import { PaymentRequestManagement } from "@/components/admin/payment-request-management";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { requireAdminSession } from "@/lib/auth/guards";
+import { rolesForAdminPath } from "@/lib/auth/admin-sections";
 import { getAdminPaymentMonitoring } from "@/modules/admin/control-center";
 
 export default async function AdminPaymentsPage() {
-  const tenant = await requireAdminSession(["ADMIN"]);
+  const tenant = await requireAdminSession(rolesForAdminPath("/admin/payments"));
   const monitoring = await getAdminPaymentMonitoring(tenant);
 
   return (
@@ -23,12 +25,9 @@ export default async function AdminPaymentsPage() {
         </a>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {monitoring.summary.map(([label, value]) => (
-          <Card key={label} className="rounded-[28px] border-[var(--line)] bg-white p-5">
-            <div className="text-sm text-[var(--ink-500)]">{label}</div>
-            <div className="mt-3 text-2xl font-semibold text-[var(--ink-950)]">{value}</div>
-          </Card>
+          <StatCard key={label} label={label} value={value} />
         ))}
       </div>
 

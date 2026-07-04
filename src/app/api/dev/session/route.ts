@@ -12,7 +12,13 @@ import { env, featureFlags } from "@/lib/env";
 import { ensureDevSessionUser } from "@/lib/auth/dev-users";
 import { assertProductionDatabaseWriteAllowed } from "@/lib/db/production-db-guard";
 
-const ALLOWED_ROLES = new Set<DemoSessionRole>(["buyer", "admin", "superadmin"]);
+const ALLOWED_ROLES = new Set<DemoSessionRole>([
+  "buyer",
+  "admin",
+  "finance",
+  "frontdesk",
+  "superadmin",
+]);
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -39,7 +45,18 @@ export async function GET(request: Request) {
   }
 
   if (role && ALLOWED_ROLES.has(role as DemoSessionRole)) {
-    let devIdentity: Awaited<ReturnType<typeof ensureDevSessionUser>>;
+    // Set the role cookie first. The demo session's roles come from code, not the
+    // database, so switching roles in dev must not depend on the DB-provisioning
+    // step below succeeding — otherwise a transient write hiccup silently leaves
+    // the previous role in place.
+    response.cookies.set(DEV_SESSION_COOKIE, role, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: false,
+      path: "/",
+    });
+
+    let devIdentity: Awaited<ReturnType<typeof ensureDevSessionUser>> = null;
     try {
       assertProductionDatabaseWriteAllowed({
         operation: `Start ${role} development session`,
@@ -47,15 +64,10 @@ export async function GET(request: Request) {
       });
       devIdentity = await ensureDevSessionUser(role as DemoSessionRole);
     } catch {
+      // Role cookie is already set; company context falls back to the default
+      // demo company resolved elsewhere.
       return response;
     }
-
-    response.cookies.set(DEV_SESSION_COOKIE, role, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: false,
-      path: "/",
-    });
 
     if (devIdentity?.companyId) {
       response.cookies.set(DEV_SESSION_COMPANY_ID_COOKIE, devIdentity.companyId, {

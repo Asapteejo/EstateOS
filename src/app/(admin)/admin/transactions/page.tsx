@@ -4,6 +4,7 @@ import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { DataTableCard } from "@/components/shared/data-table-card";
 import { Button } from "@/components/ui/button";
 import { requireAdminSession } from "@/lib/auth/guards";
+import { rolesForAdminPath } from "@/lib/auth/admin-sections";
 import { formatCurrency } from "@/lib/utils";
 import { getAdminTransactionsTable } from "@/modules/admin/queries";
 import {
@@ -12,7 +13,7 @@ import {
 } from "@/modules/admin/operations";
 
 export default async function AdminTransactionsPage() {
-  const tenant = await requireAdminSession();
+  const tenant = await requireAdminSession(rolesForAdminPath("/admin/transactions"));
   const [rows, managementRows] = await Promise.all([
     getAdminTransactionsTable(tenant),
     getAdminTransactionManagementList(tenant),

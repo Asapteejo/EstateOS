@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { requireAdminSession } from "@/lib/auth/guards";
+import { rolesForAdminPath } from "@/lib/auth/admin-sections";
 import { getAdminClientList } from "@/modules/clients/queries";
 
 export default async function AdminClientsPage() {
-  const tenant = await requireAdminSession(["ADMIN"]);
+  const tenant = await requireAdminSession(rolesForAdminPath("/admin/clients"));
   const clients = await getAdminClientList(tenant);
 
   const kycReadyCount = clients.filter((client) =>
@@ -64,43 +65,43 @@ export default async function AdminClientsPage() {
       {clients.length > 0 ? (
         <div className="grid gap-5 lg:grid-cols-2">
           {clients.map((client) => (
-            <AdminPanel key={client.id}>
-              <div className="flex items-start justify-between gap-4">
+            <AdminPanel key={client.id} className="h-full">
+              <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex min-w-0 items-start gap-3">
                   <Avatar name={client.name} imageUrl={client.profileImageUrl} size="md" />
                   <div className="min-w-0">
-                    <h2 className="text-lg font-semibold tracking-[-0.02em] text-[var(--ink-950)]">{client.name}</h2>
+                    <h2 className="truncate text-lg font-semibold tracking-[-0.02em] text-[var(--ink-950)]">{client.name}</h2>
                     <p className="mt-1 truncate text-sm text-[var(--ink-500)]">{client.email}</p>
-                    {client.phone ? <p className="mt-1 text-sm text-[var(--ink-500)]">{client.phone}</p> : null}
+                    {client.phone ? <p className="numeric mt-1 text-sm text-[var(--ink-500)]">{client.phone}</p> : null}
                   </div>
                 </div>
-                <div className="flex flex-wrap justify-end gap-2">
-                  <Badge>{client.kycStatus}</Badge>
-                  <Badge>{client.currentStage}</Badge>
+                <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+                  <Badge className="whitespace-nowrap">{client.kycStatus}</Badge>
+                  <Badge className="max-w-full whitespace-normal text-left leading-5">{client.currentStage}</Badge>
                 </div>
               </div>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-[18px] border border-[var(--line)] bg-[var(--sand-50)] px-4 py-3.5">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--ink-400)]">Wishlist items</div>
-                  <div className="mt-2 text-xl font-semibold text-[var(--ink-950)]">{client.wishlistCount}</div>
+                  <div className="numeric mt-2 text-xl font-semibold text-[var(--ink-950)]">{client.wishlistCount}</div>
                 </div>
                 <div className="rounded-[18px] border border-[var(--line)] bg-[var(--sand-50)] px-4 py-3.5">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--ink-400)]">Reservations</div>
-                  <div className="mt-2 text-xl font-semibold text-[var(--ink-950)]">{client.reservationCount}</div>
+                  <div className="numeric mt-2 text-xl font-semibold text-[var(--ink-950)]">{client.reservationCount}</div>
                 </div>
                 <div className="rounded-[18px] border border-[var(--line)] bg-white px-4 py-3.5">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--ink-400)]">Payments</div>
-                  <div className="mt-2 text-xl font-semibold text-[var(--ink-950)]">{client.paymentCount}</div>
+                  <div className="numeric mt-2 text-xl font-semibold text-[var(--ink-950)]">{client.paymentCount}</div>
                 </div>
                 <div className="rounded-[18px] border border-[var(--line)] bg-white px-4 py-3.5">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--ink-400)]">Outstanding balance</div>
-                  <div className="mt-2 text-xl font-semibold text-[var(--ink-950)]">{client.outstandingBalance}</div>
+                  <div className="numeric mt-2 break-words text-xl font-semibold text-[var(--ink-950)]">{client.outstandingBalance}</div>
                 </div>
               </div>
 
               <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-sm text-[var(--ink-500)]">Latest activity: {client.lastActivityAt}</div>
+                <div className="numeric text-sm text-[var(--ink-500)]">Latest activity: {client.lastActivityAt}</div>
                 <Link href={client.href}>
                   <Button>Open client profile</Button>
                 </Link>

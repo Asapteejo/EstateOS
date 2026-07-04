@@ -1814,6 +1814,9 @@ model SiteSettings {
   draftBrandingConfig Json?
   publishedBrandingConfig Json?
   brandingPublishedAt DateTime?
+  draftSiteContent Json?
+  publishedSiteContent Json?
+  siteContentPublishedAt DateTime?
   verificationFreshDays Int?
   verificationStaleDays Int?
   verificationHideDays Int?
@@ -2113,4 +2116,167 @@ model TeamMemberInvitation {
   @@index([companyId, status])
   @@index([branchId])
   @@index([email, status])
+}
+
+enum VisitorStatus {
+  CHECKED_IN
+  CHECKED_OUT
+}
+
+enum CallDirection {
+  INBOUND
+  OUTBOUND
+}
+
+/// Front-desk walk-in / visitor logbook. companyId and loggedById are stored as
+/// scalars (no relations) to keep this an additive, low-risk migration.
+model Visitor {
+  id           String        @id @default(cuid())
+  companyId    String
+  branchId     String?
+  fullName     String
+  phone        String?
+  email        String?
+  purpose      String?
+  hostName     String?
+  status       VisitorStatus @default(CHECKED_IN)
+  checkedInAt  DateTime      @default(now())
+  checkedOutAt DateTime?
+  loggedById   String?
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([companyId, checkedInAt])
+  @@index([companyId, status])
+}
+
+/// Front-desk phone call logbook.
+model CallLog {
+  id         String        @id @default(cuid())
+  companyId  String
+  branchId   String?
+  callerName String
+  phone      String?
+  direction  CallDirection @default(INBOUND)
+  purpose    String?
+  outcome    String?
+  loggedById String?
+  notes      String?
+  createdAt  DateTime      @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([companyId, direction, createdAt])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  VOID
+}
+
+/// Accountant-issued property invoice. Line items are stored as JSON and
+/// companyId / buyerId / propertyId / createdById are scalars (no relations) so
+/// this stays an additive, single-table migration. Buyers are matched by buyerId
+/// or buyerEmail for portal access.
+model Invoice {
+  id            String        @id @default(cuid())
+  companyId     String
+  invoiceNumber String
+  buyerId       String?
+  buyerName     String
+  buyerEmail    String
+  propertyId    String?
+  propertyTitle String?
+  currency      String        @default("NGN")
+  items         Json
+  subtotal      Decimal       @db.Decimal(14, 2)
+  taxAmount     Decimal       @default(0) @db.Decimal(14, 2)
+  total         Decimal       @db.Decimal(14, 2)
+  status        InvoiceStatus @default(SENT)
+  notes         String?
+  issuedAt      DateTime      @default(now())
+  dueDate       DateTime?
+  createdById   String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([companyId, invoiceNumber])
+  @@index([companyId, status, createdAt])
+  @@index([companyId, buyerId])
+  @@index([companyId, buyerEmail])
+}
+
+enum MessageSenderRole {
+  BUYER
+  TEAM
+}
+
+/// A buyer <-> sales-team conversation thread. companyId / buyerUserId are
+/// scalars (no relations to existing tables) so this stays an additive,
+/// self-contained migration. Unread state is tracked per side via last-read
+/// timestamps compared against message timestamps.
+model MessageThread {
+  id                 String    @id @default(cuid())
+  companyId          String
+  buyerUserId        String
+  buyerName          String?
+  subject            String
+  status             String    @default("OPEN")
+  lastMessageAt      DateTime  @default(now())
+  lastMessagePreview String?
+  lastMessageSenderRole MessageSenderRole?
+  buyerLastReadAt    DateTime?
+  teamLastReadAt     DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  messages           Message[]
+
+  @@index([companyId, buyerUserId, lastMessageAt])
+  @@index([companyId, lastMessageAt])
+}
+
+/// A single message within a thread. senderRole distinguishes buyer vs team so
+/// unread counts and alignment can be computed without a user-table join.
+model Message {
+  id           String            @id @default(cuid())
+  threadId     String
+  companyId    String
+  senderUserId String?
+  senderRole   MessageSenderRole
+  senderName   String?
+  body         String
+  createdAt    DateTime          @default(now())
+  thread       MessageThread     @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@index([companyId, createdAt])
+}
+
+enum AnnouncementAudience {
+  BUYERS
+  OPERATORS
+  ALL
+}
+
+/// A company-wide broadcast the owner/operators post to buyers (or staff). A
+/// standalone, additive table (scalar companyId / createdBy, no relations) so
+/// this stays a self-contained migration. Shown as a portal banner while
+/// published and unexpired.
+model Announcement {
+  id              String               @id @default(cuid())
+  companyId       String
+  title           String
+  body            String
+  audience        AnnouncementAudience @default(BUYERS)
+  isPublished     Boolean              @default(true)
+  publishedAt     DateTime             @default(now())
+  expiresAt       DateTime?
+  createdByUserId String?
+  createdByName   String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([companyId, isPublished, publishedAt])
 }

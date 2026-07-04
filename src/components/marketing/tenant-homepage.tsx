@@ -5,16 +5,20 @@ import { PropertyCard } from "@/components/marketing/property-card";
 import { OptimizedImage } from "@/components/media/optimized-image";
 import { Container } from "@/components/shared/container";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Reveal } from "@/components/shared/reveal";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Magnetic } from "@/components/ui/magnetic";
 import { buildAuthRedirect, buildServerDomainConfig } from "@/lib/domains";
 import { env } from "@/lib/env";
 import { buildSafeErrorLogContext, logError } from "@/lib/ops/logger";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getPublicTenantPresentation } from "@/modules/branding/service";
 import { getPublicTestimonials } from "@/modules/cms/queries";
+import { resolveTenantSiteContent } from "@/modules/cms/site-content";
+import { getPublishedSiteContent } from "@/modules/cms/site-content-service";
 import {
   getPublicProperties,
   parsePropertySearchParams,
@@ -74,6 +78,14 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
     tenantHost: tenant.host,
     entry: "purchase",
   });
+  // Editable marketing copy (hero/footer/about): the tenant's published content
+  // overrides the company-derived fallbacks, field by field.
+  const storedContent = await getPublishedSiteContent(tenant);
+  const siteContent = resolveTenantSiteContent({
+    companyName: presentation.companyName,
+    startPurchaseHref,
+    stored: storedContent,
+  });
 
   return (
     <div className="pb-16">
@@ -82,24 +94,26 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
           <div className="grid gap-10 px-6 py-8 lg:grid-cols-[1.2fr_0.8fr] lg:px-10 lg:py-10">
             <div className="flex flex-col justify-between gap-8">
               <div className="space-y-6">
-                <Badge>Tenant Homepage</Badge>
+                <Badge>{siteContent.hero.eyebrow}</Badge>
                 <div className="space-y-4">
                   <h1 className="max-w-4xl font-serif text-4xl leading-tight text-[var(--ink-950)] sm:text-5xl lg:text-6xl">
-                    {presentation.companyName} brings discovery, trust, and transaction visibility into one property journey.
+                    {siteContent.hero.headline}
                   </h1>
                   <p className="max-w-2xl text-base leading-8 text-[var(--ink-600)] sm:text-lg">
-                    Browse verified listings, work with trusted marketers, and move from first interest to reservation and payment through a branded, tenant-scoped experience.
+                    {siteContent.hero.subhead}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3">
-                  <Link href="/properties">
-                    <Button>View Properties</Button>
-                  </Link>
-                  <Link href={startPurchaseHref}>
-                    <Button variant="outline">Start Purchase</Button>
+                  <Magnetic>
+                    <Link href={siteContent.hero.primaryCta.href}>
+                      <Button>{siteContent.hero.primaryCta.label}</Button>
+                    </Link>
+                  </Magnetic>
+                  <Link href={siteContent.hero.secondaryCta.href}>
+                    <Button variant="outline">{siteContent.hero.secondaryCta.label}</Button>
                   </Link>
                   <Link href="/team">
-                    <Button variant="ghost">View Marketers</Button>
+                    <Button variant="ghost">View marketers</Button>
                   </Link>
                 </div>
               </div>
@@ -178,7 +192,7 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
                 <div className="mt-5 grid gap-3 sm:grid-cols-3">
                   {[
                     ["1", "Explore listings", "Browse featured inventory, team pages, testimonials, and branded property detail pages on this tenant domain."],
-                    ["2", "Start purchase", "When a buyer needs auth, the flow continues through the central EstateOS portal without losing tenant context."],
+                    ["2", "Start purchase", "When a buyer needs auth, the flow continues through the secure central portal without losing context."],
                     ["3", "Complete with trust", "Reservations, payments, marketer attribution, and receipts remain tied back to the same tenant company."],
                   ].map(([step, title, description]) => (
                     <div key={step} className="rounded-[22px] border border-[var(--line)] bg-[var(--tenant-surface)] p-4">
@@ -195,7 +209,8 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
       </Container>
 
       <Container className="space-y-14">
-        <section className="space-y-8">
+        <Reveal>
+          <section className="space-y-8">
           <SectionHeading
             eyebrow="Featured Properties"
             title="Listings worth opening first."
@@ -221,18 +236,22 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
               <Button variant="outline">Meet the marketers</Button>
             </Link>
           </div>
-        </section>
+          </section>
+        </Reveal>
 
-        <TopMarketersSection
-          leaderboard={leaderboard}
+        <Reveal>
+          <TopMarketersSection
+            leaderboard={leaderboard}
           compact
           period="MONTHLY"
           periodHrefBuilder={(period) => `/team?topMarketers=${period}`}
           title="Top marketers already moving deals forward"
-          description="Public ranking stays tenant-scoped and grounded in persisted reservations, successful payments, inspections, and qualified inquiry progress."
-        />
+            description="Public ranking stays tenant-scoped and grounded in persisted reservations, successful payments, inspections, and qualified inquiry progress."
+          />
+        </Reveal>
 
-        <section className="space-y-8">
+        <Reveal>
+          <section className="space-y-8">
           <SectionHeading
             eyebrow="Testimonials"
             title="Clients remember the process as much as the property."
@@ -246,7 +265,7 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
                     <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-[var(--sand-100)] text-sm font-semibold text-[var(--ink-700)]">
                       {testimonial.avatarUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={testimonial.avatarUrl} alt={`${testimonial.fullName} avatar`} className="h-full w-full object-cover" />
+                        <img src={testimonial.avatarUrl} alt={`${testimonial.fullName} avatar`} width={44} height={44} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                       ) : (
                         testimonial.fullName.slice(0, 2).toUpperCase()
                       )}
@@ -281,7 +300,8 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
               description="Tenant CMS testimonials are published to the homepage once the company adds them."
             />
           )}
-        </section>
+          </section>
+        </Reveal>
       </Container>
     </div>
   );

@@ -167,7 +167,7 @@ export function DomainSettings({
 
       {/* Subdomain info */}
       <div className="space-y-2">
-        <div className="text-sm font-medium text-[var(--ink-700)]">EstateOS subdomain</div>
+        <div className="text-sm font-medium text-[var(--ink-700)]">Default subdomain</div>
         <div className="flex items-center gap-2 rounded-[10px] border border-[var(--line)] bg-[var(--sand-50)] px-4 py-2.5 font-mono text-sm text-[var(--ink-600)]">
           <span className="flex-1">{subdomainLabel}.estateos.com</span>
           <CopyButton text={`https://${subdomainLabel}.estateos.com`} />
@@ -181,7 +181,7 @@ export function DomainSettings({
         <div>
           <div className="text-sm font-medium text-[var(--ink-700)]">Custom domain</div>
           <p className="mt-1 text-xs text-[var(--ink-400)]">
-            Enter a domain you own (e.g. <span className="font-mono">yourcompany.com</span>). EstateOS will attach it to Vercel when configured; DNS remains manual.
+            Enter a domain you own (e.g. <span className="font-mono">yourcompany.com</span>). We&apos;ll attach it to Vercel when configured; DNS remains manual.
           </p>
         </div>
 
@@ -215,7 +215,7 @@ export function DomainSettings({
                 <p className="mt-2 text-xs leading-5 text-[var(--ink-500)]">
                   {vercel?.manualSetupRequired
                     ? "Vercel API is not configured. A platform operator must add this domain in Vercel."
-                    : "EstateOS checks that this domain is attached to the production Vercel project."}
+                    : "We check that this domain is attached to the production Vercel project."}
                 </p>
               </div>
               <div className="rounded-[12px] border border-[var(--line)] bg-white p-4">
@@ -305,7 +305,7 @@ export function DomainSettings({
               <AdminStateBanner
                 tone="warning"
                 title="DNS check failed"
-                message={`EstateOS could not verify the Vercel attachment and required DNS records for ${customDomain}. DNS changes can take up to 48 hours to propagate.`}
+                message={`We could not verify the Vercel attachment and required DNS records for ${customDomain}. DNS changes can take up to 48 hours to propagate.`}
               />
             )}
             {status === "PENDING" && (

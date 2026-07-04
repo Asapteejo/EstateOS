@@ -1,4 +1,5 @@
 import { Container } from "@/components/shared/container";
+import { Reveal } from "@/components/shared/reveal";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { Card } from "@/components/ui/card";
 import { getPublicCmsContext, getPublicTestimonials } from "@/modules/cms/queries";
@@ -25,11 +26,13 @@ export default async function TestimonialsPage({
 
   return (
     <Container className="space-y-10 py-16">
-      <SectionHeading
-        eyebrow="Testimonials"
-        title="Clients remember how clearly you ran the process."
-        description="The strongest social proof is not only beautiful projects, but calm execution and visible progress."
-      />
+      <Reveal>
+        <SectionHeading
+          eyebrow="Testimonials"
+          title="Clients remember how clearly you ran the process."
+          description="The strongest social proof is not only beautiful projects, but calm execution and visible progress."
+        />
+      </Reveal>
 
       <form className="grid gap-3 rounded-[var(--radius-xl)] border border-[var(--line)] bg-white/80 p-4 md:grid-cols-[1.4fr_1fr_0.8fr_0.8fr_0.8fr_auto]">
         <input
@@ -61,14 +64,23 @@ export default async function TestimonialsPage({
         </button>
       </form>
 
+      {testimonials.length === 0 ? (
+        <Card className="rounded-[28px] border-dashed px-8 py-14 text-center">
+          <h2 className="text-xl font-semibold text-[var(--ink-950)]">No testimonials yet</h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-[var(--ink-600)]">
+            Published client testimonials will appear here. Try adjusting your filters or check back soon.
+          </p>
+        </Card>
+      ) : (
       <div className="grid gap-6 lg:grid-cols-3">
-        {testimonials.map((testimonial) => (
-          <Card key={testimonial.id ?? testimonial.fullName} className="p-8">
+        {testimonials.map((testimonial, index) => (
+          <Reveal key={testimonial.id ?? testimonial.fullName} delay={index * 0.06} className="h-full">
+          <Card className="h-full p-8">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-[var(--sand-100)] text-sm font-semibold text-[var(--ink-700)]">
                 {testimonial.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={testimonial.avatarUrl} alt={`${testimonial.fullName} avatar`} className="h-full w-full object-cover" />
+                  <img src={testimonial.avatarUrl} alt={`${testimonial.fullName} avatar`} width={44} height={44} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                 ) : (
                   testimonial.fullName.slice(0, 2).toUpperCase()
                 )}
@@ -98,8 +110,10 @@ export default async function TestimonialsPage({
               ) : null}
             </div>
           </Card>
+          </Reveal>
         ))}
       </div>
+      )}
     </Container>
   );
 }

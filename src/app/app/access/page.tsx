@@ -11,7 +11,7 @@ function resolveCopy(status: string | undefined, reason: string | undefined) {
         "Run the secure SUPER_ADMIN grant script for this signed-in account, then return to the platform dashboard.",
       reason: "Access remains blocked until the database role assignment exists.",
       actionHref: "/",
-      actionLabel: "Return to EstateOS",
+      actionLabel: "Return to homepage",
     };
   }
 
@@ -23,7 +23,7 @@ function resolveCopy(status: string | undefined, reason: string | undefined) {
         "Superadmin access is private and requires both an allowlisted email address and a persisted platform role.",
       reason: "Use the normal admin or buyer workspace for this account.",
       actionHref: "/",
-      actionLabel: "Return to EstateOS",
+      actionLabel: "Return to homepage",
     };
   }
 
@@ -32,10 +32,10 @@ function resolveCopy(status: string | undefined, reason: string | undefined) {
       eyebrow: "Workspace suspended",
       title: "This company workspace is temporarily unavailable.",
       body:
-        "EstateOS has blocked admin and buyer access for this company until the platform owner reactivates it.",
+        "Access to this company workspace has been paused by the platform until it is reactivated.",
       reason,
       actionHref: "/",
-      actionLabel: "Return to EstateOS",
+      actionLabel: "Return to homepage",
     };
   }
 
@@ -43,10 +43,10 @@ function resolveCopy(status: string | undefined, reason: string | undefined) {
     eyebrow: "Workspace unavailable",
     title: "This company workspace is not currently active.",
     body:
-      "Admin and buyer actions are paused for this company right now. Contact the EstateOS platform owner if you need access restored.",
+      "Admin and buyer actions are paused for this company right now. Contact the platform administrator if you need access restored.",
     reason,
     actionHref: "/",
-    actionLabel: "Return to EstateOS",
+    actionLabel: "Return to homepage",
   };
 }
 
@@ -61,7 +61,7 @@ export default async function AppAccessPage({
   const copy = resolveCopy(status, reason);
 
   return (
-    <main className="min-h-screen bg-[var(--sand-50)] px-4 py-16">
+    <main className="min-h-dvh bg-[var(--sand-50)] px-4 py-16">
       <div className="mx-auto max-w-3xl">
         <Card className="overflow-hidden rounded-[32px] border-[var(--line)] bg-white shadow-[0_20px_70px_rgba(15,23,42,0.08)]">
           <div className="border-b border-[var(--line)] bg-[linear-gradient(135deg,rgba(166,28,28,0.08),rgba(15,23,42,0.02))] px-8 py-8">

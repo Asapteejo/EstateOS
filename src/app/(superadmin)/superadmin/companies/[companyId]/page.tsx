@@ -5,10 +5,10 @@ import { SuperadminActivityFeed } from "@/components/superadmin/superadmin-activ
 import { CompanyLifecycleControls } from "@/components/superadmin/company-lifecycle-controls";
 import { SuperadminCompanyStatusBadge } from "@/components/superadmin/superadmin-company-status-badge";
 import { SuperadminHealthBadge } from "@/components/superadmin/superadmin-health-badge";
-import { SuperadminMetricCard } from "@/components/superadmin/superadmin-metric-card";
 import { SuperadminRangeTabs } from "@/components/superadmin/superadmin-range-tabs";
 import { SuperadminShell } from "@/components/superadmin/superadmin-shell";
 import { TenantReadinessChecklist } from "@/components/shared/tenant-readiness-checklist";
+import { StatCard } from "@/components/admin/admin-ui";
 import { Card } from "@/components/ui/card";
 import { requireSuperAdminSession } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
@@ -180,12 +180,12 @@ export default async function SuperadminCompanyOverviewPage({
         </Card>
       ) : null}
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-5">
-        <SuperadminMetricCard label="Deals" value={String(company.businessMetrics.totalDeals)} detail="Total revenue records in this workspace" />
-        <SuperadminMetricCard label="Payment requests" value={String(company.businessMetrics.totalPaymentRequests)} detail="Requests sent through the workflow" />
-        <SuperadminMetricCard label="Completed payments" value={String(company.businessMetrics.totalPaymentsCompleted)} detail="Successful reconciled payments" tone="revenue" />
-        <SuperadminMetricCard label="Overdue" value={formatCurrency(company.businessMetrics.totalOverdue)} detail={company.businessMetrics.collectionsPerformance} tone="risk" />
-        <SuperadminMetricCard label="EstateOS revenue" value={formatCurrency(company.platformMetrics.estateRevenue)} detail="What this tenant has generated for the platform" tone="revenue" />
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <StatCard label="Deals" value={String(company.businessMetrics.totalDeals)} hint="Total revenue records in this workspace" />
+        <StatCard label="Payment requests" value={String(company.businessMetrics.totalPaymentRequests)} hint="Requests sent through the workflow" />
+        <StatCard label="Completed payments" value={String(company.businessMetrics.totalPaymentsCompleted)} hint="Successful reconciled payments" tone="success" />
+        <StatCard label="Overdue" value={formatCurrency(company.businessMetrics.totalOverdue)} hint={company.businessMetrics.collectionsPerformance} tone="danger" />
+        <StatCard label="EstateOS revenue" value={formatCurrency(company.platformMetrics.estateRevenue)} hint="What this tenant has generated for the platform" tone="success" />
       </div>
 
       <TenantReadinessChecklist

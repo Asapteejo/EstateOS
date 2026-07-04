@@ -7,6 +7,7 @@ import { publishRealtimeEvent } from "@/lib/realtime/events";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { findFirstForTenant } from "@/lib/tenancy/db";
 import { publishDomainEvent } from "@/lib/notifications/events";
+import { notifyBuyerWhatsApp } from "@/lib/notifications/buyer-whatsapp";
 import type {
   AdminReservationStatusInput,
   AdminTransactionFollowUpInput,
@@ -403,6 +404,21 @@ export async function updateReservationStatusForAdmin(
       } as Prisma.InputJsonValue,
     },
   });
+
+  // Positive reservation milestones also ping the buyer on WhatsApp (no-ops
+  // until Twilio + wallet credit are configured). Negative states stay in-app.
+  if (input.status === "ACTIVE" || input.status === "CONVERTED") {
+    await notifyBuyerWhatsApp({
+      companyId: context.companyId,
+      buyerUserId: result.userId,
+      trigger: `reservation.${input.status.toLowerCase()}`,
+      buildBody: (firstName) =>
+        input.status === "CONVERTED"
+          ? `Hi ${firstName}, congratulations — your reservation has converted to a sale. Your team will guide you through the next steps.`
+          : `Hi ${firstName}, good news — your reservation is now confirmed. Open your portal for the details.`,
+      metadata: { reservationId } as Prisma.InputJsonValue,
+    });
+  }
 
   return result;
 }

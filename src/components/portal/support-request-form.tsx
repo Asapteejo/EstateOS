@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -115,8 +116,7 @@ export function SupportRequestForm({ initialName, initialEmail, companyName }: P
 
       <Card className="space-y-5 p-6 sm:p-8">
         <div className="grid gap-5 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-[var(--ink-700)]">Category</label>
+          <Field label="Category">
             <select
               value={category}
               onChange={(event) => setCategory(event.target.value as (typeof category))}
@@ -128,33 +128,30 @@ export function SupportRequestForm({ initialName, initialEmail, companyName }: P
                 </option>
               ))}
             </select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-[var(--ink-700)]">Subject</label>
+          </Field>
+          <Field label="Subject">
             <Input
               placeholder="Short summary of the issue"
               value={subject}
               onChange={(event) => setSubject(event.target.value)}
             />
-          </div>
+          </Field>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-[var(--ink-700)]">Message</label>
+        <Field
+          label="Message"
+          hint="We include your current page URL and browser details automatically to help the operator team reproduce the issue faster."
+        >
           <Textarea
             placeholder="Explain what happened, what you expected, and any steps that lead to it."
             value={message}
             onChange={(event) => setMessage(event.target.value)}
           />
-          <div className="text-xs leading-5 text-[var(--ink-500)]">
-            We include your current page URL and browser details automatically to help the operator
-            team reproduce the issue faster.
-          </div>
-        </div>
+        </Field>
 
         <div className="flex items-center justify-end">
-          <Button onClick={submit} disabled={pending || subject.trim().length < 3 || message.trim().length < 10}>
-            {pending ? "Submitting..." : "Submit support request"}
+          <Button onClick={submit} loading={pending} disabled={pending || subject.trim().length < 3 || message.trim().length < 10}>
+            {pending ? "Submitting…" : "Submit support request"}
           </Button>
         </div>
       </Card>

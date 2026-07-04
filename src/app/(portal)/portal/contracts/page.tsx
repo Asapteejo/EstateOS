@@ -38,7 +38,7 @@ function ContractCard({ contract }: { contract: BuyerContractRow }) {
   const isAccepted = contract.status === "COMPLETED";
 
   return (
-    <div className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-white p-5 sm:p-6">
+    <div className="premium-card rounded-[var(--radius-lg)] border border-[var(--line)] bg-white p-5 shadow-[var(--shadow-sm)] sm:p-6">
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -117,7 +117,7 @@ function GeneratedContractCard({ contract }: { contract: GeneratedContractRow })
   const isActive = contract.status === "ACTIVE";
 
   return (
-    <div className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-white p-5 sm:p-6">
+    <div className="premium-card rounded-[var(--radius-lg)] border border-[var(--line)] bg-white p-5 shadow-[var(--shadow-sm)] sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--ink-400)]">

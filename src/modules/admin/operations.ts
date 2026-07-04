@@ -35,6 +35,7 @@ export async function getAdminTransactionManagementList(context: TenantContext) 
           select: {
             firstName: true,
             lastName: true,
+            phone: true,
             companyId: true,
           },
         },
@@ -61,6 +62,7 @@ export async function getAdminTransactionManagementList(context: TenantContext) 
     user: {
       firstName: string | null;
       lastName: string | null;
+      phone: string | null;
       companyId: string | null;
     } | null;
     property: {
@@ -142,6 +144,8 @@ export function mapAdminTransactionsForTable(
         ? `${transaction.user.firstName ?? ""} ${transaction.user.lastName ?? ""}`.trim() ||
           "Unknown"
         : "Unknown",
+    buyerPhone:
+      transaction.user && transaction.user.companyId ? transaction.user.phone : null,
     stage: transaction.currentStage,
     balance: decimalToNumber(transaction.outstandingBalance) ?? 0,
   }));

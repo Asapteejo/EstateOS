@@ -107,6 +107,7 @@ export function MapboxMap({
   const markerRef = useRef<import("mapbox-gl").Marker | null>(null);
   const polygonRef = useRef(polygon);
   const [error, setError] = useState<string | null>(null);
+  const [inView, setInView] = useState(false);
   const token = publicEnv.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN;
   const enabled = Boolean(token) && hasValidCoordinates(center);
   const polygonKey = JSON.stringify(polygon);
@@ -115,8 +116,33 @@ export function MapboxMap({
     polygonRef.current = polygon;
   }, [polygon]);
 
+  // Lazy-mount: only download the mapbox-gl bundle and initialize the map once
+  // the container scrolls near the viewport. On a long property page this keeps
+  // the heavy map library out of the initial load until the visitor reaches it.
   useEffect(() => {
-    if (!enabled || !containerRef.current || !center) return;
+    const node = containerRef.current;
+    if (!enabled || !node || inView) return;
+
+    if (typeof IntersectionObserver === "undefined") {
+      const raf = requestAnimationFrame(() => setInView(true));
+      return () => cancelAnimationFrame(raf);
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setInView(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [enabled, inView]);
+
+  useEffect(() => {
+    if (!enabled || !inView || !containerRef.current || !center) return;
 
     let cancelled = false;
 
@@ -168,7 +194,7 @@ export function MapboxMap({
       mapRef.current?.remove();
       mapRef.current = null;
     };
-  }, [center, enabled, interactive, markerLabel, onPick, token, zoom]);
+  }, [center, enabled, inView, interactive, markerLabel, onPick, token, zoom]);
 
   useEffect(() => {
     if (!mapRef.current || !mapRef.current.isStyleLoaded()) return;

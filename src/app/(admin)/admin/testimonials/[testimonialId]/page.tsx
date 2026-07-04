@@ -38,7 +38,7 @@ export default async function AdminTestimonialDetailPage({
                 <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-[var(--sand-100)] text-sm font-semibold text-[var(--ink-700)]">
                   {testimonial.avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={testimonial.avatarUrl} alt={`${testimonial.displayName} avatar`} className="h-full w-full object-cover" />
+                    <img src={testimonial.avatarUrl} alt={`${testimonial.displayName} avatar`} width={48} height={48} loading="lazy" decoding="async" className="h-full w-full object-cover" />
                   ) : (
                     testimonial.displayName.slice(0, 2).toUpperCase()
                   )}

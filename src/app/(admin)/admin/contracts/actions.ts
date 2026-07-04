@@ -16,6 +16,12 @@ import {
   sendContract,
 } from "@/modules/contracts/service";
 
+export type GenerateContractActionState = {
+  ok: boolean;
+  message?: string;
+  error?: string;
+};
+
 // ─── Upload contract PDF and link to transaction ─────────────────────────────
 
 export async function uploadContractAction(formData: FormData): Promise<void> {
@@ -98,28 +104,55 @@ export async function sendContractAction(formData: FormData): Promise<void> {
   revalidatePath("/admin/contracts");
 }
 
-export async function generateContractAction(formData: FormData): Promise<void> {
+async function runGenerateContractAction(formData: FormData): Promise<GenerateContractActionState> {
   const tenant = await requireAdminSession(["ADMIN", "LEGAL"]);
-  if (!tenant.companyId || !tenant.companySlug) return;
+  if (!tenant.companyId || !tenant.companySlug) {
+    return { ok: false, error: "Tenant context is required." };
+  }
 
   const transactionId = (formData.get("transactionId") as string | null)?.trim();
   const forceRegenerate = formData.get("forceRegenerate") === "true";
   const templateId = (formData.get("templateId") as string | null)?.trim() || null;
   const regeneratedFromContractId = (formData.get("regeneratedFromContractId") as string | null)?.trim() || null;
-  if (!transactionId) return;
+  if (!transactionId) {
+    return { ok: false, error: "Select a transaction before generating a contract." };
+  }
 
-  await generateContractForTransaction({
-    companyId: tenant.companyId,
-    companySlug: tenant.companySlug,
-    transactionId,
-    actorUserId: tenant.userId,
-    actorEmail: tenant.email,
-    actorIsSuperAdmin: tenant.isSuperAdmin,
-    forceRegenerate,
-    templateId,
-    regeneratedFromContractId,
-  });
+  try {
+    await generateContractForTransaction({
+      companyId: tenant.companyId,
+      companySlug: tenant.companySlug,
+      transactionId,
+      actorUserId: tenant.userId,
+      actorEmail: tenant.email,
+      actorIsSuperAdmin: tenant.isSuperAdmin,
+      forceRegenerate,
+      templateId,
+      regeneratedFromContractId,
+    });
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Unable to generate the contract.",
+    };
+  }
 
   revalidatePath("/admin/contracts");
   revalidatePath("/portal/contracts");
+  return { ok: true, message: "Contract generated successfully." };
+}
+
+export async function generateContractAction(formData: FormData): Promise<GenerateContractActionState> {
+  return runGenerateContractAction(formData);
+}
+
+export async function generateContractSubmitAction(formData: FormData): Promise<void> {
+  await runGenerateContractAction(formData);
+}
+
+export async function generateContractFormAction(
+  _previousState: GenerateContractActionState,
+  formData: FormData,
+): Promise<GenerateContractActionState> {
+  return runGenerateContractAction(formData);
 }

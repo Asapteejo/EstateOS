@@ -2,12 +2,16 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
+import { useOptimistic, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { AdminNotificationListItem } from "@/modules/admin/queries";
+
+type OptimisticAction =
+  | { type: "set"; id: string; read: boolean }
+  | { type: "all" };
 
 export function NotificationManagement({
   notifications,
@@ -15,45 +19,61 @@ export function NotificationManagement({
   notifications: AdminNotificationListItem[];
 }) {
   const router = useRouter();
-  const [pendingId, setPendingId] = useState<string | null>(null);
-  const [isMarkingAll, setIsMarkingAll] = useState(false);
+  const [, startTransition] = useTransition();
+  // Optimistic read/unread state: rows flip instantly and revert on their own
+  // if the request fails (the transition ends without the server data changing).
+  const [optimisticNotifications, applyOptimistic] = useOptimistic(
+    notifications,
+    (current, action: OptimisticAction) => {
+      if (action.type === "all") {
+        return current.map((item) => ({ ...item, state: "Read" as const }));
+      }
+      return current.map((item) =>
+        item.id === action.id
+          ? { ...item, state: action.read ? ("Read" as const) : ("Unread" as const) }
+          : item,
+      );
+    },
+  );
 
-  async function setReadState(notificationId: string, read: boolean) {
-    setPendingId(notificationId);
+  const allRead = optimisticNotifications.every((item) => item.state === "Read");
 
-    const response = await fetch(`/api/admin/notifications/${notificationId}/read`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ read }),
+  function setReadState(notificationId: string, read: boolean) {
+    startTransition(async () => {
+      applyOptimistic({ type: "set", id: notificationId, read });
+
+      const response = await fetch(`/api/admin/notifications/${notificationId}/read`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ read }),
+      });
+
+      if (!response.ok) {
+        toast.error("Unable to update notification.");
+        return;
+      }
+
+      toast.success(read ? "Notification marked as read." : "Notification marked as unread.");
+      router.refresh();
     });
-
-    setPendingId(null);
-
-    if (!response.ok) {
-      toast.error("Unable to update notification.");
-      return;
-    }
-
-    toast.success(read ? "Notification marked as read." : "Notification marked as unread.");
-    router.refresh();
   }
 
-  async function markAllRead() {
-    setIsMarkingAll(true);
+  function markAllRead() {
+    startTransition(async () => {
+      applyOptimistic({ type: "all" });
 
-    const response = await fetch("/api/admin/notifications/read-all", {
-      method: "POST",
+      const response = await fetch("/api/admin/notifications/read-all", {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        toast.error("Unable to mark all notifications as read.");
+        return;
+      }
+
+      toast.success("All notifications marked as read.");
+      router.refresh();
     });
-
-    setIsMarkingAll(false);
-
-    if (!response.ok) {
-      toast.error("Unable to mark all notifications as read.");
-      return;
-    }
-
-    toast.success("All notifications marked as read.");
-    router.refresh();
   }
 
   return (
@@ -65,16 +85,12 @@ export function NotificationManagement({
             Review transactional delivery and clear unread operational noise.
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={markAllRead}
-          disabled={isMarkingAll || notifications.length === 0}
-        >
-          {isMarkingAll ? "Updating..." : "Mark all as read"}
+        <Button variant="outline" onClick={markAllRead} disabled={allRead}>
+          Mark all as read
         </Button>
       </div>
       <div className="divide-y divide-[var(--line)]">
-        {notifications.map((notification) => (
+        {optimisticNotifications.map((notification) => (
           <div
             key={notification.id}
             className="grid gap-4 px-6 py-5 lg:grid-cols-[1.4fr_0.7fr_0.7fr_auto]"
@@ -115,13 +131,8 @@ export function NotificationManagement({
                 size="sm"
                 variant="outline"
                 onClick={() => setReadState(notification.id, notification.state !== "Read")}
-                disabled={pendingId === notification.id}
               >
-                {pendingId === notification.id
-                  ? "Updating..."
-                  : notification.state === "Read"
-                    ? "Mark unread"
-                    : "Mark read"}
+                {notification.state === "Read" ? "Mark unread" : "Mark read"}
               </Button>
             </div>
           </div>

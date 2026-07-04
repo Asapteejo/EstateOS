@@ -243,7 +243,7 @@ export function PaymentAccountSetup() {
             },
             {
               label: "Platform commission",
-              value: "Controlled by EstateOS superadmin",
+              value: "Controlled by platform superadmin",
             },
             {
               label: "Subaccount code",

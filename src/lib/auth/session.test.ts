@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import {
   buildDemoSession,
@@ -88,4 +90,40 @@ test("unpersisted Clerk identity cannot be used as a database user id", () => {
       userId: null,
     },
   );
+});
+
+test("dev access mode session helper is wired before Clerk auth", () => {
+  const sessionSource = readFileSync(
+    join(process.cwd(), "src", "lib", "auth", "session.ts"),
+    "utf8",
+  );
+  const guardsSource = readFileSync(
+    join(process.cwd(), "src", "lib", "auth", "guards.ts"),
+    "utf8",
+  );
+  const layoutSource = readFileSync(
+    join(process.cwd(), "src", "app", "layout.tsx"),
+    "utf8",
+  );
+
+  assert.match(sessionSource, /export async function getDevSession/);
+  assert.match(sessionSource, /if \(!featureFlags\.devAccessMode\)/);
+  assert.match(sessionSource, /if \(area === "marketing"\)/);
+  assert.match(sessionSource, /const devSession = await getDevSession\(area\)/);
+  assert.match(sessionSource, /where: \{ clerkUserId: session\.userId \}/);
+  assert.match(sessionSource, /dbUserId: user\.id/);
+  assert.match(sessionSource, /x-estateos-dev-tenant/);
+  assert.doesNotMatch(sessionSource, /company\.companyId === demoCompany\.companyId/);
+  assert.doesNotMatch(sessionSource, /userId: "dev-/);
+  assert.doesNotMatch(guardsSource, /startsWith\("dev-"\)/);
+  assert.match(guardsSource, /startsWith\("demo-"\)/);
+  assert.match(layoutSource, /DEV ACCESS MODE ACTIVE/);
+  assert.match(layoutSource, /AUTHENTICATION BYPASSED/);
+});
+
+test("local seed creates a persisted demo superadmin identity", () => {
+  const seedSource = readFileSync(join(process.cwd(), "prisma", "seed.ts"), "utf8");
+
+  assert.match(seedSource, /clerkUserId: "demo-superadmin"/);
+  assert.match(seedSource, /email: "owner@estateos\.dev"/);
 });

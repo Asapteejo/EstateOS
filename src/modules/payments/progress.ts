@@ -4,6 +4,18 @@ type Decimalish = { toNumber?: () => number } | number;
 
 export type DealPaymentStatusValue = "PENDING" | "PARTIAL" | "COMPLETED" | "OVERDUE";
 
+/** Buyer-facing label for a raw payment-status enum. Keeps "Payment state"
+ *  copy consistent and human across the portal (home, payments page, etc.). */
+export function humanizePaymentStatus(status: string): string {
+  const labels: Record<string, string> = {
+    PENDING: "Awaiting first payment",
+    PARTIAL: "In progress",
+    OVERDUE: "Overdue",
+    COMPLETED: "Paid in full",
+  };
+  return labels[status] ?? status;
+}
+
 export type PaymentScheduleEntry = {
   id?: string;
   title: string;

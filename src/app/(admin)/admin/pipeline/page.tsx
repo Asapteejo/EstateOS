@@ -1,10 +1,11 @@
 import { DealBoardView } from "@/components/admin/deal-board-view";
 import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { requireAdminSession } from "@/lib/auth/guards";
+import { rolesForAdminPath } from "@/lib/auth/admin-sections";
 import { getAdminDealBoard } from "@/modules/admin/deal-board";
 
 export default async function AdminPipelinePage() {
-  const tenant = await requireAdminSession();
+  const tenant = await requireAdminSession(rolesForAdminPath("/admin/pipeline"));
   const board = await getAdminDealBoard(tenant);
 
   return (

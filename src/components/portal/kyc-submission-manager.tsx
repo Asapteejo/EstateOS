@@ -9,6 +9,7 @@ import { UploadField } from "@/components/uploads/upload-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import {
   getAcceptedBuyerIdentityDocuments,
@@ -246,11 +247,13 @@ export function KycSubmissionManager({
             helperText="PDF, JPG, PNG, or WEBP only. Private upload routed through the tenant-scoped document vault."
           />
         </div>
-        <Textarea
-          placeholder="Optional note for operations or legal"
-          value={notes}
-          onChange={(event) => setNotes(event.target.value)}
-        />
+        <Field label="Note for operations or legal (optional)">
+          <Textarea
+            placeholder="Add any context that helps the review team."
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+          />
+        </Field>
         <Button onClick={submit} disabled={pending || !profileReady}>
           {pending ? "Submitting..." : "Submit KYC document"}
         </Button>

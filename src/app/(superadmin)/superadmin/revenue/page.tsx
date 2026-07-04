@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { SuperadminMetricCard } from "@/components/superadmin/superadmin-metric-card";
+import { StatCard } from "@/components/admin/admin-ui";
 import { SuperadminRangeTabs } from "@/components/superadmin/superadmin-range-tabs";
 import { SuperadminShell } from "@/components/superadmin/superadmin-shell";
 import { Card } from "@/components/ui/card";
@@ -25,35 +25,35 @@ export default async function SuperadminRevenuePage({
       subtitle="Separate money flowing through customer companies from money EstateOS actually earns."
       actions={<SuperadminRangeTabs pathname="/superadmin/revenue" current={range} />}
     >
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-5">
-        <SuperadminMetricCard
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <StatCard
           label="EstateOS revenue"
           value={formatCurrency(revenue.summary.totalPlatformRevenue)}
-          detail="Subscription + transaction revenue earned by the platform"
-          tone="revenue"
+          hint="Subscription + transaction revenue earned by the platform"
+          tone="success"
         />
-        <SuperadminMetricCard
+        <StatCard
           label="Subscription revenue"
           value={formatCurrency(revenue.summary.subscriptionRevenue)}
-          detail="Recurring or granted-plan billing events"
-          tone="revenue"
+          hint="Recurring or granted-plan billing events"
+          tone="success"
         />
-        <SuperadminMetricCard
+        <StatCard
           label="Commission revenue"
           value={formatCurrency(revenue.summary.commissionRevenue)}
-          detail="Fees taken from successful company payments"
-          tone="revenue"
+          hint="Fees taken from successful company payments"
+          tone="success"
         />
-        <SuperadminMetricCard
+        <StatCard
           label="Platform inflow"
           value={formatCurrency(revenue.summary.totalPlatformInflow)}
-          detail="All successful money processed for companies"
+          hint="All successful money processed for companies"
           tone="default"
         />
-        <SuperadminMetricCard
+        <StatCard
           label="Avg revenue / company"
           value={formatCurrency(revenue.summary.averageRevenuePerCompany)}
-          detail="Blended EstateOS revenue per tenant in range"
+          hint="Blended EstateOS revenue per tenant in range"
           tone="default"
         />
       </div>

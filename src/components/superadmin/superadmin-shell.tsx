@@ -2,8 +2,11 @@
 
 import { usePathname } from "next/navigation";
 
+import { CommandPalette, CommandPaletteTrigger } from "@/components/shared/command-palette";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { LiveSurfaceSync } from "@/components/realtime/live-surface-sync";
 import { Container } from "@/components/shared/container";
+import { SuperadminMobileNav } from "@/components/superadmin/superadmin-mobile-nav";
 import { SuperadminNavLink } from "@/components/superadmin/superadmin-nav-link";
 import { cn } from "@/lib/utils";
 
@@ -28,17 +31,24 @@ export function SuperadminShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const commandItems = links.map(([label, href]) => ({ id: href, label, href, group: "Platform" }));
 
   return (
-    <Container className="grid gap-6 py-8 lg:grid-cols-[280px_1fr]">
+    <Container className="app-dark-scope grid gap-6 py-8 lg:grid-cols-[280px_1fr]">
       <LiveSurfaceSync channel="superadmin" />
-      <aside className="rounded-[32px] border border-[var(--line)] bg-white p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+      <CommandPalette commands={commandItems} label="Platform menu" />
+      <SuperadminMobileNav links={links} />
+      <aside className="hidden rounded-[32px] border border-[var(--line)] bg-white p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] lg:block">
         <div className="rounded-[28px] bg-[linear-gradient(140deg,#052e2b,#0d5f4a_55%,#d7b98f)] p-6 text-white">
           <div className="text-xs uppercase tracking-[0.24em] text-white/70">Platform owner</div>
           <div className="mt-3 font-serif text-3xl">EstateOS</div>
           <div className="mt-3 text-sm leading-7 text-white/82">
             Run EstateOS like a business: track platform inflow, revenue, company health, and risk from one control tower.
           </div>
+        </div>
+        <div className="mt-6 flex items-center gap-2">
+          <CommandPaletteTrigger className="flex-1" />
+          <ThemeToggle />
         </div>
         <div className="mt-8 space-y-2">
           {links.map(([label, href]) => {
@@ -58,7 +68,7 @@ export function SuperadminShell({
           })}
         </div>
       </aside>
-      <div className="space-y-6">
+      <main id="main-content" tabIndex={-1} className="space-y-6 tenant-content-reveal">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <h1 className="font-serif text-4xl tracking-tight text-[var(--ink-950)]">{title}</h1>
@@ -67,7 +77,7 @@ export function SuperadminShell({
           {actions ? <div className="shrink-0">{actions}</div> : null}
         </div>
         {children}
-      </div>
+      </main>
     </Container>
   );
 }

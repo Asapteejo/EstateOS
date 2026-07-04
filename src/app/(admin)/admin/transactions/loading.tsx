@@ -12,7 +12,7 @@ import {
 // and the `admin-skeleton` token; no data fetching or logic here.
 export default function TransactionsLoading() {
   return (
-    <div className="space-y-6" aria-busy="true" aria-label="Loading transactions">
+    <div className="app-dark-scope space-y-6" aria-busy="true" aria-label="Loading transactions">
       <div className="border-b border-[var(--line)] pb-5 sm:pb-6">
         <div className="admin-skeleton h-3 w-28" />
         <div className="admin-skeleton mt-3 h-10 w-72 max-w-full" />

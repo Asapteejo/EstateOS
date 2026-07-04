@@ -1,11 +1,12 @@
 import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { requireAdminSession } from "@/lib/auth/guards";
+import { rolesForAdminPath } from "@/lib/auth/admin-sections";
 import { InspectionManagement } from "@/components/admin/inspection-management";
 import { getAssignableStaffOptions } from "@/modules/inquiries/service";
 import { getInspectionManagementList } from "@/modules/inspections/service";
 
 export default async function AdminBookingsPage() {
-  const tenant = await requireAdminSession();
+  const tenant = await requireAdminSession(rolesForAdminPath("/admin/bookings"));
   const [bookings, staff] = await Promise.all([
     getInspectionManagementList(tenant),
     getAssignableStaffOptions(tenant),

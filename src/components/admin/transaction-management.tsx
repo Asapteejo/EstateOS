@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { AdminAttentionBadge, AdminLifecycleSteps, AdminQuickActions, AdminStateBanner } from "@/components/admin/admin-ui";
+import { AdminAttentionBadge, AdminEmptyState, AdminLifecycleSteps, AdminPanel, AdminQuickActions, AdminStateBanner } from "@/components/admin/admin-ui";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { Textarea } from "@/components/ui/textarea";
 import { compareAttentionPriority, getAttentionTone, workflowVocabulary } from "@/modules/admin/workflow-vocabulary";
 import { formatCurrency } from "@/lib/utils";
@@ -19,6 +19,7 @@ type TransactionItem = {
   reservationStatus: string;
   property: string;
   buyer: string;
+  buyerPhone: string | null;
   stage: string;
   balance: number;
 };
@@ -129,11 +130,12 @@ export function TransactionManagement({ items }: { items: TransactionItem[] }) {
     );
 
   return (
-    <Card className="overflow-hidden rounded-[22px] border-[var(--line)] bg-white shadow-none">
-      <div className="border-b border-[var(--line)] px-5 py-4">
-        <h3 className="text-lg font-semibold text-[var(--ink-950)]">Live transaction operations</h3>
-      </div>
-      <div className="divide-y divide-[var(--line)]">
+    <AdminPanel
+      title="Live transaction operations"
+      description="Review transaction stages, reservation state, and outstanding balances without losing row context."
+      className="overflow-hidden"
+    >
+      <div className="-mx-5 -my-5 divide-y divide-[var(--border-subtle,var(--line))]">
         {items.length > 0 ? (
           sortedItems.map((item) => {
             const attention = getAttentionState(item);
@@ -141,19 +143,27 @@ export function TransactionManagement({ items }: { items: TransactionItem[] }) {
             const reservationStatus = drafts[item.id]?.reservationStatus ?? item.reservationStatus;
 
             return (
-            <div key={item.id} className="grid gap-4 px-5 py-5 xl:grid-cols-[1fr_1fr_1.2fr_auto]">
-              <div>
-                <div className="font-semibold text-[var(--ink-950)]">{item.reference}</div>
+            <div key={item.id} className="grid min-w-0 gap-5 px-5 py-5 xl:grid-cols-[minmax(220px,1fr)_minmax(190px,0.72fr)_minmax(280px,1.1fr)_minmax(180px,auto)]">
+              <div className="min-w-0">
+                <div className="numeric break-words font-semibold text-[var(--ink-950)]">{item.reference}</div>
                 <div className="mt-1 text-sm text-[var(--ink-500)]">
                   {item.property} - {item.buyer}
                 </div>
+                {item.buyerPhone ? (
+                  <div className="mt-2">
+                    <WhatsAppButton
+                      phone={item.buyerPhone}
+                      message={`Hi ${item.buyer}, regarding your transaction ${item.reference} for ${item.property}.`}
+                    />
+                  </div>
+                ) : null}
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Badge>
+                  <Badge className="whitespace-nowrap">
                     {workflowVocabulary.transactions.reservationStatusLabels[
                       reservationStatus as keyof typeof workflowVocabulary.transactions.reservationStatusLabels
                     ] ?? reservationStatus.toLowerCase()}
                   </Badge>
-                  <Badge>
+                  <Badge className="whitespace-nowrap">
                     {workflowVocabulary.transactions.stageLabels[
                       stage as keyof typeof workflowVocabulary.transactions.stageLabels
                     ] ?? stage.toLowerCase().replaceAll("_", " ")}
@@ -173,10 +183,13 @@ export function TransactionManagement({ items }: { items: TransactionItem[] }) {
                   />
                 </div>
               </div>
-              <div className="space-y-3 text-sm text-[var(--ink-700)]">
-                <div>Outstanding: {formatCurrency(item.balance)}</div>
+              <div className="min-w-0 space-y-3 text-sm text-[var(--ink-700)]">
+                <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-[var(--sand-50)] px-3 py-2.5">
+                  <div className="text-eyebrow">Outstanding</div>
+                  <div className="numeric mt-1 font-semibold text-[var(--ink-950)]">{formatCurrency(item.balance)}</div>
+                </div>
                 <select
-                  className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+                  className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
                   value={drafts[item.id]?.reservationStatus ?? item.reservationStatus}
                   onChange={(event) =>
                     setDrafts((current) => ({
@@ -198,9 +211,9 @@ export function TransactionManagement({ items }: { items: TransactionItem[] }) {
                   ))}
                 </select>
               </div>
-              <div className="space-y-3">
+              <div className="min-w-0 space-y-3">
                 <select
-                  className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+                  className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
                   value={drafts[item.id]?.stage ?? item.stage}
                   onChange={(event) =>
                     setDrafts((current) => ({
@@ -291,9 +304,9 @@ export function TransactionManagement({ items }: { items: TransactionItem[] }) {
                   ]}
                 />
               </div>
-              <div className="flex flex-col items-end justify-between gap-3">
-                <div className="text-sm text-[var(--ink-500)]">Persisted tenant-safe actions</div>
-                <div className="flex flex-wrap justify-end gap-2">
+              <div className="flex min-w-0 flex-col items-start justify-between gap-3 xl:items-end">
+                <div className="text-eyebrow">Persisted tenant-safe actions</div>
+                <div className="flex flex-wrap gap-2 xl:justify-end">
                   <Button
                     size="sm"
                     variant="outline"
@@ -328,9 +341,14 @@ export function TransactionManagement({ items }: { items: TransactionItem[] }) {
             </div>
           )})
         ) : (
-          <div className="px-5 py-10 text-center text-sm text-[var(--ink-500)]">No active transactions yet.</div>
+          <div className="px-5 py-5">
+            <AdminEmptyState
+              title="No active transactions yet"
+              description="Transactions will appear here once buyers reserve inventory or begin payment."
+            />
+          </div>
         )}
       </div>
-    </Card>
+    </AdminPanel>
   );
 }

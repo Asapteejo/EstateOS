@@ -35,7 +35,7 @@ type CompanyRecord = {
   interval: string;
   expiresAt: string;
   payoutReadiness: string;
-  commissionRule: string;
+  commissionRule?: string;
 };
 
 type CompanyPlanStatus = {
@@ -100,15 +100,15 @@ export function BillingManagement({
     transactionProvider: string;
     requireActivePlanForTransactions: boolean;
     payoutReadiness: string;
-    commissionRule: string;
+    commissionRule?: string;
     commissionRecordsCount?: number;
   };
   companySummary: {
     activeSubscriptions: number;
     grantedPlans: number;
     expiredSubscriptions: number;
-    commissionEarned: string;
-    subscriptionRevenue: string;
+    commissionEarned?: string;
+    subscriptionRevenue?: string;
     payoutIssues: number;
   };
   plans: PlanRecord[];
@@ -218,8 +218,12 @@ export function BillingManagement({
         <SummaryCard label="Active subscriptions" value={String(companySummary.activeSubscriptions)} />
         <SummaryCard label="Granted plans" value={String(companySummary.grantedPlans)} />
         <SummaryCard label="Expired subscriptions" value={String(companySummary.expiredSubscriptions)} />
-        <SummaryCard label="Commission earned" value={companySummary.commissionEarned} />
-        <SummaryCard label="Subscription revenue" value={companySummary.subscriptionRevenue} />
+        {isSuperAdmin && companySummary.commissionEarned ? (
+          <SummaryCard label="Commission earned" value={companySummary.commissionEarned} />
+        ) : null}
+        {isSuperAdmin && companySummary.subscriptionRevenue ? (
+          <SummaryCard label="Subscription revenue" value={companySummary.subscriptionRevenue} />
+        ) : null}
         <SummaryCard label="Payout issues" value={String(companySummary.payoutIssues)} />
       </div>
 
@@ -229,7 +233,9 @@ export function BillingManagement({
             <div>
               <h3 className="text-lg font-semibold text-[var(--ink-950)]">Company billing state</h3>
               <p className="mt-1 text-sm text-[var(--ink-500)]">
-                Current plan access, commission rules, and split-settlement readiness.
+                {isSuperAdmin
+                  ? "Current plan access, commission rules, and split-settlement readiness."
+                  : "Current plan access and split-settlement readiness."}
               </p>
             </div>
             <Badge>{companyPlanStatus.state.toLowerCase()}</Badge>
@@ -241,12 +247,16 @@ export function BillingManagement({
             <InfoBlock label="Expires at" value={companyPlanStatus.expiresAt ? companyPlanStatus.expiresAt.toISOString().slice(0, 10) : "Not set"} />
             <InfoBlock label="Transaction provider" value={companyBilling.transactionProvider} />
             <InfoBlock label="Default currency" value={companyBilling.defaultCurrency} />
-            <InfoBlock label="Commission rule" value={companyBilling.commissionRule} />
+            {isSuperAdmin && companyBilling.commissionRule ? (
+              <InfoBlock label="Commission rule" value={companyBilling.commissionRule} />
+            ) : null}
             <InfoBlock label="Payout readiness" value={companyBilling.payoutReadiness} />
           </div>
-          <div className="rounded-3xl border border-[var(--line)] bg-[var(--sand-100)] p-4 text-sm text-[var(--ink-600)]">
-            Transaction commission still applies even when the current company plan was granted manually.
-          </div>
+          {isSuperAdmin ? (
+            <div className="rounded-3xl border border-[var(--line)] bg-[var(--sand-100)] p-4 text-sm text-[var(--ink-600)]">
+              Transaction commission still applies even when the current company plan was granted manually.
+            </div>
+          ) : null}
         </Card>
 
         <Card className="space-y-4 p-6">
@@ -451,7 +461,7 @@ export function BillingManagement({
                   </div>
                 </div>
                 <div className="text-sm text-[var(--ink-700)]">
-                  <div>{company.commissionRule}</div>
+                  <div>{company.commissionRule ?? "No commission rule"}</div>
                   <div className="mt-1 text-[var(--ink-500)]">{company.payoutReadiness}</div>
                 </div>
                 <div className="flex justify-end">

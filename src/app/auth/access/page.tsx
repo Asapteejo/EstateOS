@@ -10,6 +10,7 @@ import {
   sanitizeTenantSlug,
 } from "@/lib/domains";
 import { publicEnv } from "@/lib/public-env";
+import { featureFlags } from "@/lib/env";
 import { AuthAccessActions } from "./auth-access-actions";
 
 function readParam(value: string | string[] | undefined) {
@@ -57,8 +58,8 @@ export default async function AuthAccessPage({
   const entryLabel = resolveEntryLabel(entry);
 
   return (
-    <AuthProviders>
-      <main className="min-h-screen bg-[var(--sand-50)] px-4 py-16">
+    <AuthProviders disableClerkForDev={featureFlags.allowDevBypass}>
+      <main className="min-h-dvh bg-[var(--sand-50)] px-4 py-16">
         <Container className="max-w-3xl">
           <Card className="overflow-hidden rounded-[32px] border-[var(--line)] bg-white shadow-[0_20px_70px_rgba(15,23,42,0.08)]">
             <div className="border-b border-[var(--line)] bg-[linear-gradient(135deg,rgba(15,23,42,0.06),rgba(166,28,28,0.06))] px-8 py-8">
@@ -70,7 +71,7 @@ export default async function AuthAccessPage({
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--ink-600)]">
                 You are currently signed in as <span className="font-semibold text-[var(--ink-900)]">{email}</span>.
-                EstateOS only opens tenant admin and buyer portals from persisted tenant membership, not from a
+                Access is only granted from persisted tenant membership, not from a
                 public-domain host hint or a previous platform owner session.
               </p>
             </div>
@@ -101,6 +102,7 @@ export default async function AuthAccessPage({
               <AuthAccessActions
                 currentDashboard={currentDashboard}
                 switchAccountUrl={switchAccountUrl}
+                disableClerkForDev={featureFlags.allowDevBypass}
               />
             </div>
           </Card>

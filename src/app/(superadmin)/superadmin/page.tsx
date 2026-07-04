@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { SuperadminActivityFeed } from "@/components/superadmin/superadmin-activity-feed";
 import { SuperadminHealthBadge } from "@/components/superadmin/superadmin-health-badge";
-import { SuperadminMetricCard } from "@/components/superadmin/superadmin-metric-card";
+import { StatCard } from "@/components/admin/admin-ui";
 import { SuperadminRangeTabs } from "@/components/superadmin/superadmin-range-tabs";
 import { SuperadminShell } from "@/components/superadmin/superadmin-shell";
 import { Card } from "@/components/ui/card";
@@ -27,18 +27,18 @@ export default async function SuperadminDashboardPage({
       subtitle="See the money moving through EstateOS, what the platform itself is earning, and which companies need attention right now."
       actions={<SuperadminRangeTabs pathname="/superadmin" current={range} />}
     >
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {dashboard.metrics.map((metric) => (
-          <SuperadminMetricCard
+          <StatCard
             key={metric.label}
             label={metric.label}
             value={metric.value}
-            detail={metric.detail}
+            hint={metric.detail}
             tone={
               metric.label.includes("Revenue") || metric.label.includes("inflow")
-                ? "revenue"
+                ? "success"
                 : metric.label.includes("overdue")
-                  ? "risk"
+                  ? "danger"
                   : "default"
             }
           />

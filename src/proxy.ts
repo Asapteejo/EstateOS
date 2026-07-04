@@ -23,6 +23,15 @@ async function handleProxyRequest(
   protect?: () => Promise<unknown>,
 ) {
   const runtimeConfig = buildServerDomainConfig(env);
+  const requestHeaders = new Headers(req.headers);
+  const devTenant = req.nextUrl.searchParams.get("devTenant");
+  const sanitizedDevTenant =
+    featureFlags.devAccessMode && devTenant && /^[a-z0-9-]+$/.test(devTenant)
+      ? devTenant
+      : null;
+  if (sanitizedDevTenant) {
+    requestHeaders.set("x-estateos-dev-tenant", sanitizedDevTenant);
+  }
   const isAuthSurface =
     isPortalRoute(req) ||
     isAppRoute(req) ||
@@ -81,14 +90,40 @@ async function handleProxyRequest(
       });
     }
 
-    return NextResponse.next();
+    const response = NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+    if (sanitizedDevTenant) {
+      response.cookies.set("estateos_dev_company_slug", sanitizedDevTenant, {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 8,
+      });
+    }
+    return response;
   }
 
   if (isPortalRoute(req) || isAdminRoute(req) || isSuperadminRoute(req)) {
     await protect?.();
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+  if (sanitizedDevTenant) {
+    response.cookies.set("estateos_dev_company_slug", sanitizedDevTenant, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 8,
+    });
+  }
+  return response;
 }
 
 const proxy = featureFlags.hasClerk

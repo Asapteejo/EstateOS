@@ -80,7 +80,7 @@ test("theme styles keep app surfaces restrained and expose navigation variables"
   assert.equal(typeof appStyle["--tenant-ring"], "string");
   assert.equal(typeof appStyle["--tenant-nav-border"], "string");
   assert.equal(typeof appStyle["--tenant-nav-shadow"], "string");
-  assert.equal(publicTheme.classes.includes("min-h-screen"), true);
+  assert.equal(publicTheme.classes.includes("min-h-dvh"), true);
   assert.equal(appTheme.classes.includes("bg-[var(--tenant-background)]"), true);
 });
 

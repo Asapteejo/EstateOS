@@ -1,12 +1,21 @@
 import Link from "next/link";
 import { unstable_cache } from "next/cache";
 
+import { CommandPalette, CommandPaletteTrigger } from "@/components/shared/command-palette";
 import { Container } from "@/components/shared/container";
 import { Logo } from "@/components/shared/logo";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { DashboardMobileNav } from "@/components/portal/dashboard-mobile-nav";
+import { AnnouncementBanner } from "@/components/portal/announcement-banner";
+import { getBuyerUnreadCount, getTeamUnreadCount } from "@/modules/messaging/service";
+import { getActiveBuyerAnnouncements, getActiveOperatorAnnouncements } from "@/modules/announcements/service";
 import { LiveSurfaceSync } from "@/components/realtime/live-surface-sync";
 import { Avatar } from "@/components/ui/avatar";
 import { requireAdminSession, requirePortalSession } from "@/lib/auth/guards";
+import { adminQuickActions, filterAdminNav } from "@/lib/auth/admin-sections";
+import { DashboardGreeting } from "@/components/dashboard/dashboard-greeting";
+import { LiveClock } from "@/components/dashboard/live-clock";
+import { QuickActions, type QuickAction } from "@/components/dashboard/quick-actions";
 import { getAppSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
@@ -22,37 +31,15 @@ const portalLinks = [
   ["Saved", "/portal/saved"],
   ["Inspections", "/portal/inspections"],
   ["Reservations", "/portal/reservations"],
+  ["Messages", "/portal/messages"],
   ["Payments", "/portal/payments"],
+  ["Invoices", "/portal/invoices"],
   ["Timeline", "/portal/timeline"],
   ["Contracts", "/portal/contracts"],
   ["Testimonials", "/portal/testimonials"],
   ["Notifications", "/portal/notifications"],
   ["Documents", "/portal/documents"],
   ["Support", "/portal/support"],
-] as const;
-
-const adminLinks = [
-  ["Deal Board", "/admin"],
-  ["Payments", "/admin/payments"],
-  ["Clients", "/admin/clients"],
-  ["Leads", "/admin/leads"],
-  ["Transactions", "/admin/transactions"],
-  ["Pipeline", "/admin/pipeline"],
-  ["Analytics", "/admin/analytics"],
-  ["Benchmarks", "/admin/benchmarks"],
-  ["Feasibility", "/admin/feasibility"],
-  ["Contracts", "/admin/contracts"],
-  ["Listings", "/admin/listings"],
-  ["Team", "/admin/team"],
-  ["Marketers", "/admin/marketers"],
-  ["Bookings", "/admin/bookings"],
-  ["Assets", "/admin/assets"],
-  ["Billing", "/admin/billing"],
-  ["Settings", "/admin/settings"],
-  ["Documents", "/admin/documents"],
-  ["Testimonials", "/admin/testimonials"],
-  ["Notifications", "/admin/notifications"],
-  ["Audit Logs", "/admin/audit-logs"],
 ] as const;
 
 type PortalUserRow = {
@@ -73,10 +60,16 @@ export async function DashboardShell({
   subtitle: string;
   children: React.ReactNode;
 }) {
-  const links = area === "portal" ? portalLinks : adminLinks;
   const tenant = area === "portal"
     ? await requirePortalSession({ redirectOnMissingAuth: false })
-    : await requireAdminSession(["ADMIN"], { redirectOnMissingAuth: false });
+    : await requireAdminSession(undefined, { redirectOnMissingAuth: false });
+  // The operator sidebar is role-scoped: each role only sees the sections it is
+  // allowed to access (ADMIN/SUPER_ADMIN see everything). The buyer portal nav is
+  // the same for every buyer.
+  const links: ReadonlyArray<readonly [string, string]> =
+    area === "portal"
+      ? portalLinks
+      : filterAdminNav(tenant.roles).map((item) => [item.label, item.href] as const);
   // Tenant branding/presentation is company-level data (identical for every user
   // of the company) and changes only when an admin publishes branding. Cache it
   // briefly per company so it is not re-queried on every page navigation. The
@@ -96,7 +89,7 @@ export async function DashboardShell({
   // independent of presentation, so resolve the two concurrently.
   const [presentation, appSession] = await Promise.all([
     loadPresentation(),
-    area === "portal" ? getAppSession("portal") : Promise.resolve(null),
+    getAppSession(area),
   ]);
   const branding = presentation.branding;
 
@@ -152,15 +145,57 @@ export async function DashboardShell({
       : Promise.resolve(0),
   ]);
 
+  // Unread message count for the Messages nav badge. Buyers see unread replies
+  // from the team; operators see unread buyer messages across the workspace. The
+  // service degrades to 0 on any error, so this never blocks the shell.
+  const messagesUnreadCount =
+    featureFlags.hasDatabase && notificationCompanyId
+      ? area === "portal"
+        ? await getBuyerUnreadCount({ companyId: notificationCompanyId, userId: notificationUserId })
+        : await getTeamUnreadCount({ companyId: notificationCompanyId })
+      : 0;
+
+  // Active broadcast notices for this surface: buyers see buyer/everyone notices,
+  // operators (including the CEO) see staff/everyone notices. Shown as a banner.
+  const announcements = await (area === "portal"
+    ? getActiveBuyerAnnouncements(tenant)
+    : getActiveOperatorAnnouncements(tenant));
+
   const portalUser = portalUserRows[0] ?? null;
   const portalUserName =
     [portalUser?.firstName, portalUser?.lastName].filter(Boolean).join(" ") ||
     portalUser?.email ||
     "Buyer";
 
+  const greetingName =
+    appSession?.firstName?.trim() ||
+    (area === "portal" ? portalUserName.split(" ")[0] : null) ||
+    "there";
+  const greetingSubtitle =
+    area === "portal"
+      ? "Here's your buying journey at a glance."
+      : "Here's what's happening in your workspace today.";
+  const quickActions: QuickAction[] =
+    area === "portal"
+      ? [
+          { label: "Saved homes", href: "/portal/saved", icon: "Heart" },
+          { label: "Inspections", href: "/portal/inspections", icon: "CalendarCheck" },
+          { label: "Payments", href: "/portal/payments", icon: "CreditCard" },
+          { label: "Support", href: "/portal/support", icon: "LifeBuoy" },
+        ]
+      : adminQuickActions(tenant.roles);
+
+  const commandItems = links.map(([label, href]) => ({
+    id: href,
+    label,
+    href,
+    group: area === "portal" ? "Buyer" : "Operator",
+  }));
+
   return (
-    <Container className="tenant-page-enter grid min-w-0 gap-6 py-5 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8 lg:py-0">
+    <Container className="app-dark-scope grid min-w-0 gap-6 py-5 lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8 lg:py-0">
       {tenant.companyId ? <LiveSurfaceSync channel="company" surface={area} /> : null}
+      <CommandPalette commands={commandItems} label={area === "portal" ? "Buyer menu" : "Operator menu"} />
       {/* Mobile/tablet (below lg): sticky top bar + slide-in drawer. Hidden on desktop. */}
       <DashboardMobileNav
         area={area}
@@ -177,7 +212,13 @@ export async function DashboardShell({
       {/* Desktop sidebar: unchanged behavior, now hidden below lg (drawer replaces it). */}
       <aside className="tenant-panel tenant-sidebar-scroll hidden min-w-0 rounded-[var(--radius-xl)] border border-[var(--tenant-nav-border)] bg-[var(--tenant-nav-surface)] p-4 shadow-[var(--tenant-nav-shadow)] lg:block lg:sticky lg:top-0 lg:max-h-screen lg:self-start lg:overflow-y-auto lg:p-5">
         <div className="min-w-0 overflow-hidden rounded-[var(--radius-lg)] border border-[var(--tenant-nav-border)]/60 bg-white/40 p-4">
-          <Logo href={`/${area}`} name={presentation.companyName} tagline={area === "portal" ? "Buyer workspace" : "Company workspace"} logoUrl={branding.logoUrl} />
+          <Logo
+            href={`/${area}`}
+            name={presentation.companyName}
+            tagline={area === "portal" ? "Buyer workspace" : "Company workspace"}
+            logoUrl={branding.logoUrl}
+            showTagline={false}
+          />
           {area === "portal" ? (
             <div className="mt-4 flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--tenant-nav-border)]/60 bg-white/60 px-3 py-3">
               <Avatar name={portalUserName} imageUrl={portalUser?.profileImageUrl} size="md" />
@@ -194,6 +235,10 @@ export async function DashboardShell({
             <span className="admin-chip border-[var(--tenant-nav-border)] bg-white/60 text-[var(--ink-600)]">
               {links.length} views
             </span>
+          </div>
+          <div className="mt-4 flex items-center gap-2">
+            <CommandPaletteTrigger className="flex-1" />
+            <ThemeToggle />
           </div>
         </div>
         <div className="mt-5 grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 lg:mt-6 lg:block lg:space-y-2">
@@ -212,11 +257,23 @@ export async function DashboardShell({
                   {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
                 </span>
               ) : null}
+              {label === "Messages" && messagesUnreadCount > 0 ? (
+                <span className="min-w-5 rounded-full bg-[var(--brand-700)] px-1.5 py-0.5 text-center text-[11px] font-semibold leading-4 text-white">
+                  {messagesUnreadCount > 99 ? "99+" : messagesUnreadCount}
+                </span>
+              ) : null}
             </Link>
           ))}
         </div>
       </aside>
-      <main className="min-w-0 space-y-6 overflow-x-hidden py-0 lg:py-8">
+      <main id="main-content" tabIndex={-1} className="min-w-0 space-y-6 overflow-x-hidden py-0 lg:py-8">
+        <div className="flex flex-col gap-4 pt-1 sm:flex-row sm:items-start sm:justify-between">
+          <DashboardGreeting name={greetingName} subtitle={greetingSubtitle} />
+          <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
+            <LiveClock />
+            <QuickActions actions={quickActions} />
+          </div>
+        </div>
         <div className="border-b border-[var(--line)] pb-5 sm:pb-6">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--ink-400)]">
             {area === "portal" ? "Buyer workspace" : "Company workspace"}
@@ -226,6 +283,7 @@ export async function DashboardShell({
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--ink-500)]">{subtitle}</p>
         </div>
+        <AnnouncementBanner items={announcements} />
         <div className="tenant-content-reveal">{children}</div>
       </main>
     </Container>

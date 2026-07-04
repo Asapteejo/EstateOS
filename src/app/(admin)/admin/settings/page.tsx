@@ -63,7 +63,7 @@ export default async function AdminSettingsPage() {
             Your public site address
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--ink-500)]">
-            Your site is always reachable on your EstateOS subdomain. Add a custom domain to use
+            Your site is always reachable on your default subdomain. Add a custom domain to use
             your own branded address.
           </p>
         </div>
@@ -96,6 +96,9 @@ export default async function AdminSettingsPage() {
           </div>
           <Link href="/admin/settings/branding">
             <Button variant="secondary">Open branding studio</Button>
+          </Link>
+          <Link href="/admin/settings/site-content">
+            <Button variant="outline">Edit site content</Button>
           </Link>
           <Link href="/admin/settings/contracts">
             <Button variant="outline">Open contract settings</Button>
