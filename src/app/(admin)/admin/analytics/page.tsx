@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AdminMetricCard, AdminMetricGrid, AdminPanel } from "@/components/admin/admin-ui";
 import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { requireAdminSession } from "@/lib/auth/guards";
+import { rolesForAdminPath } from "@/lib/auth/admin-sections";
 import {
   formatAnalyticsCurrency,
   getCompanyAnalyticsReport,
@@ -22,7 +23,7 @@ export default async function AdminAnalyticsPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const tenant = await requireAdminSession();
+  const tenant = await requireAdminSession(rolesForAdminPath("/admin/analytics"));
   const resolvedSearchParams = ((await searchParams) ?? {}) as Record<string, string | undefined>;
   const range = parseAnalyticsRange(resolvedSearchParams.range);
   const analytics = await getCompanyAnalyticsReport(tenant, range);

@@ -1,28 +1,81 @@
+import { Mail, MapPin, Phone, type LucideIcon } from "lucide-react";
+
 import { InquiryForm } from "@/components/marketing/inquiry-form";
 import { Container } from "@/components/shared/container";
+import { Reveal } from "@/components/shared/reveal";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { Card } from "@/components/ui/card";
+import { requirePublicTenantContext } from "@/lib/tenancy/context";
+import { getPublicTenantContact } from "@/modules/cms/site-content-service";
 
-export default function ContactPage() {
+export const dynamic = "force-dynamic";
+
+export default async function ContactPage() {
+  const tenant = await requirePublicTenantContext();
+  const contact = await getPublicTenantContact(tenant);
+
+  const methods: { icon: LucideIcon; label: string; value: string; href?: string }[] = [];
+  if (contact.address) {
+    methods.push({ icon: MapPin, label: "Office", value: contact.address });
+  }
+  if (contact.email) {
+    methods.push({ icon: Mail, label: "Email", value: contact.email, href: `mailto:${contact.email}` });
+  }
+  if (contact.phone) {
+    methods.push({
+      icon: Phone,
+      label: "Phone",
+      value: contact.phone,
+      href: `tel:${contact.phone.replace(/[^+\d]/g, "")}`,
+    });
+  }
+
   return (
-    <Container className="grid gap-8 py-16 lg:grid-cols-[1fr_0.9fr]">
-      <div className="space-y-6">
+    <Container className="grid items-start gap-8 py-16 lg:grid-cols-[1fr_0.9fr]">
+      <Reveal className="space-y-6">
         <SectionHeading
           eyebrow="Contact"
           title="Talk to a team that treats the transaction like a product."
           description="Use the inquiry form for purchase intent, partnership conversations, or serious buyer support."
         />
-        <Card className="p-8 text-sm leading-7 text-[var(--ink-600)]">
-          12 Admiralty Way, Lekki Phase 1, Lagos
-          <br />
-          support@acmerealty.dev
-          <br />
-          +234 801 000 1000
+        {methods.length > 0 ? (
+          <Card className="divide-y divide-[var(--line)] p-2">
+            {methods.map((method) => {
+              const Row = (
+                <div className="flex items-center gap-4 p-4">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--brand-100,#dcfce7)] text-[var(--brand-700)]">
+                    <method.icon className="h-5 w-5" aria-hidden />
+                  </span>
+                  <span>
+                    <span className="block text-xs uppercase tracking-[0.16em] text-[var(--ink-500)]">
+                      {method.label}
+                    </span>
+                    <span className="block text-sm font-semibold text-[var(--ink-950)]">
+                      {method.value}
+                    </span>
+                  </span>
+                </div>
+              );
+              return method.href ? (
+                <a
+                  key={method.label}
+                  href={method.href}
+                  className="admin-focus block rounded-2xl transition hover:bg-[var(--sand-50)]"
+                >
+                  {Row}
+                </a>
+              ) : (
+                <div key={method.label}>{Row}</div>
+              );
+            })}
+          </Card>
+        ) : null}
+      </Reveal>
+      <Reveal delay={0.08}>
+        <Card className="p-8">
+          <InquiryForm />
         </Card>
-      </div>
-      <Card className="p-8">
-        <InquiryForm />
-      </Card>
+      </Reveal>
     </Container>
   );
 }

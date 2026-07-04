@@ -111,7 +111,7 @@ function buildEmptySteps(): OnboardingStep[] {
     {
       id: "workspace",
       title: "Create your workspace",
-      description: "Sign up and create your company workspace on EstateOS.",
+      description: "Sign up and create your company workspace.",
       complete: false,
       href: "/app/onboarding",
       cta: "Get started",

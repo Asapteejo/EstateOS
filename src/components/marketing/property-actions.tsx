@@ -129,11 +129,22 @@ export function PropertyActions({
           ))}
         </select>
       ) : null}
-      <Button className="w-full" onClick={reserveProperty} disabled={pendingAction !== null}>
-        {pendingAction === "reserve" ? "Creating reservation..." : "Reserve property"}
+      <Button
+        className="w-full"
+        onClick={reserveProperty}
+        loading={pendingAction === "reserve"}
+        disabled={pendingAction !== null}
+      >
+        {pendingAction === "reserve" ? "Creating reservation…" : "Reserve property"}
       </Button>
-      <Button variant="outline" className="w-full" onClick={saveProperty} disabled={pendingAction !== null}>
-        {pendingAction === "save" ? "Saving..." : "Save property"}
+      <Button
+        variant="outline"
+        className="w-full"
+        onClick={saveProperty}
+        loading={pendingAction === "save"}
+        disabled={pendingAction !== null}
+      >
+        {pendingAction === "save" ? "Saving…" : "Save property"}
       </Button>
     </div>
   );

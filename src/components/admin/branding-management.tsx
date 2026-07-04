@@ -102,7 +102,7 @@ export function BrandingManagement({
 
   return (
     <div className="space-y-6">
-      <Card className="overflow-hidden rounded-[34px] border-[var(--line)] bg-[linear-gradient(135deg,#ffffff,#fbf7ef)]">
+      <Card className="overflow-hidden rounded-[34px] border-[var(--border-subtle,var(--line))] bg-[linear-gradient(135deg,#ffffff,#fbf7ef)] shadow-[var(--shadow-sm)]">
         <div className="border-b border-[var(--line)] px-6 py-6 lg:px-8">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
             <div className="max-w-3xl">
@@ -139,9 +139,9 @@ export function BrandingManagement({
               <StatusPill>Admin and portal stay restrained</StatusPill>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Button onClick={saveDraft} disabled={pending}>Save draft</Button>
-              <Button variant="outline" onClick={() => runAction("reset")} disabled={pending}>Reset draft</Button>
-              <Button variant="secondary" onClick={() => runAction("publish")} disabled={pending || issues.length > 0}>Publish branding</Button>
+              <Button className="whitespace-nowrap" onClick={saveDraft} disabled={pending}>Save draft</Button>
+              <Button className="whitespace-nowrap" variant="outline" onClick={() => runAction("reset")} disabled={pending}>Reset draft</Button>
+              <Button className="whitespace-nowrap" variant="secondary" onClick={() => runAction("publish")} disabled={pending || issues.length > 0}>Publish branding</Button>
             </div>
           </div>
         </div>
@@ -160,7 +160,7 @@ export function BrandingManagement({
                   key={preset.id}
                   type="button"
                   onClick={() => setDraft((current) => applyBrandingPreset(current, preset.id))}
-                  className="rounded-3xl border border-[var(--line)] bg-[var(--sand-100)] p-4 text-left transition hover:border-[var(--brand-700)] hover:bg-white"
+                  className="admin-focus admin-interactive min-w-0 rounded-[var(--radius-lg)] border border-[var(--border-subtle,var(--line))] bg-[var(--sand-100)] p-4 text-left shadow-[var(--shadow-xs)] transition hover:border-[var(--brand-700)] hover:bg-white"
                 >
                   <div className="flex gap-2">
                     {[preset.config.primaryColor, preset.config.secondaryColor, preset.config.accentColor].map((color) => (
@@ -187,7 +187,7 @@ export function BrandingManagement({
                 <ColorField label="Background color" value={draft.backgroundColor} onChange={(value) => setDraft((current) => ({ ...current, backgroundColor: value }))} />
                 <ColorField label="Surface color" value={draft.surfaceColor} onChange={(value) => setDraft((current) => ({ ...current, surfaceColor: value }))} />
                 <Field label="Text mode">
-                  <select className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm" value={draft.textMode} onChange={(event) => setDraft((current) => ({ ...current, textMode: event.target.value as TenantBrandingConfig["textMode"] }))}>
+                  <select className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm" value={draft.textMode} onChange={(event) => setDraft((current) => ({ ...current, textMode: event.target.value as TenantBrandingConfig["textMode"] }))}>
                     <option value="AUTO">Auto</option>
                     <option value="LIGHT">Light</option>
                     <option value="DARK">Dark</option>
@@ -203,7 +203,7 @@ export function BrandingManagement({
             >
               <div className="grid gap-4">
                 <Field label="Background style">
-                  <select className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm" value={draft.backgroundStyle} onChange={(event) => setDraft((current) => ({ ...current, backgroundStyle: event.target.value as TenantBrandingConfig["backgroundStyle"] }))}>
+                  <select className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm" value={draft.backgroundStyle} onChange={(event) => setDraft((current) => ({ ...current, backgroundStyle: event.target.value as TenantBrandingConfig["backgroundStyle"] }))}>
                     <option value="CLEAN_APP_DEFAULT">Clean app default</option>
                     <option value="LIGHT">Light</option>
                     <option value="DARK">Dark</option>
@@ -213,21 +213,21 @@ export function BrandingManagement({
                   </select>
                 </Field>
                 <Field label="Button style">
-                  <select className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm" value={draft.buttonStyle} onChange={(event) => setDraft((current) => ({ ...current, buttonStyle: event.target.value as TenantBrandingConfig["buttonStyle"] }))}>
+                  <select className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm" value={draft.buttonStyle} onChange={(event) => setDraft((current) => ({ ...current, buttonStyle: event.target.value as TenantBrandingConfig["buttonStyle"] }))}>
                     <option value="PILL">Pill</option>
                     <option value="ROUNDED">Rounded</option>
                     <option value="SOFT">Soft</option>
                   </select>
                 </Field>
                 <Field label="Card style">
-                  <select className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm" value={draft.cardStyle} onChange={(event) => setDraft((current) => ({ ...current, cardStyle: event.target.value as TenantBrandingConfig["cardStyle"] }))}>
+                  <select className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm" value={draft.cardStyle} onChange={(event) => setDraft((current) => ({ ...current, cardStyle: event.target.value as TenantBrandingConfig["cardStyle"] }))}>
                     <option value="SOFT">Soft</option>
                     <option value="GLASS">Glass</option>
                     <option value="OUTLINED">Outlined</option>
                   </select>
                 </Field>
                 <Field label="Navigation style">
-                  <select className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm" value={draft.navStyle} onChange={(event) => setDraft((current) => ({ ...current, navStyle: event.target.value as TenantBrandingConfig["navStyle"] }))}>
+                  <select className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm" value={draft.navStyle} onChange={(event) => setDraft((current) => ({ ...current, navStyle: event.target.value as TenantBrandingConfig["navStyle"] }))}>
                     <option value="FLOATING">Floating</option>
                     <option value="SOLID">Solid</option>
                     <option value="MINIMAL">Minimal</option>
@@ -286,15 +286,15 @@ export function BrandingManagement({
           >
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="max-w-2xl text-sm leading-6 text-[var(--ink-500)]">
-                EstateOS samples the selected logo and proposes a safer draft palette. It does not publish automatically and it does not bypass contrast safeguards.
+                The branding studio samples the selected logo and proposes a safer draft palette. It does not publish automatically and it does not bypass contrast safeguards.
               </div>
-              <Button type="button" variant="outline" onClick={generateFromLogo} disabled={pending || !draft.logoUrl}>
+              <Button className="whitespace-nowrap" type="button" variant="outline" onClick={generateFromLogo} disabled={pending || !draft.logoUrl}>
                 Generate from logo
               </Button>
             </div>
 
             {generatedTheme ? (
-              <div className="mt-5 rounded-[28px] border border-[var(--line)] bg-[var(--sand-100)] p-5">
+              <div className="mt-5 rounded-[var(--radius-lg)] border border-[var(--border-subtle,var(--line))] bg-[var(--sand-100)] p-5 shadow-[var(--shadow-xs)]">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--brand-700)]">Suggested draft palette</div>
@@ -308,6 +308,7 @@ export function BrandingManagement({
                 </div>
                 <div className="mt-5 flex flex-wrap gap-3">
                   <Button
+                    className="whitespace-nowrap"
                     type="button"
                     onClick={() => {
                       setDraft(generatedTheme);
@@ -316,7 +317,7 @@ export function BrandingManagement({
                   >
                     Apply to draft
                   </Button>
-                  <Button type="button" variant="outline" onClick={() => setGeneratedTheme(null)}>
+                  <Button className="whitespace-nowrap" type="button" variant="outline" onClick={() => setGeneratedTheme(null)}>
                     Discard
                   </Button>
                 </div>
@@ -326,7 +327,7 @@ export function BrandingManagement({
         </div>
 
         <div className="space-y-6 2xl:sticky 2xl:top-6 2xl:self-start">
-          <Card className="overflow-hidden rounded-[32px] border-[var(--line)] bg-[linear-gradient(180deg,#ffffff,#fbfaf6)]">
+          <Card className="overflow-hidden rounded-[32px] border-[var(--border-subtle,var(--line))] bg-[linear-gradient(180deg,#ffffff,#fbfaf6)] shadow-[var(--shadow-sm)]">
             <div className="border-b border-[var(--line)] px-5 py-5">
               <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                 <div>
@@ -341,13 +342,13 @@ export function BrandingManagement({
                     Representative product surfaces render from the current draft only. Published branding stays untouched until you approve it.
                   </div>
                 </div>
-                <div className="inline-flex rounded-full border border-[var(--line)] bg-[var(--sand-100)] p-1">
+                <div className="inline-flex rounded-full border border-[var(--border-subtle,var(--line))] bg-[var(--sand-100)] p-1">
                   {(["desktop", "mobile"] as const).map((mode) => (
                     <button
                       key={mode}
                       type="button"
                       onClick={() => setPreviewMode(mode)}
-                      className={`rounded-full px-4 py-2 text-sm font-medium transition ${previewMode === mode ? "bg-white text-[var(--ink-950)] shadow-sm" : "text-[var(--ink-600)]"}`}
+                      className={`rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition ${previewMode === mode ? "bg-white text-[var(--ink-950)] shadow-sm" : "text-[var(--ink-600)]"}`}
                     >
                       {mode === "desktop" ? "Desktop" : "Mobile"}
                     </button>
@@ -570,7 +571,7 @@ function StudioSection({
   children: React.ReactNode;
 }) {
   return (
-    <Card className="rounded-[32px] border-[var(--line)] bg-white p-6 lg:p-7">
+    <Card className="rounded-[32px] border-[var(--border-subtle,var(--line))] bg-white p-6 shadow-[var(--shadow-sm)] lg:p-7">
       <div className="mb-5">
         <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--brand-700)]">{eyebrow}</div>
         <h3 className="mt-3 text-2xl font-semibold text-[var(--ink-950)]">{title}</h3>
@@ -600,16 +601,16 @@ function StudioStat({
           : "bg-slate-100 text-slate-700";
 
   return (
-    <div className="rounded-3xl border border-[var(--line)] bg-white p-4">
+    <div className="rounded-[var(--radius-lg)] border border-[var(--border-subtle,var(--line))] bg-white p-4 shadow-[var(--shadow-xs)]">
       <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--ink-500)]">{label}</div>
-      <div className={`mt-3 inline-flex rounded-full px-3 py-1 text-sm font-semibold ${toneClass}`}>{value}</div>
+      <div className={`numeric mt-3 inline-flex max-w-full rounded-full px-3 py-1 text-sm font-semibold whitespace-nowrap ${toneClass}`}>{value}</div>
     </div>
   );
 }
 
 function StatusPill({ children }: { children: React.ReactNode }) {
   return (
-    <span className="rounded-full border border-[var(--line)] bg-white px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-[var(--ink-600)]">
+    <span className="inline-flex max-w-full items-center rounded-full border border-[var(--border-subtle,var(--line))] bg-white px-4 py-2 text-xs font-medium uppercase tracking-[0.16em] text-[var(--ink-600)] whitespace-nowrap">
       {children}
     </span>
   );
@@ -625,9 +626,9 @@ function PreviewStat({
   tone: "brand" | "neutral";
 }) {
   return (
-    <div className="rounded-3xl border border-[var(--line)] bg-white px-4 py-4">
+    <div className="rounded-[var(--radius-lg)] border border-[var(--border-subtle,var(--line))] bg-white px-4 py-4 shadow-[var(--shadow-xs)]">
       <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--ink-500)]">{label}</div>
-      <div className={`mt-2 text-sm font-semibold ${tone === "brand" ? "text-[var(--brand-700)]" : "text-[var(--ink-900)]"}`}>{value}</div>
+      <div className={`numeric mt-2 text-sm font-semibold ${tone === "brand" ? "text-[var(--brand-700)]" : "text-[var(--ink-900)]"}`}>{value}</div>
     </div>
   );
 }
@@ -646,7 +647,7 @@ function PreviewPanel({
   children: React.ReactNode;
 }) {
   return (
-    <Card className="overflow-hidden rounded-[32px] border-[var(--line)] bg-white">
+    <Card className="overflow-hidden rounded-[32px] border-[var(--border-subtle,var(--line))] bg-white shadow-[var(--shadow-sm)]">
       <div className="border-b border-[var(--line)] bg-[linear-gradient(180deg,#fff,#fcfaf4)] px-6 py-5">
         <div className="flex flex-wrap items-center gap-2">
           <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[var(--brand-700)]">{title}</div>
@@ -657,7 +658,7 @@ function PreviewPanel({
         <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--ink-500)]">{description}</p>
       </div>
       <div className="p-4">
-        <div style={theme} className="rounded-[32px] border border-[var(--line)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
+        <div style={theme} className="rounded-[32px] border border-[var(--border-subtle,var(--line))] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
           {children}
         </div>
       </div>
@@ -678,9 +679,9 @@ function ColorField({
 
   return (
     <Field label={label}>
-      <div className="flex items-center gap-3 rounded-2xl border border-[var(--line)] bg-white px-3 py-2">
+      <div className="flex min-w-0 items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-3 py-2 focus-within:border-[var(--brand-500)] focus-within:ring-2 focus-within:ring-[var(--brand-500)]">
         <input type="color" className="h-8 w-10 rounded-lg border-0 bg-transparent p-0" value={pickerValue} onChange={(event) => onChange(event.target.value.toUpperCase())} />
-        <input className="h-9 flex-1 bg-transparent text-sm outline-none" value={value} onChange={(event) => onChange(event.target.value.toUpperCase())} />
+        <input className="numeric h-9 min-w-0 flex-1 bg-transparent text-sm outline-none" value={value} onChange={(event) => onChange(event.target.value.toUpperCase())} />
       </div>
     </Field>
   );

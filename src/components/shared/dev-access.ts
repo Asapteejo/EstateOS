@@ -28,6 +28,16 @@ export const DEV_ACCESS_PRESETS = [
     href: DEV_ACCESS_ROUTES.admin,
   },
   {
+    label: "Accountant",
+    role: "finance",
+    href: DEV_ACCESS_ROUTES.admin,
+  },
+  {
+    label: "Front Desk",
+    role: "frontdesk",
+    href: DEV_ACCESS_ROUTES.admin,
+  },
+  {
     label: "Superadmin",
     role: "superadmin",
     href: DEV_ACCESS_ROUTES.superadmin,

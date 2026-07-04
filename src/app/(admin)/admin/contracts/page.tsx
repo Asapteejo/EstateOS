@@ -1,4 +1,5 @@
 import { requireAdminSession } from "@/lib/auth/guards";
+import { rolesForAdminPath } from "@/lib/auth/admin-sections";
 import { featureFlags } from "@/lib/env";
 import { formatDate } from "@/lib/utils";
 import { AdminMetricCard, AdminMetricGrid, AdminToolbar } from "@/components/admin/admin-ui";
@@ -180,7 +181,7 @@ function GeneratedContractRowView({ row }: { row: GeneratedContractRow }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function AdminContractsPage() {
-  const tenant = await requireAdminSession();
+  const tenant = await requireAdminSession(rolesForAdminPath("/admin/contracts"));
 
   const [contracts, generatedContracts, unlinked, contractSettings] = featureFlags.hasDatabase
     ? await Promise.all([

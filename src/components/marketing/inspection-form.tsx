@@ -4,6 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
 export function InspectionForm({ propertyId }: { propertyId: string }) {
@@ -38,10 +39,36 @@ export function InspectionForm({ propertyId }: { propertyId: string }) {
 
   return (
     <form action={handleSubmit} className="space-y-4">
-      <Input name="fullName" placeholder="Full name" required />
-      <Input name="email" type="email" placeholder="Email address" required />
-      <Input name="phone" placeholder="Phone number" required />
-      <Input name="scheduledFor" type="datetime-local" required />
+      <Field label="Full name" required>
+        <Input name="fullName" autoComplete="name" placeholder="Jane Doe" required />
+      </Field>
+
+      <Field label="Email address" required>
+        <Input
+          name="email"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          placeholder="jane@example.com"
+          required
+        />
+      </Field>
+
+      <Field label="Phone number" required>
+        <Input
+          name="phone"
+          type="tel"
+          autoComplete="tel"
+          inputMode="tel"
+          placeholder="+234 800 000 0000"
+          required
+        />
+      </Field>
+
+      <Field label="Preferred date & time" required hint="Pick a date and time that works for you.">
+        <Input name="scheduledFor" type="datetime-local" required />
+      </Field>
+
       <Button variant="outline" className="w-full" disabled={isPending}>
         {isPending ? "Booking..." : "Book inspection"}
       </Button>

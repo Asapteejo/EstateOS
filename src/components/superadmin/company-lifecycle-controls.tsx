@@ -88,7 +88,7 @@ export function CompanyLifecycleControls({
             <textarea
               value={reason}
               onChange={(event) => setReason(event.target.value)}
-              className="mt-2 min-h-[96px] w-full rounded-2xl border border-[var(--line)] px-4 py-3 text-sm outline-none transition focus:border-[var(--brand-500)]"
+              className="admin-focus mt-2 min-h-[96px] w-full rounded-2xl border border-[var(--line)] px-4 py-3 text-sm outline-none transition focus:border-[var(--brand-500)]"
               placeholder={
                 nextStatus === "SUSPENDED"
                   ? "Optional internal reason for the suspension"

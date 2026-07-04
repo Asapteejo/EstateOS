@@ -7,7 +7,7 @@
   --brand-700: #0e5b49;
   --brand-800: #0a4638;
   --brand-100: #e7f2ee;
-  --ink-400: #94a3b8;
+  --ink-400: #64748b;
   --ink-500: #6b7280;
   --ink-600: #475569;
   --ink-700: #334155;
@@ -18,6 +18,22 @@
   --sand-200: #efe4d3;
   --line: rgba(15, 23, 42, 0.08);
   --line-strong: rgba(15, 23, 42, 0.12);
+  /* Surface + status tokens used by dashboard cards/chips (theme-aware). */
+  --surface-1: #ffffff;
+  --brand-50: #ecfdf5;
+  --brand-300: #5eead4;
+  --brand-600: #12977a;
+  /* Accessible brand accent for TEXT/icons. Dark green on light surfaces; a
+     dedicated token so dark mode can lighten it without affecting --brand-700,
+     which must stay dark enough for white button text. */
+  --brand-ink: var(--brand-700);
+  --amber-50: #fffbeb;
+  --amber-700: #b45309;
+  --danger-700: #b91c1c;
+  --success-500: #16a34a;
+  --success-600: #16a34a;
+  --success-700: #15803d;
+  --ink-300: #cbd5e1;
   --success-50: #effaf4;
   --success-200: #b7e5c8;
   --danger-50: #fff1f1;
@@ -37,10 +53,17 @@
   --radius-md: 1rem;
   --radius-lg: 1.25rem;
   --radius-xl: 1.5rem;
+  --radius-2xl: 1.75rem;
   --transition-fast: 160ms ease;
-  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
+  /* Layered elevation scale — softer, deeper, and more modern. Two stacked
+     shadows per tier give surfaces genuine depth instead of a flat drop. */
+  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-md: 0 6px 18px rgba(16, 24, 40, 0.09), 0 2px 6px rgba(16, 24, 40, 0.05);
+  --shadow-lg: 0 14px 36px rgba(16, 24, 40, 0.13), 0 4px 12px rgba(16, 24, 40, 0.07);
+  --shadow-xl: 0 28px 64px rgba(16, 24, 40, 0.18), 0 10px 24px rgba(16, 24, 40, 0.09);
+  /* Brand-tinted glow for primary actions/accents. */
+  --shadow-brand: 0 8px 24px rgba(16, 122, 99, 0.24);
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out: cubic-bezier(0.2, 0, 0, 1);
   --duration-fast: 120ms;
@@ -79,6 +102,17 @@ body {
   line-height: 1.55;
 }
 
+/* Premium type refinement: gently tighten headings and balance line wrapping for
+   a more modern, editorial feel. Explicit Tailwind tracking utilities (tracking-*)
+   still override this where a heading sets its own value intentionally. */
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: -0.014em;
+  text-wrap: balance;
+}
+
 a {
   text-decoration: none;
 }
@@ -87,12 +121,130 @@ a {
   background: rgba(28, 123, 97, 0.18);
 }
 
+/* ---- Premium card motion & realtime cues ------------------------------- */
+@keyframes card-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes live-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  75%,
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+/* Staggered entrance for card grids. Pair with inline animation-delay. */
+.card-rise {
+  animation: card-rise 0.5s var(--ease-out) both;
+}
+
+/* A premium, tactile metric/stat surface: crisp elevation, a hairline gradient
+   accent, and a smooth lift on hover. Realtime dashboards feel alive. */
+.premium-card {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform var(--duration) var(--ease-standard),
+    box-shadow var(--duration) var(--ease-standard),
+    border-color var(--duration) var(--ease-standard);
+}
+
+.premium-card::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--brand-500), var(--brand-300));
+  opacity: 0;
+  transition: opacity var(--duration) var(--ease-standard);
+}
+
+.premium-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--brand-300);
+}
+
+.premium-card:hover::after {
+  opacity: 0.9;
+}
+
+/* Small pulsing dot that signals a live, auto-refreshing surface. */
+.live-dot {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  height: 0.5rem;
+  width: 0.5rem;
+}
+
+.live-dot::before {
+  content: "";
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  border-radius: 999px;
+  background: var(--success-500, #16a34a);
+  animation: live-ping 1.8s var(--ease-out) infinite;
+}
+
+.live-dot::after {
+  content: "";
+  position: relative;
+  height: 100%;
+  width: 100%;
+  border-radius: 999px;
+  background: var(--success-600, #15803d);
+}
+
+/* A premium list-row treatment for card-style data rows (payment history,
+   installments, receipts, timeline milestones). Subtle lift + brand accent on
+   hover so lists feel as tactile as the tables. Theme-aware via tokens. */
+.premium-row {
+  border: 1px solid var(--line);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.premium-row:hover {
+  border-color: var(--brand-300);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-rise {
+    animation: none;
+  }
+  .premium-card:hover,
+  .premium-row:hover {
+    transform: none;
+  }
+  .live-dot::before {
+    animation: none;
+  }
+}
+
 @layer components {
   .admin-surface {
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
     background: white;
-    box-shadow: none;
+    box-shadow: var(--shadow-xs);
   }
 
   .admin-surface-muted {
@@ -107,6 +259,16 @@ a {
     border-radius: var(--radius-lg);
     background: white;
     box-shadow: none;
+  }
+
+  /* Frosted, elevated surface for headers, sticky bars, and overlays. Uses the
+     theme-aware --surface token so it flips correctly in dark mode. */
+  .glass-surface {
+    background: color-mix(in srgb, var(--surface, #ffffff) 82%, transparent);
+    backdrop-filter: saturate(140%) blur(14px);
+    -webkit-backdrop-filter: saturate(140%) blur(14px);
+    border: 1px solid var(--line-strong);
+    box-shadow: var(--shadow-lg);
   }
 
   .admin-chip {
@@ -134,13 +296,105 @@ a {
     transform: translateY(-1px);
   }
 
+  .admin-interactive:active {
+    transform: translateY(0) scale(0.99);
+  }
+
+  /* Overlay/drawer/dropdown mount motion. Mount-only (enter); exit stays
+     instant since the panels unmount on close. Neutralized by the global
+     prefers-reduced-motion reset below. */
+  .motion-overlay {
+    animation: overlay-in var(--duration) var(--ease-out) both;
+  }
+
+  .motion-drawer-left {
+    animation: drawer-in-left var(--duration-slow) var(--ease-out) both;
+  }
+
+  .motion-dropdown {
+    transform-origin: top right;
+    animation: dropdown-in var(--duration) var(--ease-out) both;
+  }
+
+  .motion-panel {
+    animation: panel-in var(--duration-slow) var(--ease-out) both;
+  }
+
+  /* Opt-in entrance stagger for grids/lists that render once (e.g. metric
+     cards). Total stagger is capped so long collections never drag, and the
+     whole thing is neutralized by the reduced-motion reset below. */
+  .stagger-children > * {
+    animation: panel-in var(--duration-slow) var(--ease-out) both;
+  }
+
+  .stagger-children > *:nth-child(2) {
+    animation-delay: 40ms;
+  }
+
+  .stagger-children > *:nth-child(3) {
+    animation-delay: 80ms;
+  }
+
+  .stagger-children > *:nth-child(4) {
+    animation-delay: 120ms;
+  }
+
+  .stagger-children > *:nth-child(5) {
+    animation-delay: 160ms;
+  }
+
+  .stagger-children > *:nth-child(n + 6) {
+    animation-delay: 200ms;
+  }
+
+  /* Animated underline for top-nav links: a hairline that wipes in from the
+     left on hover/focus. Transform-only, so no layout shift. */
+  .nav-underline {
+    position: relative;
+  }
+
+  .nav-underline::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -3px;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+    opacity: 0.85;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--duration) var(--ease-out);
+  }
+
+  .nav-underline:hover::after,
+  .nav-underline:focus-visible::after {
+    transform: scaleX(1);
+  }
+
+  /* Footer link: gentle color shift + slide on hover/focus. */
+  .footer-link {
+    transition:
+      color var(--duration-fast) var(--ease-standard),
+      transform var(--duration-fast) var(--ease-standard);
+  }
+
+  .footer-link:hover,
+  .footer-link:focus-visible {
+    color: var(--ink-950);
+    transform: translateX(3px);
+  }
+
   .admin-focus {
     outline: none;
   }
 
   .admin-focus:focus-visible {
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-500) 18%, white);
-    border-color: color-mix(in srgb, var(--brand-500) 26%, var(--line));
+    box-shadow:
+      0 0 0 2px #fff,
+      0 0 0 4px var(--brand-500);
+    border-color: var(--brand-500);
   }
 
   .text-eyebrow {
@@ -156,9 +410,10 @@ a {
   .text-title,
   .text-section {
     font-family: var(--font-serif-web), "Baskerville Old Face", "Palatino Linotype", "Book Antiqua", serif;
-    letter-spacing: 0;
+    letter-spacing: -0.015em;
     line-height: 1.05;
     color: var(--text-primary);
+    text-wrap: balance;
   }
 
   .text-display {
@@ -195,7 +450,7 @@ a {
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
     background: white;
-    box-shadow: none;
+    box-shadow: var(--shadow-sm);
   }
 
   .admin-table {
@@ -211,9 +466,17 @@ a {
     color: var(--ink-500);
   }
 
+  .admin-table thead th {
+    border-bottom: 1px solid var(--line-strong);
+  }
+
   .admin-table th {
-    padding: 0.875rem 1.25rem;
-    font-weight: 500;
+    padding: 0.8125rem 1.25rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
   }
 
   .admin-table td {
@@ -227,27 +490,44 @@ a {
   }
 
   .admin-table tbody tr {
-    transition: background-color var(--transition-fast);
+    transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
   }
 
+  /* Brand-tinted, theme-aware row hover (--brand-50 flips correctly in dark
+     mode), plus an inset accent bar so the active row reads at a glance. */
   .admin-table tbody tr:hover {
-    background: color-mix(in srgb, var(--sand-50) 72%, white);
+    background: var(--brand-50);
+    box-shadow: inset 3px 0 0 0 var(--brand-500);
   }
 
-  .admin-skeleton {
+  .admin-skeleton,
+  .skeleton {
     position: relative;
     overflow: hidden;
     border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--sand-100) 72%, white);
   }
 
-  .admin-skeleton::after {
+  .admin-skeleton::after,
+  .skeleton::after {
     content: "";
     position: absolute;
     inset: 0;
     transform: translateX(-100%);
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent);
     animation: admin-shimmer 1.4s infinite;
+  }
+
+  /* Functional loading spinner. Unlike decorative motion, it keeps spinning
+     under reduced-motion (see the override in the media query) because a frozen
+     spinner reads as "broken" rather than "loading". */
+  .spinner {
+    animation: spinner-rotate 0.7s linear infinite;
+  }
+
+  /* Indeterminate progress sweep for when total work is unknown. */
+  .progress-indeterminate {
+    animation: progress-slide 1.1s var(--ease-standard) infinite;
   }
 
   .tenant-theme-shell {
@@ -372,6 +652,304 @@ a {
   }
 }
 
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes drawer-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes dropdown-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes progress-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(400%);
+  }
+}
+
+/* Smooth in-page scrolling for anchor jumps. Automatically neutralized by the
+   reduced-motion override below (which forces scroll-behavior: auto). */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ----------------------------------------------------------------------------
+   Dark mode — operator dashboards only (opt-in, default off).
+
+   `theme-dark` is toggled on <html> and persisted in localStorage; the visual
+   change is gated behind `.app-dark-scope`, which is present only on the
+   admin / portal / superadmin shells. Public + tenant-branded sites never
+   carry that class, so they are completely unaffected. Per the skill's dark
+   rules: layered greys (no pure black), hairline borders, high-contrast text,
+   and `color-scheme: dark`.
+---------------------------------------------------------------------------- */
+html.theme-dark body:has(.app-dark-scope) {
+  background: #0e1219 !important;
+}
+
+/* Darken the tenant app shell. `!important` + the `background` shorthand are
+   needed to override the tenant's inline background gradient (set via the
+   theme style object), which a plain background-color cannot replace. */
+html.theme-dark [data-tenant-surface="app"] {
+  background: #0e1219 !important;
+}
+
+/* Dark design tokens for the dashboard subtree. Placed on a descendant of the
+   theme shell so they win over the shell's inline tenant tokens. */
+html.theme-dark .app-dark-scope {
+  color-scheme: dark;
+  color: var(--text-primary);
+
+  --ink-950: #f3f6fc;
+  --ink-900: #e8edf6;
+  --ink-700: #ccd4e3;
+  --ink-600: #b1bccd;
+  --ink-500: #96a1b4;
+  --ink-400: #828ea3;
+  --sand-50: #171c26;
+  --sand-100: #1f2632;
+  --sand-200: #2a3340;
+  --line: rgba(255, 255, 255, 0.10);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --surface: #171c26;
+  --surface-muted: #11161e;
+  --border-subtle: rgba(255, 255, 255, 0.12);
+  --text-primary: #f3f6fc;
+  --text-secondary: #b1bccd;
+  --text-tertiary: #96a1b4;
+  --brand-100: #12362c;
+  /* Semantic status tints — dark, translucent versions so tone-colored cards
+     and banners stay legible (light text on a dark tint, not a pastel block). */
+  --success-50: rgba(34, 197, 94, 0.14);
+  --success-200: rgba(34, 197, 94, 0.32);
+  --danger-50: rgba(244, 63, 94, 0.14);
+  --danger-200: rgba(244, 63, 94, 0.32);
+  --warning-50: rgba(245, 158, 11, 0.14);
+  --warning-200: rgba(245, 158, 11, 0.32);
+
+  /* Tenant app-surface tokens (cards, nav, panels read these). */
+  --tenant-card: #1b2230;
+  --tenant-surface: #171c26;
+  --tenant-background: #0e1219;
+  --tenant-nav-surface: #171c26;
+  --tenant-nav-border: rgba(255, 255, 255, 0.10);
+  --tenant-nav-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+  --tenant-foreground: #f3f6fc;
+  --tenant-muted: #96a1b4;
+  --surface-1: var(--surface);
+  --brand-50: rgba(52, 211, 153, 0.14);
+  --brand-300: #34d399;
+  --brand-ink: #5eead4;
+  --amber-50: rgba(245, 158, 11, 0.16);
+  --amber-700: #fbbf24;
+  --success-500: #34d399;
+  --success-600: #34d399;
+  --success-700: #34d399;
+  --danger-700: #f87171;
+  --ink-300: #6b7688;
+}
+
+/* Remap hardcoded white surfaces inside the dashboard subtree. Translucent
+   white overlays (bg-white/40 etc.) and white-on-dark text are intentionally
+   left alone — they read correctly on dark. */
+html.theme-dark .app-dark-scope .admin-surface,
+html.theme-dark .app-dark-scope .admin-empty-surface,
+html.theme-dark .app-dark-scope .admin-table-shell {
+  background: var(--surface);
+}
+
+html.theme-dark .app-dark-scope .admin-surface-muted {
+  background: var(--surface-muted);
+}
+
+html.theme-dark .app-dark-scope .bg-white {
+  background-color: var(--surface);
+}
+
+/* Remap hardcoded Tailwind status colors that would otherwise stay light (and
+   illegible) in dark mode. Pastel status backgrounds become dark translucent
+   tints; dark status text becomes a light, accessible variant; dark generic
+   text becomes the light foreground. Keeps the meaning, restores contrast. */
+html.theme-dark .app-dark-scope :is(.bg-emerald-50, .bg-green-50, .bg-emerald-100, .bg-green-100) {
+  background-color: rgba(16, 185, 129, 0.15);
+}
+html.theme-dark .app-dark-scope :is(.bg-amber-50, .bg-amber-100, .bg-yellow-50, .bg-yellow-100) {
+  background-color: rgba(245, 158, 11, 0.15);
+}
+html.theme-dark .app-dark-scope :is(.bg-red-50, .bg-red-100, .bg-rose-50, .bg-rose-100) {
+  background-color: rgba(244, 63, 94, 0.15);
+}
+html.theme-dark .app-dark-scope :is(.bg-sky-50, .bg-blue-50, .bg-indigo-50) {
+  background-color: rgba(56, 189, 248, 0.15);
+}
+html.theme-dark .app-dark-scope :is(.text-emerald-600, .text-emerald-700, .text-emerald-800, .text-green-700, .text-green-800) {
+  color: #6ee7b7;
+}
+html.theme-dark .app-dark-scope :is(.text-amber-600, .text-amber-700, .text-amber-800, .text-yellow-700, .text-yellow-800) {
+  color: #fcd34d;
+}
+html.theme-dark .app-dark-scope :is(.text-red-600, .text-red-700, .text-rose-600, .text-rose-700) {
+  color: #fca5a5;
+}
+html.theme-dark .app-dark-scope :is(.text-sky-700, .text-blue-700, .text-indigo-700) {
+  color: #7dd3fc;
+}
+html.theme-dark .app-dark-scope :is(.text-slate-900, .text-slate-800, .text-gray-900, .text-gray-800, .text-black) {
+  color: var(--ink-950);
+}
+html.theme-dark .app-dark-scope :is(.border-emerald-200, .border-green-200) {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+html.theme-dark .app-dark-scope :is(.border-amber-200, .border-yellow-200) {
+  border-color: rgba(245, 158, 11, 0.3);
+}
+html.theme-dark .app-dark-scope :is(.border-red-200, .border-rose-200) {
+  border-color: rgba(244, 63, 94, 0.3);
+}
+
+/* Translucent white surfaces (bg-white/40..95) — filter bars, sidebar chips,
+   the search trigger, nav buttons — read as bright patches in dark mode. Remap
+   the surface-weight ones to a subtle elevation. The faint overlays
+   (bg-white/5..15) are intentionally left alone; they read fine on dark. */
+html.theme-dark .app-dark-scope :is(
+  .bg-white\/40, .bg-white\/45, .bg-white\/50, .bg-white\/55, .bg-white\/60,
+  .bg-white\/65, .bg-white\/70, .bg-white\/75, .bg-white\/80, .bg-white\/85,
+  .bg-white\/90, .bg-white\/95
+) {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* Loading skeletons: a dark base with a subtle light sweep, not a bright white
+   block. Route loading.tsx fallbacks carry `app-dark-scope` so they match. */
+html.theme-dark .app-dark-scope :is(.admin-skeleton, .skeleton) {
+  background: rgba(255, 255, 255, 0.07);
+}
+html.theme-dark .app-dark-scope :is(.admin-skeleton, .skeleton)::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+}
+
+/* Extended status palette incl. opacity variants. The deal-board stage columns
+   use pastel surfaces like bg-orange-50/80, bg-sky-50/80, bg-amber-50/80 with
+   matching borders/text — these must become dark tints + light status text. */
+html.theme-dark .app-dark-scope :is(
+  .bg-emerald-50\/70, .bg-emerald-50\/80, .bg-emerald-50\/90,
+  .bg-green-50\/70, .bg-green-50\/80, .bg-teal-50, .bg-teal-50\/80, .bg-teal-100
+) {
+  background-color: rgba(16, 185, 129, 0.15);
+}
+html.theme-dark .app-dark-scope :is(
+  .bg-amber-50\/70, .bg-amber-50\/80, .bg-amber-50\/90,
+  .bg-orange-50, .bg-orange-50\/70, .bg-orange-50\/80, .bg-orange-50\/90, .bg-orange-100,
+  .bg-yellow-50\/80
+) {
+  background-color: rgba(245, 158, 11, 0.15);
+}
+html.theme-dark .app-dark-scope :is(
+  .bg-rose-50\/70, .bg-rose-50\/80, .bg-rose-50\/90, .bg-red-50\/80
+) {
+  background-color: rgba(244, 63, 94, 0.15);
+}
+html.theme-dark .app-dark-scope :is(
+  .bg-sky-50\/70, .bg-sky-50\/80, .bg-sky-50\/90, .bg-sky-100,
+  .bg-blue-50\/80, .bg-indigo-50\/80, .bg-cyan-50, .bg-cyan-50\/80
+) {
+  background-color: rgba(56, 189, 248, 0.15);
+}
+html.theme-dark .app-dark-scope :is(
+  .bg-slate-50, .bg-slate-50\/80, .bg-slate-100, .bg-gray-50, .bg-gray-50\/80, .bg-gray-100
+) {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+html.theme-dark .app-dark-scope :is(.text-orange-600, .text-orange-700, .text-orange-800, .text-teal-700) {
+  color: #fcd34d;
+}
+html.theme-dark .app-dark-scope :is(.text-sky-600, .text-sky-800, .text-cyan-700) {
+  color: #7dd3fc;
+}
+html.theme-dark .app-dark-scope :is(.border-orange-200, .border-yellow-200) {
+  border-color: rgba(245, 158, 11, 0.3);
+}
+html.theme-dark .app-dark-scope :is(.border-sky-200, .border-blue-200, .border-indigo-200, .border-cyan-200) {
+  border-color: rgba(56, 189, 248, 0.3);
+}
+html.theme-dark .app-dark-scope :is(.border-teal-200) {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* Darkest status text shades (-900/-950) — used in warning/alert headings like
+   the KYC "complete your profile" card — must also flip to a light, legible
+   variant, not stay near-black on a dark tinted surface. */
+html.theme-dark .app-dark-scope :is(.text-amber-900, .text-amber-950, .text-orange-900, .text-orange-950, .text-yellow-900) {
+  color: #fcd34d;
+}
+html.theme-dark .app-dark-scope :is(.text-red-900, .text-red-950, .text-rose-900, .text-rose-950) {
+  color: #fca5a5;
+}
+html.theme-dark .app-dark-scope :is(.text-emerald-900, .text-emerald-950, .text-green-900, .text-teal-900) {
+  color: #6ee7b7;
+}
+html.theme-dark .app-dark-scope :is(.text-sky-900, .text-blue-900, .text-indigo-900) {
+  color: #7dd3fc;
+}
+
+/* `bg-[var(--ink-950)]` is a near-black fill paired with white text (the active
+   nav item, active period tabs, primary dark buttons). In dark mode --ink-950
+   flips light and hides the white text, so remap it to a neutral elevated
+   surface where white text stays legible. */
+html.theme-dark .app-dark-scope .bg-\[var\(--ink-950\)\] {
+  background-color: rgba(255, 255, 255, 0.14);
+}
+
+/* Brand accent used as TEXT/icon color relies on --brand-700, which has no dark
+   override (it must stay dark enough for white button text). On dark surfaces
+   dark-green brand text drops below the 4.5:1 contrast minimum, so remap the
+   text utility to the accessible --brand-ink token inside the dark app scope. */
+html.theme-dark .app-dark-scope .text-\[var\(--brand-700\)\] {
+  color: var(--brand-ink);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -384,6 +962,14 @@ a {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* The loading spinner is functional feedback, not decoration, so it must keep
+     animating even when the user prefers reduced motion. Higher specificity +
+     !important overrides the blanket reset above. */
+  .spinner {
+    animation-duration: 0.9s !important;
+    animation-iteration-count: infinite !important;
   }
 }
 

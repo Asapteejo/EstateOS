@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { PrintButton } from "@/components/shared/print-button";
+import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { compareAttentionPriority, getAttentionTone, workflowVocabulary } from "@/modules/admin/workflow-vocabulary";
 import type { AdminClientProfile } from "@/modules/clients/queries";
 
@@ -127,7 +128,15 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
               </div>
             </div>
             <div className="break-words">{client.email}</div>
-            {client.phone ? <div className="numeric">{client.phone}</div> : null}
+            {client.phone ? (
+              <div className="flex items-center gap-3">
+                <span className="numeric">{client.phone}</span>
+                <WhatsAppButton
+                  phone={client.phone}
+                  message={`Hi ${client.name}, this is your team at the office reaching out.`}
+                />
+              </div>
+            ) : null}
             <div>KYC: <strong className="text-[var(--ink-900)]">{client.kycStatus}</strong></div>
             <div>Assigned marketer: <strong className="text-[var(--ink-900)]">{client.assignedMarketer ?? "Unassigned"}</strong></div>
             <div>Location: <strong className="text-[var(--ink-900)]">{[client.city, client.state].filter(Boolean).join(", ") || "Not completed"}</strong></div>

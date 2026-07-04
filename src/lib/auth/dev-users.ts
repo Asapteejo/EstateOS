@@ -29,6 +29,20 @@ const devUsers: Record<
     lastName: "Adewale",
     roles: ["ADMIN"],
   },
+  finance: {
+    clerkUserId: "demo-finance",
+    email: "accountant@acmerealty.dev",
+    firstName: "Ngozi",
+    lastName: "Eze",
+    roles: ["FINANCE"],
+  },
+  frontdesk: {
+    clerkUserId: "demo-frontdesk",
+    email: "frontdesk@acmerealty.dev",
+    firstName: "Bisi",
+    lastName: "Lawal",
+    roles: ["STAFF"],
+  },
   superadmin: {
     clerkUserId: "demo-superadmin",
     email: "owner@estateos.dev",

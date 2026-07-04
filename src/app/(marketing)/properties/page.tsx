@@ -1,8 +1,11 @@
+import { SlidersHorizontal } from "lucide-react";
+
 import { PropertyCard } from "@/components/marketing/property-card";
 import { TopMarketersSection } from "@/components/marketing/top-marketers-section";
 import { PropertyLocationSearch } from "@/components/marketing/property-location-search";
 import { Container } from "@/components/shared/container";
 import { EmptyState } from "@/components/shared/empty-state";
+import { Reveal } from "@/components/shared/reveal";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,13 +52,20 @@ export default async function PropertiesPage({
 
   return (
     <Container className="space-y-10 py-16">
-      <SectionHeading
-        eyebrow="Listings"
-        title="Searchable inventory designed for conversion and trust."
-        description="Filter by city, property type, bedrooms, pricing, status, and payment-plan fit. URL query params are the source of truth so search is shareable, tenant-safe, and limited to verified or clearly stale inventory."
-      />
+      <Reveal>
+        <SectionHeading
+          eyebrow="Listings"
+          title="Searchable inventory designed for conversion and trust."
+          description="Filter by city, property type, bedrooms, pricing, status, and payment-plan fit. URL query params are the source of truth so search is shareable, tenant-safe, and limited to verified or clearly stale inventory."
+        />
+      </Reveal>
       <form className="space-y-4" method="GET">
-        <Card className="grid gap-4 p-5 lg:grid-cols-4">
+        <Card className="space-y-4 p-5">
+          <div className="flex items-center gap-2 text-sm font-semibold text-[var(--ink-700)]">
+            <SlidersHorizontal className="h-4 w-4 text-[var(--brand-700)]" aria-hidden />
+            Refine listings
+          </div>
+          <div className="grid gap-4 lg:grid-cols-4">
           <PropertyLocationSearch
             defaultLocation={filters.location}
             defaultLatitude={filters.latitude}
@@ -97,6 +107,7 @@ export default async function PropertiesPage({
             <input type="checkbox" name="featured" value="true" defaultChecked={Boolean(filters.featured)} />
             Featured only
           </label>
+          </div>
         </Card>
         <div className="flex flex-wrap gap-3">
           <Button type="submit">Apply filters</Button>
@@ -105,15 +116,20 @@ export default async function PropertiesPage({
           </Link>
         </div>
       </form>
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-sm font-semibold text-[var(--ink-950)]">
+          {properties.total} listing{properties.total === 1 ? "" : "s"}
+        </span>
         {(activeFilters.length > 0 ? activeFilters : ["Verified and recently updated public inventory"]).map((label) => (
           <Badge key={label}>{label}</Badge>
         ))}
       </div>
       {properties.items.length > 0 ? (
         <div className="grid gap-6 lg:grid-cols-3">
-          {properties.items.map((property) => (
-            <PropertyCard key={property.id} property={property} />
+          {properties.items.map((property, index) => (
+            <Reveal key={property.id} delay={index * 0.05} className="h-full">
+              <PropertyCard property={property} />
+            </Reveal>
           ))}
         </div>
       ) : (
@@ -141,7 +157,7 @@ export default async function PropertiesPage({
       />
       <div className="flex items-center justify-between gap-4 rounded-3xl border border-[var(--line)] px-5 py-4 text-sm text-[var(--ink-600)]">
         <span>
-          Showing page {properties.page} of {properties.totalPages}  -  {properties.total} result(s)
+          Showing page {properties.page} of {properties.totalPages} · {properties.total} result{properties.total === 1 ? "" : "s"}
         </span>
         <div className="flex gap-3">
           {properties.page > 1 ? (

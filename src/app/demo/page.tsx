@@ -19,7 +19,7 @@ export default async function DemoPage({
   const demo = getPublicDemoWorkspace();
 
   return (
-    <div className="min-h-screen bg-[var(--sand-50)]">
+    <div className="min-h-dvh bg-[var(--sand-50)]">
       <PlatformHeader />
       <main className="space-y-10 pb-20 pt-10">
         <Container className="space-y-8">

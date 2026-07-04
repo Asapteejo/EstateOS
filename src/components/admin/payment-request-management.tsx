@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { AdminAttentionBadge, AdminEmptyState, AdminField, AdminFormSection, AdminPanel, AdminQuickActions, AdminStateBanner, AdminToolbar } from "@/components/admin/admin-ui";
 import { Button } from "@/components/ui/button";
+import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -26,6 +27,7 @@ type PaymentRequestRow = {
   collectionMethod: string;
   dueAt: string | null;
   buyer: string;
+  buyerPhone: string | null;
   reference: string | null;
   transferSummary: string | null;
   checkoutUrl: string | null;
@@ -268,7 +270,15 @@ export function PaymentRequestManagement({
                   ) : null}
                 </div>
               </div>
-              <div className="mt-2 text-[var(--ink-600)]">{request.buyer}</div>
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-[var(--ink-600)]">
+                <span>{request.buyer}</span>
+                {request.buyerPhone ? (
+                  <WhatsAppButton
+                    phone={request.buyerPhone}
+                    message={`Hi ${request.buyer}, regarding your payment request "${request.title}" (${request.amount}).`}
+                  />
+                ) : null}
+              </div>
               <div className="mt-3 flex flex-wrap gap-4 text-xs uppercase tracking-[0.14em] text-[var(--ink-500)]">
                 <span>{request.amount}</span>
                 <span>{request.collectionMethod}</span>

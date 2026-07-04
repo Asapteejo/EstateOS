@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useOptimistic, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,31 +13,40 @@ import type { BuyerWishlistItem } from "@/modules/wishlist/service";
 
 export function WishlistGrid({ items }: { items: BuyerWishlistItem[] }) {
   const router = useRouter();
-  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+  // Optimistic copy of the list: removals apply instantly and revert on their
+  // own if the request fails (the transition ends without the server data
+  // changing, so React restores the real `items`).
+  const [optimisticItems, removeOptimisticItem] = useOptimistic(
+    items,
+    (current, propertyId: string) => current.filter((item) => item.propertyId !== propertyId),
+  );
 
-  async function removeWishlist(propertyId: string) {
-    setPendingId(propertyId);
-    const response = await fetch("/api/saved-properties", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ propertyId }),
+  function removeWishlist(propertyId: string) {
+    startTransition(async () => {
+      removeOptimisticItem(propertyId);
+
+      const response = await fetch("/api/saved-properties", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ propertyId }),
+      });
+
+      if (!response.ok) {
+        toast.error("Unable to update wishlist.");
+        return;
+      }
+
+      toast.success("Removed from your wishlist.");
+      router.refresh();
     });
-    setPendingId(null);
-
-    if (!response.ok) {
-      toast.error("Unable to update wishlist.");
-      return;
-    }
-
-    toast.success("Wishlist updated.");
-    router.refresh();
   }
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      {items.map((item) => (
+      {optimisticItems.map((item) => (
         <Card key={item.id} className="overflow-hidden rounded-[30px] border-[var(--line)] bg-white">
           <div className="relative h-64 bg-[linear-gradient(140deg,#f7f1e7,#edf5f0)]">
             <Image src={item.propertyImage} alt={item.propertyTitle} fill className="object-cover" />
@@ -72,12 +81,8 @@ export function WishlistGrid({ items }: { items: BuyerWishlistItem[] }) {
               <Link href={`/properties/${item.propertySlug}`}>
                 <Button>Open property</Button>
               </Link>
-              <Button
-                variant="outline"
-                onClick={() => removeWishlist(item.propertyId)}
-                disabled={pendingId === item.propertyId}
-              >
-                {pendingId === item.propertyId ? "Updating..." : "Remove"}
+              <Button variant="outline" onClick={() => removeWishlist(item.propertyId)}>
+                Remove
               </Button>
             </div>
           </div>

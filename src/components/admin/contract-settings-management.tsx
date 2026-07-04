@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { AdminField, AdminFormSection, AdminPanel, AdminStateBanner } from "@/components/admin/admin-ui";
+import { AdminEmptyState, AdminField, AdminFormSection, AdminPanel, AdminStateBanner } from "@/components/admin/admin-ui";
 import { UploadField } from "@/components/uploads/upload-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,10 +134,10 @@ export function ContractSettingsManagement({
         <AdminFormSection title="Authorized signatory" description="These details are printed into generated Contracts of Sale.">
           <div className="grid gap-4 md:grid-cols-2">
             <AdminField label="CEO / authorized signatory name">
-              <Input value={form.ceoName} onChange={(event) => setForm((current) => ({ ...current, ceoName: event.target.value }))} />
+              <Input className="min-w-0" value={form.ceoName} onChange={(event) => setForm((current) => ({ ...current, ceoName: event.target.value }))} />
             </AdminField>
             <AdminField label="Title">
-              <Input value={form.ceoTitle} onChange={(event) => setForm((current) => ({ ...current, ceoTitle: event.target.value }))} />
+              <Input className="min-w-0" value={form.ceoTitle} onChange={(event) => setForm((current) => ({ ...current, ceoTitle: event.target.value }))} />
             </AdminField>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -186,7 +186,7 @@ export function ContractSettingsManagement({
             />
           </AdminField>
           <div className="flex justify-end">
-            <Button onClick={save} disabled={pending}>
+            <Button className="whitespace-nowrap" onClick={save} disabled={pending}>
               {pending ? "Saving..." : "Save contract settings"}
             </Button>
           </div>
@@ -207,9 +207,9 @@ export function ContractSettingsManagement({
                       ? localReadiness.stampUploaded
                       : localReadiness.contractTermsPresent;
               return (
-                <div key={label} className="flex items-center justify-between rounded-2xl border border-[var(--line)] bg-white px-4 py-3 text-sm">
-                  <span className="text-[var(--ink-700)]">{label}</span>
-                  <span className={ready ? "font-medium text-emerald-700" : "font-medium text-amber-700"}>
+                <div key={label} className="flex min-w-0 items-center justify-between gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 py-3 text-sm shadow-[var(--shadow-xs)]">
+                  <span className="min-w-0 text-[var(--ink-700)]">{label}</span>
+                  <span className={ready ? "rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 whitespace-nowrap" : "rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 whitespace-nowrap"}>
                     {ready ? "Ready" : "Missing"}
                   </span>
                 </div>
@@ -226,9 +226,9 @@ export function ContractSettingsManagement({
         </AdminPanel>
 
         <AdminPanel title="Sample preview" description="Preview of the structured system-generated template.">
-          <div className="rounded-2xl border border-[var(--line)] bg-white p-5 text-sm leading-6 text-[var(--ink-700)]">
+          <div className="rounded-[var(--radius-lg)] border border-[var(--border-subtle,var(--line))] bg-white p-5 text-sm leading-6 text-[var(--ink-700)] shadow-[var(--shadow-xs)]">
             <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ink-400)]">Contract of Sale</div>
-            <div className="mt-2 text-xl font-semibold text-[var(--ink-950)]">COS-SAMPLE-0001</div>
+            <div className="numeric mt-2 text-xl font-semibold text-[var(--ink-950)]">COS-SAMPLE-0001</div>
             <div className="mt-4 grid gap-2">
               <div>Buyer: Sample Buyer</div>
               <div>Property: Sample Property</div>
@@ -244,24 +244,25 @@ export function ContractSettingsManagement({
         <AdminPanel title="Template versions" description="Generated contracts keep the exact template version and PDF snapshot used at creation time.">
           <div className="space-y-3">
             {templates.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-[var(--line)] bg-white p-4 text-sm text-[var(--ink-600)]">
-                Save contract settings to create template v1.
-              </div>
+              <AdminEmptyState
+                title="No template versions yet"
+                description="Save contract settings to create template v1."
+              />
             ) : (
               templates.map((template) => {
                 const status = templateStatus(template);
                 return (
-                  <div key={template.id} className="rounded-2xl border border-[var(--line)] bg-white p-4 text-sm">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
+                  <div key={template.id} className="rounded-[var(--radius-lg)] border border-[var(--border-subtle,var(--line))] bg-white p-4 text-sm shadow-[var(--shadow-xs)]">
+                    <div className="flex min-w-0 items-start justify-between gap-3">
+                      <div className="min-w-0">
                         <div className="font-semibold text-[var(--ink-950)]">
                           {template.mode === "SYSTEM_TEMPLATE" ? "System template" : "Uploaded PDF template"} v{template.version}
                         </div>
-                        <div className="mt-1 text-xs text-[var(--ink-500)]">
+                        <div className="numeric mt-1 text-xs text-[var(--ink-500)]">
                           Created {new Date(template.createdAt).toLocaleDateString()} by {actorName(template)}
                         </div>
                       </div>
-                      <span className={status === "ACTIVE" ? "text-xs font-semibold text-emerald-700" : "text-xs font-semibold text-[var(--ink-500)]"}>
+                      <span className={status === "ACTIVE" ? "rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 whitespace-nowrap" : "rounded-full bg-[var(--sand-100)] px-2.5 py-1 text-xs font-semibold text-[var(--ink-500)] whitespace-nowrap"}>
                         {status}
                       </span>
                     </div>
@@ -271,12 +272,12 @@ export function ContractSettingsManagement({
                       {template.document?.fileName ? <div>Template file: {template.document.fileName}</div> : null}
                     </div>
                     {!template.isActive ? (
-                      <div className="mt-3 flex justify-end gap-2">
-                        <Button size="sm" variant="outline" onClick={() => activateTemplate(template.id)} disabled={activatingId === template.id || !template.isConfigured}>
+                      <div className="mt-3 flex flex-wrap justify-end gap-2">
+                        <Button className="whitespace-nowrap" size="sm" variant="outline" onClick={() => activateTemplate(template.id)} disabled={activatingId === template.id || !template.isConfigured}>
                           {activatingId === template.id ? "Activating..." : "Activate"}
                         </Button>
                         {!template.archivedAt ? (
-                          <Button size="sm" variant="outline" onClick={() => archiveTemplate(template.id)} disabled={archivingId === template.id}>
+                          <Button className="whitespace-nowrap" size="sm" variant="outline" onClick={() => archiveTemplate(template.id)} disabled={archivingId === template.id}>
                           {archivingId === template.id ? "Archiving..." : "Archive"}
                           </Button>
                         ) : null}

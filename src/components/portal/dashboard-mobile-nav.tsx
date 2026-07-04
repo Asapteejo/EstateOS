@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { Logo } from "@/components/shared/logo";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
@@ -110,6 +111,7 @@ export function DashboardMobileNav({
         <div className="min-w-0 flex-1">
           <Logo href={`/${area}`} name={companyName} tagline={workspaceTagline} logoUrl={logoUrl} />
         </div>
+        <ThemeToggle className="shrink-0" />
         <button
           ref={menuButtonRef}
           type="button"
@@ -149,7 +151,7 @@ export function DashboardMobileNav({
       {open ? (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
-            className="absolute inset-0 bg-[rgba(15,23,42,0.45)]"
+            className="motion-overlay absolute inset-0 bg-[rgba(15,23,42,0.45)]"
             onClick={closeAndRestoreFocus}
             aria-hidden="true"
           />
@@ -159,7 +161,7 @@ export function DashboardMobileNav({
             role="dialog"
             aria-modal="true"
             aria-label={`${companyName} navigation`}
-            className="absolute inset-y-0 left-0 flex w-[86vw] max-w-xs flex-col gap-4 overflow-y-auto border-r border-[var(--tenant-nav-border)] bg-[var(--tenant-nav-surface)] p-4 shadow-2xl"
+            className="motion-drawer-left absolute inset-y-0 left-0 flex w-[86vw] max-w-xs flex-col gap-4 overflow-y-auto border-r border-[var(--tenant-nav-border)] bg-[var(--tenant-nav-surface)] p-4 shadow-2xl"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">

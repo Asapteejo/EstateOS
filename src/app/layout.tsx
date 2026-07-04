@@ -3,6 +3,7 @@ import { Inter, Libre_Baskerville } from "next/font/google";
 
 import { AppProviders } from "@/components/providers/app-providers";
 import { DevAccessSwitcher } from "@/components/shared/dev-access-switcher";
+import { RouteProgress } from "@/components/shared/route-progress";
 import { featureFlags } from "@/lib/env";
 import { logStartupReadinessOnce } from "@/lib/ops/startup";
 import "./globals.css";
@@ -44,8 +45,21 @@ export default function RootLayout({
   logStartupReadinessOnce();
 
   return (
-    <html lang="en" className={`${fontSans.variable} ${fontSerif.variable}`}>
+    <html lang="en" data-scroll-behavior="smooth" className={`${fontSans.variable} ${fontSerif.variable}`}>
       <body>
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              "(function(){try{if(localStorage.getItem('estateos-theme')==='dark'){document.documentElement.classList.add('theme-dark');}}catch(e){}})();",
+          }}
+        />
+        <RouteProgress />
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[1000] focus:rounded-md focus:bg-[var(--brand-700)] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-white"
+        >
+          Skip to main content
+        </a>
         {featureFlags.devAccessMode ? (
           <div
             style={{

@@ -6,10 +6,11 @@ import { PaymentRequestManagement } from "@/components/admin/payment-request-man
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { requireAdminSession } from "@/lib/auth/guards";
+import { rolesForAdminPath } from "@/lib/auth/admin-sections";
 import { getAdminPaymentMonitoring } from "@/modules/admin/control-center";
 
 export default async function AdminPaymentsPage() {
-  const tenant = await requireAdminSession(["ADMIN"]);
+  const tenant = await requireAdminSession(rolesForAdminPath("/admin/payments"));
   const monitoring = await getAdminPaymentMonitoring(tenant);
 
   return (

@@ -25,7 +25,7 @@ export function buildTeamInvitationEmail(input: {
     year: "numeric",
   });
 
-  const subject = `You're invited to join ${input.companyName} on EstateOS`;
+  const subject = `You're invited to join ${input.companyName}`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -42,7 +42,7 @@ export function buildTeamInvitationEmail(input: {
           <!-- Header -->
           <tr>
             <td style="background:#1a1a18;border-radius:16px 16px 0 0;padding:32px 40px;">
-              <p style="margin:0;font-size:13px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#a89f8c;">EstateOS</p>
+              <p style="margin:0;font-size:13px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#a89f8c;">${input.companyName}</p>
               <h1 style="margin:12px 0 0;font-size:22px;font-weight:600;color:#faf9f7;line-height:1.3;">
                 You've been invited to join ${input.companyName}
               </h1>
@@ -57,7 +57,7 @@ export function buildTeamInvitationEmail(input: {
               </p>
               <p style="margin:0 0 20px;font-size:15px;line-height:1.6;color:#3a3830;">
                 <strong>${input.inviterName}</strong> has invited you to join
-                <strong>${input.companyName}</strong> on EstateOS as a
+                <strong>${input.companyName}</strong> as a
                 <strong>${roleLabel}</strong>.
               </p>
               <p style="margin:0 0 28px;font-size:15px;line-height:1.6;color:#3a3830;">

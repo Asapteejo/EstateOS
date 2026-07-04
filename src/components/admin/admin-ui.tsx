@@ -27,7 +27,11 @@ export function AdminMetricGrid({
   children: React.ReactNode;
   className?: string;
 }) {
-  return <div className={cn("grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4", className)}>{children}</div>;
+  return (
+    <div className={cn("stagger-children grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4", className)}>
+      {children}
+    </div>
+  );
 }
 
 export function AdminMetricCard({
@@ -44,7 +48,7 @@ export function AdminMetricCard({
   return (
     <Card
       className={cn(
-        "admin-surface flex h-full min-w-0 flex-col px-4 py-4 sm:px-5",
+        "admin-surface premium-card flex h-full min-w-0 flex-col px-4 py-4 sm:px-5",
         tone === "default" && "",
         tone === "accent" && "border-[color:var(--brand-100)] bg-[color:var(--sand-50)]",
         tone === "danger" && "border-[color:var(--danger-200)] bg-[color:var(--danger-50)]",
@@ -229,7 +233,7 @@ export function AdminModalFrame({
   footer?: React.ReactNode;
 }) {
   return (
-    <Card className="admin-surface px-4 py-4 sm:px-5 sm:py-5">
+    <Card className="motion-panel admin-surface px-4 py-4 sm:px-5 sm:py-5">
       <div className="border-b border-[var(--line)] pb-4">
         <h2 className="text-base font-semibold text-[var(--ink-950)]">{title}</h2>
         {description ? <p className="mt-1 text-sm leading-6 text-[var(--ink-500)]">{description}</p> : null}

@@ -1,11 +1,12 @@
 import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { requireAdminSession } from "@/lib/auth/guards";
+import { rolesForAdminPath } from "@/lib/auth/admin-sections";
 import { featureFlags } from "@/lib/env";
 import { InquiryManagement } from "@/components/admin/inquiry-management";
 import { getAssignableStaffOptions, getInquiryManagementList } from "@/modules/inquiries/service";
 
 export default async function AdminLeadsPage() {
-  const tenant = await requireAdminSession();
+  const tenant = await requireAdminSession(rolesForAdminPath("/admin/leads"));
   const [inquiries, staff] = await Promise.all([
     getInquiryManagementList(tenant),
     getAssignableStaffOptions(tenant),

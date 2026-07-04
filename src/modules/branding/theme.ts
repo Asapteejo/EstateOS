@@ -416,8 +416,8 @@ export function buildTenantThemeStyles(
 
   const classes =
     surface === "public"
-      ? "min-h-screen [--tenant-surface-overlay:rgba(255,255,255,0.78)]"
-      : "min-h-screen bg-[var(--tenant-background)]";
+      ? "min-h-dvh [--tenant-surface-overlay:rgba(255,255,255,0.78)]"
+      : "min-h-dvh bg-[var(--tenant-background)]";
 
   return {
     style,

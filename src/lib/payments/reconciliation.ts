@@ -28,6 +28,7 @@ import { publishRealtimeEvent } from "@/lib/realtime/events";
 import { syncTransactionMilestones, syncTransactionPaymentState } from "@/modules/transactions/mutations";
 import { buildSettlementQuote, getCompanyPlanStatus, recordBillingEvent } from "@/modules/billing/service";
 import { reconcilePaymentRequestFromPayment } from "@/modules/payment-requests/service";
+import { notifyBuyerWhatsApp } from "@/lib/notifications/buyer-whatsapp";
 import { attemptGenerateContractForSuccessfulPayment } from "@/modules/contracts/service";
 import { calculateCommissionAmount, recordMarketerCommission } from "@/modules/commission/calculator";
 import { getApplicableCommissionRule } from "@/modules/commission/rules";
@@ -557,6 +558,9 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
     const transactionUpdate = await prisma.$transaction(async (tx) => {
       let updatedTransactionId = payment.transactionId;
       let updatedTransactionStage: string | null = null;
+      // Captured inside the tx, dispatched AFTER commit — never run external
+      // WhatsApp/Twilio I/O inside a database transaction.
+      let paymentConfirmedBuyerUserId: string | null = null;
       let persistedReceipt: {
         id: string;
         receiptNumber: string;
@@ -665,6 +669,7 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
               } as Prisma.InputJsonValue,
             },
           });
+          paymentConfirmedBuyerUserId = updatedTransaction.userId;
         }
       }
 
@@ -852,11 +857,26 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
         transactionStage: updatedTransactionStage,
         commissionRecordId,
         splitSettlementId,
+        paymentConfirmedBuyerUserId,
       };
     });
 
     receipt = transactionUpdate.receipt;
     receiptDocumentId = transactionUpdate.receiptDocumentId;
+
+    // Post-commit: WhatsApp the buyer that their payment was confirmed. Kept
+    // OUTSIDE the transaction so external Twilio I/O can't hold a DB connection
+    // open; no-ops safely without a phone / Twilio / wallet credit.
+    if (transactionUpdate.paymentConfirmedBuyerUserId) {
+      await notifyBuyerWhatsApp({
+        companyId: company.id,
+        buyerUserId: transactionUpdate.paymentConfirmedBuyerUserId,
+        trigger: "payment.confirmed",
+        buildBody: (firstName) =>
+          `Hi ${firstName}, we've confirmed your payment (ref ${reference}). Thank you! Your receipt is available in your portal.`,
+        metadata: { reference } as Prisma.InputJsonValue,
+      });
+    }
 
     if (shouldPersistArtifacts) {
       await recordBillingEvent({

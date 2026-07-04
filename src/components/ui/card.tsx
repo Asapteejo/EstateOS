@@ -17,7 +17,7 @@ export function Card({
     <div
       className={cn(
         "tenant-card rounded-[24px] border border-[var(--border-subtle)] bg-[var(--tenant-card,#fff)] shadow-[var(--shadow-sm)]",
-        interactive && "transition-[box-shadow,transform] duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)]",
+        interactive && "transition-[box-shadow,transform] duration-[var(--duration-fast)] ease-[var(--ease-standard)] hover:-translate-y-1 hover:border-[var(--brand-300)] hover:shadow-[var(--shadow-lg)] motion-reduce:transition-none motion-reduce:hover:translate-y-0",
         className,
       )}
       style={{

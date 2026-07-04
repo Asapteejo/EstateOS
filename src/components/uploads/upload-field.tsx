@@ -7,6 +7,7 @@ import { OptimizedImage } from "@/components/media/optimized-image";
 import { AssetPickerDialog } from "@/components/uploads/asset-picker-dialog";
 import { uploadTenantFile } from "@/components/uploads/client";
 import { Button } from "@/components/ui/button";
+import { ProgressBar } from "@/components/ui/progress-bar";
 import { getUploadPurposeConfig, type UploadPurpose } from "@/modules/uploads/config";
 
 type UploadFieldValue = {
@@ -44,10 +45,12 @@ export function UploadField({
   const config = getUploadPurposeConfig(purpose);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [pending, setPending] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   async function upload(file: File) {
     setPending(true);
+    setProgress(0);
     try {
       const uploaded = await uploadTenantFile({
         file,
@@ -55,6 +58,7 @@ export function UploadField({
         surface,
         mode,
         allowExternalUrl,
+        onProgress: setProgress,
       });
       setPending(false);
       onChange({
@@ -108,7 +112,7 @@ export function UploadField({
 
       <div className="flex flex-wrap items-center gap-3">
         <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={pending}>
-          {pending ? "Uploading..." : value.fileName ? "Replace file" : "Upload file"}
+          {pending ? `Uploading… ${progress}%` : value.fileName ? "Replace file" : "Upload file"}
         </Button>
         <Button type="button" variant="ghost" onClick={() => setPickerOpen(true)}>
           Choose existing
@@ -131,6 +135,8 @@ export function UploadField({
           <span className="text-xs text-[var(--ink-500)]">Stored in tenant-scoped media</span>
         ) : null}
       </div>
+
+      {pending ? <ProgressBar value={progress} label={`Uploading ${label}`} /> : null}
 
       {allowExternalUrl ? (
         <label className="block space-y-2">

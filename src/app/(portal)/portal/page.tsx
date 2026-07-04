@@ -12,7 +12,26 @@ import { getTenantPresentation } from "@/modules/branding/service";
 import { getAppSession } from "@/lib/auth/session";
 import { getBuyerProfileRecord } from "@/modules/kyc/service";
 import { shouldRedirectBuyerToProfileSetup } from "@/modules/portal/profile-access";
+import { SectionDirectory } from "@/components/dashboard/section-directory";
+import { humanizePaymentStatus } from "@/modules/payments/progress";
 import { redirect } from "next/navigation";
+
+const BUYER_SECTIONS = [
+  { label: "Overview", href: "/portal" },
+  { label: "Profile", href: "/portal/profile" },
+  { label: "KYC", href: "/portal/kyc" },
+  { label: "Saved homes", href: "/portal/saved" },
+  { label: "Inspections", href: "/portal/inspections" },
+  { label: "Reservations", href: "/portal/reservations" },
+  { label: "Messages", href: "/portal/messages" },
+  { label: "Payments", href: "/portal/payments" },
+  { label: "Invoices", href: "/portal/invoices" },
+  { label: "Timeline", href: "/portal/timeline" },
+  { label: "Contracts", href: "/portal/contracts" },
+  { label: "Documents", href: "/portal/documents" },
+  { label: "Notifications", href: "/portal/notifications" },
+  { label: "Support", href: "/portal/support" },
+];
 
 export default async function PortalDashboardPage() {
   const tenant = await requirePortalSession();
@@ -34,6 +53,22 @@ export default async function PortalDashboardPage() {
   ]);
   const presentation = await getTenantPresentation(tenant);
 
+  // Reconcile the two payment signals so the overview cards can never contradict
+  // each other. "Payment state" is a computed status (OVERDUE when a scheduled
+  // installment has lapsed); "Next payment due" must agree with it rather than
+  // reading a raw column that may be unset. Both are derived from the same
+  // payment experience here.
+  const { paymentStatus, nextDueDate } = paymentExperience;
+  const isSettled = paymentStatus === "COMPLETED" || summary.overview.outstandingBalance <= 0;
+  const nextPaymentDueLabel = isSettled
+    ? "Fully paid"
+    : nextDueDate
+      ? paymentStatus === "OVERDUE"
+        ? `Overdue · ${nextDueDate}`
+        : nextDueDate
+      : "Not scheduled";
+  const paymentStateLabel = isSettled ? "Paid in full" : humanizePaymentStatus(paymentStatus);
+
   return (
     <DashboardShell
       area="portal"
@@ -44,13 +79,18 @@ export default async function PortalDashboardPage() {
         {[
           ["Profile completion", `${summary.overview.completion}%`],
           ["Outstanding balance", formatCurrency(summary.overview.outstandingBalance)],
-          ["Next payment due", summary.overview.nextPaymentDue],
-          ["Payment state", paymentExperience.paymentStatus],
+          ["Next payment due", nextPaymentDueLabel],
+          ["Payment state", paymentStateLabel],
           ["Unread updates", String(summary.overview.notificationsUnread)],
         ].map(([label, value]) => (
           <StatCard key={label} label={label} value={value} />
         ))}
       </div>
+      <SectionDirectory
+        items={BUYER_SECTIONS}
+        title="Everything in your portal"
+        description="Jump straight to any part of your buying journey."
+      />
       <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <Card className="p-8">
           <h2 className="text-2xl font-semibold text-[var(--ink-950)]">Transaction timeline</h2>

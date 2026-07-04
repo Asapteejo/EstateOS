@@ -25,7 +25,7 @@ export type AppSession = {
   mode: "clerk" | "demo";
 };
 
-export type DemoSessionRole = "buyer" | "admin" | "superadmin";
+export type DemoSessionRole = "buyer" | "admin" | "superadmin" | "finance" | "frontdesk";
 export const DEV_SESSION_COOKIE = "estateos_dev_role";
 export const DEV_SESSION_COMPANY_ID_COOKIE = "estateos_dev_company_id";
 export const DEV_SESSION_COMPANY_SLUG_COOKIE = "estateos_dev_company_slug";
@@ -61,6 +61,32 @@ const demoAdmin: AppSession = {
   mode: "demo",
 };
 
+const demoFinance: AppSession = {
+  userId: "demo-finance",
+  dbUserId: "demo-finance",
+  email: "accountant@acmerealty.dev",
+  firstName: "Ngozi",
+  lastName: "Eze",
+  roles: ["FINANCE"],
+  companyId: demoCompany.companyId,
+  companySlug: demoCompany.companySlug,
+  branchId: demoCompany.branchId,
+  mode: "demo",
+};
+
+const demoFrontdesk: AppSession = {
+  userId: "demo-frontdesk",
+  dbUserId: "demo-frontdesk",
+  email: "frontdesk@acmerealty.dev",
+  firstName: "Bisi",
+  lastName: "Lawal",
+  roles: ["STAFF"],
+  companyId: demoCompany.companyId,
+  companySlug: demoCompany.companySlug,
+  branchId: demoCompany.branchId,
+  mode: "demo",
+};
+
 const demoSuperAdmin: AppSession = {
   userId: "demo-superadmin",
   dbUserId: "demo-superadmin",
@@ -81,7 +107,13 @@ type DemoCompanyContext = {
 };
 
 function isDemoSessionRole(value: string | undefined | null): value is DemoSessionRole {
-  return value === "buyer" || value === "admin" || value === "superadmin";
+  return (
+    value === "buyer" ||
+    value === "admin" ||
+    value === "superadmin" ||
+    value === "finance" ||
+    value === "frontdesk"
+  );
 }
 
 export function buildDemoSession(
@@ -100,6 +132,24 @@ export function buildDemoSession(
   if (role === "admin") {
     return {
       ...demoAdmin,
+      companyId: company.companyId,
+      companySlug: company.companySlug,
+      branchId: company.branchId,
+    };
+  }
+
+  if (role === "finance") {
+    return {
+      ...demoFinance,
+      companyId: company.companyId,
+      companySlug: company.companySlug,
+      branchId: company.branchId,
+    };
+  }
+
+  if (role === "frontdesk") {
+    return {
+      ...demoFrontdesk,
       companyId: company.companyId,
       companySlug: company.companySlug,
       branchId: company.branchId,
@@ -238,7 +288,11 @@ export async function resolveDemoSessionRole(
   }
 
   if (area === "admin") {
-    return cookieRole === "superadmin" ? "superadmin" : "admin";
+    if (cookieRole === "superadmin") return "superadmin";
+    // Honor the operator-role presets (accountant / front desk) so each role-based
+    // dashboard can be previewed in dev. Any other value falls back to the owner.
+    if (cookieRole === "finance" || cookieRole === "frontdesk") return cookieRole;
+    return "admin";
   }
 
   if (area === "portal") {
@@ -379,7 +433,9 @@ export async function getDevSession(
   }
 
   const company = await resolveDemoCompanyContext();
-  const role = getDefaultDemoSessionRole(area);
+  // Honor the dev role cookie (admin / accountant / front desk / superadmin) so
+  // each role-based dashboard can be previewed; fall back to the area default.
+  const role = (await resolveDemoSessionRole(area)) ?? getDefaultDemoSessionRole(area);
   if (!role) {
     return null;
   }

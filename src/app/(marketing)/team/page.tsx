@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Container } from "@/components/shared/container";
+import { Reveal } from "@/components/shared/reveal";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { TopMarketersSection } from "@/components/marketing/top-marketers-section";
 import { Avatar } from "@/components/ui/avatar";
@@ -30,11 +31,13 @@ export default async function TeamDirectoryPage({
 
   return (
     <Container className="space-y-10 py-16">
-      <SectionHeading
-        eyebrow="Team Directory"
-        title="Meet the people clients trust to move deals forward."
-        description="Browse active staff and marketer profiles for this company, see who handles each part of the client journey, and contact the right person directly."
-      />
+      <Reveal>
+        <SectionHeading
+          eyebrow="Team Directory"
+          title="Meet the people clients trust to move deals forward."
+          description="Browse active staff and marketer profiles for this company, see who handles each part of the client journey, and contact the right person directly."
+        />
+      </Reveal>
 
       <TopMarketersSection
         leaderboard={leaderboard}
@@ -59,12 +62,13 @@ export default async function TeamDirectoryPage({
         </Card>
       ) : (
         <div className="grid gap-6 lg:grid-cols-3">
-          {teamMembers.map((member) => {
+          {teamMembers.map((member, index) => {
             const mailtoHref = buildMailtoHref(member.email);
             const whatsappHref = buildWhatsAppHref(member.whatsappNumber);
 
             return (
-              <Card key={member.id} className="overflow-hidden rounded-[30px] border-[var(--line)] bg-white">
+              <Reveal key={member.id} delay={index * 0.06} className="h-full">
+              <Card className="h-full overflow-hidden rounded-[30px] border-[var(--line)] bg-white">
                 <div className="flex h-80 items-center justify-center bg-[linear-gradient(140deg,#f7f1e7,#edf5f0)] p-8">
                   <Avatar
                     name={member.fullName}
@@ -104,6 +108,7 @@ export default async function TeamDirectoryPage({
                   </div>
                 </div>
               </Card>
+              </Reveal>
             );
           })}
         </div>

@@ -38,7 +38,7 @@ export default async function CommissionRulesPage() {
             <label className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-500)]">
               Rule name
             </label>
-            <Input name="name" placeholder="e.g. Standard 3% commission" required />
+            <Input className="min-w-0" name="name" placeholder="e.g. Standard 3% commission" required />
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -48,7 +48,7 @@ export default async function CommissionRulesPage() {
             <select
               name="feeType"
               required
-              className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+              className="admin-focus admin-interactive h-11 min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm text-[var(--ink-700)]"
             >
               <option value="PERCENTAGE">Percentage of payment</option>
               <option value="FLAT">Flat fee</option>
@@ -59,14 +59,14 @@ export default async function CommissionRulesPage() {
             <label className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-500)]">
               Amount / rate
             </label>
-            <div className="flex gap-2">
+            <div className="grid gap-2 sm:grid-cols-2">
               <Input
                 name="flatAmount"
                 type="number"
                 min="0"
                 step="0.01"
                 placeholder="Flat amount (e.g. 50000)"
-                className="flex-1"
+                className="numeric min-w-0"
               />
               <Input
                 name="percentageRate"
@@ -75,7 +75,7 @@ export default async function CommissionRulesPage() {
                 max="100"
                 step="0.01"
                 placeholder="Rate % (e.g. 3.5)"
-                className="flex-1"
+                className="numeric min-w-0"
               />
             </div>
             <p className="text-xs text-[var(--ink-400)]">Fill the relevant field for your chosen fee type.</p>
@@ -85,7 +85,7 @@ export default async function CommissionRulesPage() {
             <label className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-500)]">
               Currency
             </label>
-            <Input name="currency" defaultValue="NGN" placeholder="NGN" />
+            <Input className="numeric min-w-0 uppercase" name="currency" defaultValue="NGN" placeholder="NGN" />
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -94,7 +94,7 @@ export default async function CommissionRulesPage() {
             </label>
             <select
               name="propertyType"
-              className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+              className="admin-focus admin-interactive h-11 min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm text-[var(--ink-700)]"
             >
               {PROPERTY_TYPE_OPTIONS.map(([value, label]) => (
                 <option key={value} value={value}>
@@ -109,12 +109,12 @@ export default async function CommissionRulesPage() {
             <label className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-500)]">
               Scope - specific property ID
             </label>
-            <Input name="propertyId" placeholder="Leave blank for type/global scope" />
+            <Input className="min-w-0" name="propertyId" placeholder="Leave blank for type/global scope" />
             <p className="text-xs text-[var(--ink-400)]">Property-specific rules override all others.</p>
           </div>
 
           <div className="sm:col-span-2 lg:col-span-3">
-            <Button type="submit">Save rule</Button>
+            <Button className="whitespace-nowrap" type="submit">Save rule</Button>
           </div>
         </form>
       </AdminPanel>
@@ -125,8 +125,8 @@ export default async function CommissionRulesPage() {
         className="px-0 py-0"
       >
         {rules.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="admin-table">
+          <div className="overflow-x-auto pb-1">
+            <table className="admin-table min-w-[760px]">
               <thead>
                 <tr>
                   {["Rule name", "Type", "Amount / rate", "Scope", ""].map((col) => (
@@ -137,13 +137,13 @@ export default async function CommissionRulesPage() {
               <tbody>
                 {rules.map((rule) => (
                   <tr key={rule.id}>
-                    <td className="font-semibold text-[var(--ink-950)]">{rule.name}</td>
+                    <td className="min-w-[220px] font-semibold text-[var(--ink-950)]">{rule.name}</td>
                     <td>
-                      <span className="rounded-full border border-[var(--line)] bg-[var(--sand-50)] px-2.5 py-1 text-xs font-medium">
+                      <span className="rounded-full border border-[var(--border-subtle,var(--line))] bg-[var(--sand-50)] px-2.5 py-1 text-xs font-medium whitespace-nowrap">
                         {rule.feeType === "FLAT" ? "Flat fee" : "Percentage"}
                       </span>
                     </td>
-                    <td className="font-medium text-[var(--ink-950)]">
+                    <td className="numeric font-medium text-[var(--ink-950)] whitespace-nowrap">
                       {rule.feeType === "FLAT"
                         ? formatCurrency(rule.flatAmount ?? 0, rule.currency)
                         : `${(rule.percentageRate ?? 0).toFixed(2)}%`}
@@ -160,7 +160,7 @@ export default async function CommissionRulesPage() {
                         <input type="hidden" name="id" value={rule.id} />
                         <button
                           type="submit"
-                          className="text-sm text-[var(--ink-400)] underline-offset-2 hover:text-red-600 hover:underline"
+                          className="text-sm text-[var(--ink-400)] underline-offset-2 hover:text-red-600 hover:underline whitespace-nowrap"
                         >
                           Remove
                         </button>

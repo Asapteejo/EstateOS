@@ -60,7 +60,7 @@ export function AcceptInvitationClient({
   }
 
   const card = (children: React.ReactNode) => (
-    <div className="flex min-h-screen items-center justify-center bg-[#f5f5f0] p-4">
+    <div className="flex min-h-dvh items-center justify-center bg-[#f5f5f0] p-4">
       <div className="w-full max-w-md">
         <div className="rounded-[24px] border border-[#e8e4db] bg-white shadow-sm">
           <div className="rounded-t-[24px] border-b border-[#e8e4db] bg-[#1a1a18] px-8 py-7">
@@ -68,7 +68,7 @@ export function AcceptInvitationClient({
               // Kept as img because the source may be an arbitrary tenant URL.
               // This avoids introducing image config churn into the deployment fix.
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={companyLogoUrl} alt={companyName} className="h-8 object-contain" />
+              <img src={companyLogoUrl} alt={companyName} decoding="async" className="h-8 object-contain" />
             ) : (
               <p className="text-[13px] font-semibold uppercase tracking-[0.2em] text-[#a89f8c]">
                 EstateOS
@@ -114,7 +114,7 @@ export function AcceptInvitationClient({
 
   if (authMode !== "invite") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f5f5f0] p-4">
+      <div className="flex min-h-dvh items-center justify-center bg-[#f5f5f0] p-4">
         <div className="w-full max-w-md space-y-4">
           {hasClerk ? (
             authMode === "sign-in" ? (

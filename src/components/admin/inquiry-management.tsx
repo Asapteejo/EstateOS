@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { AdminAttentionBadge, AdminBulkActionBar, AdminEmptyState, AdminField, AdminFormSection, AdminLifecycleSteps, AdminQuickActions, AdminStateBanner } from "@/components/admin/admin-ui";
 import { InquiryDraftReply } from "@/components/admin/inquiry-draft-reply";
+import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { compareAttentionPriority, getAttentionTone, workflowVocabulary } from "@/modules/admin/workflow-vocabulary";
@@ -367,7 +368,13 @@ export function InquiryManagement({
                 <div className="min-w-0 text-sm text-[var(--ink-500)]">
                   Current owner: {inquiry.assignedStaffName}
                 </div>
-                <div className="flex flex-wrap gap-2 lg:justify-end">
+                <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                  {inquiry.phone ? (
+                    <WhatsAppButton
+                      phone={inquiry.phone}
+                      message={`Hi ${inquiry.fullName}, thanks for your interest in ${inquiry.propertyTitle}. How can we help?`}
+                    />
+                  ) : null}
                   <Link
                     href={`/admin/inquiries/${inquiry.id}`}
                     className="admin-interactive admin-focus inline-flex h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-full border border-[var(--line)] px-5 text-sm font-semibold text-[var(--ink-900)] hover:bg-[var(--sand-100)]"

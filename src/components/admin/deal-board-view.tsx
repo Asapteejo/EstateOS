@@ -406,7 +406,7 @@ export function DealBoardView({
                 type="button"
                 onClick={() => setActiveFilter("ALL")}
                 className={cn(
-                  "rounded-full px-4 py-2 text-sm font-semibold transition",
+                  "rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap transition",
                   activeFilter === "ALL"
                     ? "bg-white text-[var(--ink-950)] shadow-sm"
                     : "text-[var(--ink-600)]",
@@ -418,7 +418,7 @@ export function DealBoardView({
                 type="button"
                 onClick={() => setActiveFilter("OVERDUE")}
                 className={cn(
-                  "rounded-full px-4 py-2 text-sm font-semibold transition",
+                  "rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap transition",
                   activeFilter === "OVERDUE"
                     ? "bg-rose-600 text-white shadow-sm"
                     : "text-[var(--ink-600)]",

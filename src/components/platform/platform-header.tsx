@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Container } from "@/components/shared/container";
+import { ScrollAwareHeader } from "@/components/shared/scroll-aware-header";
 import { Button } from "@/components/ui/button";
 
 const links = [
@@ -22,7 +23,11 @@ const mobileLinks = [...links, ...resourceLinks];
 
 export function PlatformHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-black/5 bg-[rgba(245,247,244,0.92)] backdrop-blur-xl">
+    <ScrollAwareHeader
+      className="border border-transparent bg-[rgba(245,247,244,0.92)] backdrop-blur-xl"
+      topClassName="border-b-black/5"
+      floatingClassName="mx-3 rounded-2xl border-black/5 shadow-[0_18px_50px_rgba(0,0,0,0.12)]"
+    >
       <Container className="flex h-20 items-center justify-between gap-4">
         <Link href="/" className="inline-flex min-w-0 items-center gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[var(--ink-950)] text-white">
@@ -41,13 +46,13 @@ export function PlatformHeader() {
             <Link
               key={link.href}
               href={link.href}
-              className="whitespace-nowrap text-[13px] font-medium text-[var(--ink-700)] transition hover:text-[var(--ink-950)]"
+              className="nav-underline admin-focus rounded-md whitespace-nowrap text-[13px] font-medium text-[var(--ink-700)] transition hover:text-[var(--ink-950)]"
             >
               {link.label}
             </Link>
           ))}
           <details className="group relative">
-            <summary className="list-none whitespace-nowrap text-[13px] font-medium text-[var(--ink-700)] transition hover:cursor-pointer hover:text-[var(--ink-950)] [&::-webkit-details-marker]:hidden">
+            <summary className="nav-underline admin-focus rounded-md list-none whitespace-nowrap text-[13px] font-medium text-[var(--ink-700)] transition hover:cursor-pointer hover:text-[var(--ink-950)] [&::-webkit-details-marker]:hidden">
               Resources
             </summary>
             <div className="absolute right-0 top-8 z-50 min-w-48 rounded-2xl border border-[var(--border-subtle)] bg-white p-2 shadow-[var(--shadow-md)]">
@@ -97,6 +102,6 @@ export function PlatformHeader() {
           </Link>
         </div>
       </Container>
-    </header>
+    </ScrollAwareHeader>
   );
 }

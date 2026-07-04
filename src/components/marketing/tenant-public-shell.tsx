@@ -5,6 +5,8 @@ import { buildAuthRedirect, buildServerDomainConfig } from "@/lib/domains";
 import { env } from "@/lib/env";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getPublicTenantPresentation } from "@/modules/branding/service";
+import { resolveTenantSiteContent } from "@/modules/cms/site-content";
+import { getPublishedSiteContent } from "@/modules/cms/site-content-service";
 
 export async function TenantPublicShell({
   tenant,
@@ -28,6 +30,12 @@ export async function TenantPublicShell({
     tenantHost: tenant.host,
     entry: "admin",
   });
+  const storedContent = await getPublishedSiteContent(tenant);
+  const siteContent = resolveTenantSiteContent({
+    companyName: presentation.companyName,
+    startPurchaseHref: buyerPortalHref,
+    stored: storedContent,
+  });
 
   return (
     <TenantThemeShell branding={branding} surface="public">
@@ -36,12 +44,13 @@ export async function TenantPublicShell({
         logoUrl={branding.logoUrl}
         buyerPortalHref={buyerPortalHref}
       />
-      <main>{children}</main>
+      <main id="main-content" tabIndex={-1}>{children}</main>
       <MarketingFooter
         companyName={presentation.companyName}
         logoUrl={branding.logoUrl}
         buyerPortalHref={buyerPortalHref}
         adminPortalHref={adminPortalHref}
+        tagline={siteContent.footer.tagline}
       />
     </TenantThemeShell>
   );

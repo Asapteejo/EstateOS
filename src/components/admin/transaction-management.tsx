@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { AdminAttentionBadge, AdminEmptyState, AdminLifecycleSteps, AdminPanel, AdminQuickActions, AdminStateBanner } from "@/components/admin/admin-ui";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { Textarea } from "@/components/ui/textarea";
 import { compareAttentionPriority, getAttentionTone, workflowVocabulary } from "@/modules/admin/workflow-vocabulary";
 import { formatCurrency } from "@/lib/utils";
@@ -18,6 +19,7 @@ type TransactionItem = {
   reservationStatus: string;
   property: string;
   buyer: string;
+  buyerPhone: string | null;
   stage: string;
   balance: number;
 };
@@ -147,6 +149,14 @@ export function TransactionManagement({ items }: { items: TransactionItem[] }) {
                 <div className="mt-1 text-sm text-[var(--ink-500)]">
                   {item.property} - {item.buyer}
                 </div>
+                {item.buyerPhone ? (
+                  <div className="mt-2">
+                    <WhatsAppButton
+                      phone={item.buyerPhone}
+                      message={`Hi ${item.buyer}, regarding your transaction ${item.reference} for ${item.property}.`}
+                    />
+                  </div>
+                ) : null}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Badge className="whitespace-nowrap">
                     {workflowVocabulary.transactions.reservationStatusLabels[

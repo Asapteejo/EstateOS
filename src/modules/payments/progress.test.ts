@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { buildTransactionInstallmentSchedule, deriveDealPaymentStatus, summarizeTransactionPayment } from "@/modules/payments/progress";
+import { buildTransactionInstallmentSchedule, deriveDealPaymentStatus, humanizePaymentStatus, summarizeTransactionPayment } from "@/modules/payments/progress";
 
 test("deriveDealPaymentStatus marks outstanding deals overdue when a due installment is missed", () => {
   const status = deriveDealPaymentStatus({
@@ -48,4 +48,15 @@ test("summarizeTransactionPayment exposes the next due installment", () => {
 
   assert.equal(summary.status, "PARTIAL");
   assert.equal(summary.nextDue?.title, "Balance");
+});
+
+test("humanizePaymentStatus maps each raw status to a buyer-facing label", () => {
+  assert.equal(humanizePaymentStatus("PENDING"), "Awaiting first payment");
+  assert.equal(humanizePaymentStatus("PARTIAL"), "In progress");
+  assert.equal(humanizePaymentStatus("OVERDUE"), "Overdue");
+  assert.equal(humanizePaymentStatus("COMPLETED"), "Paid in full");
+});
+
+test("humanizePaymentStatus falls back to the raw value for unknown statuses", () => {
+  assert.equal(humanizePaymentStatus("SOMETHING_NEW"), "SOMETHING_NEW");
 });

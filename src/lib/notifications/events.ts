@@ -19,6 +19,7 @@ export async function publishDomainEvent<
     | "payment/overdue.check"
     | "document/requested"
     | "milestone/updated"
+    | "announcement/published"
     | "automation/sweep.run"
     | "revenue-recovery/sweep.run"
     | "morning-briefing/company.send",

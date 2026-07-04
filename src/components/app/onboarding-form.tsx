@@ -8,6 +8,7 @@ import { DevCreateCompanyButton } from "@/components/app/dev-create-company-butt
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
 function slugify(input: string) {
@@ -210,31 +211,42 @@ export function OnboardingForm({
               <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--ink-500)]">
                 Company setup
               </div>
-              <div className="space-y-2">
+              <Field
+                label="Company name"
+                required
+                hint={
+                  submitted && !companyName.trim()
+                    ? undefined
+                    : "This becomes the company workspace your sales and finance team will operate from."
+                }
+                error={
+                  submitted && !companyName.trim()
+                    ? "Enter the company name you want on deals, receipts, and team operations."
+                    : undefined
+                }
+              >
                 <Input
-                  placeholder="Company name"
+                  placeholder="Acme Realty"
                   value={companyName}
                   onChange={(event) => setCompanyName(event.target.value)}
+                  autoComplete="organization"
                   required
                 />
-                <div className="text-xs text-[var(--ink-500)]">
-                  {submitted && !companyName.trim()
-                    ? "Enter the company name you want on deals, receipts, and team operations."
-                    : "This becomes the company workspace your sales and finance team will operate from."}
-                </div>
-              </div>
-              <div className="space-y-2">
+              </Field>
+              <Field
+                label="Workspace slug"
+                hint={
+                  suggestedSlug
+                    ? `Workspace URL hint: ${suggestedSlug}`
+                    : "Leave slug empty to auto-generate one from your company name."
+                }
+              >
                 <Input
-                  placeholder="Optional slug"
+                  placeholder="acme-realty"
                   value={companySlug}
                   onChange={(event) => setCompanySlug(slugify(event.target.value))}
                 />
-                <div className="text-xs text-[var(--ink-500)]">
-                  {suggestedSlug
-                    ? `Workspace URL hint: ${suggestedSlug}`
-                    : "Leave slug empty to auto-generate one from your company name."}
-                </div>
-              </div>
+              </Field>
             </div>
 
             <div className="space-y-3">
@@ -242,26 +254,36 @@ export function OnboardingForm({
                 First admin
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Input
-                  placeholder="First name"
-                  value={adminFirstName}
-                  onChange={(event) => setAdminFirstName(event.target.value)}
-                />
-                <Input
-                  placeholder="Last name"
-                  value={adminLastName}
-                  onChange={(event) => setAdminLastName(event.target.value)}
-                />
+                <Field label="First name">
+                  <Input
+                    placeholder="Jane"
+                    value={adminFirstName}
+                    onChange={(event) => setAdminFirstName(event.target.value)}
+                    autoComplete="given-name"
+                  />
+                </Field>
+                <Field label="Last name">
+                  <Input
+                    placeholder="Doe"
+                    value={adminLastName}
+                    onChange={(event) => setAdminLastName(event.target.value)}
+                    autoComplete="family-name"
+                  />
+                </Field>
               </div>
-              <Input
-                type="email"
-                placeholder="Admin email"
-                value={adminEmail}
-                onChange={(event) => setAdminEmail(event.target.value)}
-              />
-              <div className="text-xs text-[var(--ink-500)]">
-                We will attach this admin to the new workspace and take them directly to the Deal Board.
-              </div>
+              <Field
+                label="Admin email"
+                hint="We will attach this admin to the new workspace and take them directly to the Deal Board."
+              >
+                <Input
+                  type="email"
+                  placeholder="jane@acme.com"
+                  value={adminEmail}
+                  onChange={(event) => setAdminEmail(event.target.value)}
+                  autoComplete="email"
+                  inputMode="email"
+                />
+              </Field>
             </div>
 
             <div className="space-y-3">
@@ -271,6 +293,7 @@ export function OnboardingForm({
               <div className="grid gap-3">
                 <button
                   type="button"
+                  aria-pressed={includeSampleData}
                   onClick={() => setIncludeSampleData(true)}
                   className={`rounded-3xl border p-5 text-left transition ${
                     includeSampleData
@@ -301,6 +324,7 @@ export function OnboardingForm({
                 </button>
                 <button
                   type="button"
+                  aria-pressed={!includeSampleData}
                   onClick={() => setIncludeSampleData(false)}
                   className={`rounded-3xl border p-5 text-left transition ${
                     !includeSampleData

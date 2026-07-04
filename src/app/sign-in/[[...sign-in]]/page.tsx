@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { SignIn } from "@clerk/nextjs";
 
@@ -7,7 +8,29 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { buildAuthCompletionUrl, buildPublicDomainConfig, resolveAuthEntryIntent, sanitizeReturnPath, sanitizeTenantHost, sanitizeTenantSlug } from "@/lib/domains";
 import { publicEnv } from "@/lib/public-env";
+import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  try {
+    const params = await searchParams;
+    const slug = sanitizeTenantSlug(typeof params.tenant === "string" ? params.tenant : null);
+    if (slug && featureFlags.hasDatabase) {
+      const company = await prisma.company.findFirst({
+        where: { OR: [{ slug }, { subdomain: slug }] },
+        select: { name: true },
+      });
+      if (company) return { title: `Sign in \u00b7 ${company.name}` };
+    }
+  } catch {
+    // fall through to the default title
+  }
+  return { title: "Sign in" };
+}
 
 export default async function SignInPage({
   searchParams,
@@ -54,9 +77,29 @@ export default async function SignInPage({
     : null;
   const shouldRenderClerk = featureFlags.hasClerk && !featureFlags.allowDevBypass;
 
+  const signInBrand =
+    tenant && featureFlags.hasDatabase
+      ? await prisma.company
+          .findFirst({
+            where: { OR: [{ slug: tenant }, { subdomain: tenant }] },
+            select: { name: true, logoUrl: true },
+          })
+          .catch(() => null)
+      : null;
+
   return (
     <AuthProviders disableClerkForDev={featureFlags.allowDevBypass}>
-    <Container className="flex min-h-[70vh] items-center justify-center py-16">
+    <Container className="flex min-h-[70vh] flex-col items-center justify-center gap-6 py-16">
+      {signInBrand ? (
+        <div className="flex flex-col items-center gap-2 text-center">
+          {signInBrand.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={signInBrand.logoUrl} alt={signInBrand.name} className="h-12 w-auto rounded-[var(--radius-md)]" />
+          ) : null}
+          <div className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--ink-500)]">Sign in to</div>
+          <div className="text-2xl font-semibold text-[var(--ink-950)]">{signInBrand.name}</div>
+        </div>
+      ) : null}
       {shouldRenderClerk ? (
         <SignIn forceRedirectUrl={completionUrl} fallbackRedirectUrl={completionUrl} />
       ) : (

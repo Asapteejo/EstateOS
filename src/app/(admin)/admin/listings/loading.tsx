@@ -11,7 +11,7 @@ import {
 // existing admin-ui primitives and the shared Card; no data fetching or logic.
 export default function ListingsLoading() {
   return (
-    <div className="space-y-6" aria-busy="true" aria-label="Loading listings">
+    <div className="app-dark-scope space-y-6" aria-busy="true" aria-label="Loading listings">
       <div className="border-b border-[var(--line)] pb-5 sm:pb-6">
         <div className="admin-skeleton h-3 w-28" />
         <div className="admin-skeleton mt-3 h-10 w-72 max-w-full" />

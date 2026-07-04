@@ -6,10 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/ui/avatar";
 import { requireAdminSession } from "@/lib/auth/guards";
+import { rolesForAdminPath } from "@/lib/auth/admin-sections";
 import { getAdminClientList } from "@/modules/clients/queries";
 
 export default async function AdminClientsPage() {
-  const tenant = await requireAdminSession(["ADMIN"]);
+  const tenant = await requireAdminSession(rolesForAdminPath("/admin/clients"));
   const clients = await getAdminClientList(tenant);
 
   const kycReadyCount = clients.filter((client) =>

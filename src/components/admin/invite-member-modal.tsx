@@ -7,6 +7,7 @@ import { Mail, UserPlus } from "lucide-react";
 
 import { AdminModalFrame } from "@/components/admin/admin-ui";
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
 type InvitedMember = {
@@ -157,31 +158,40 @@ export function InviteMemberModal({
           }
         >
           <div className="space-y-3">
-            <Input
-              placeholder="Full name"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              disabled={pending}
-            />
-            <Input
-              type="email"
-              placeholder="Email address"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={pending}
-            />
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as typeof role)}
-              disabled={pending}
-              className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 text-sm text-[var(--ink-900)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-500)]"
-            >
-              {ROLE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            <Field label="Full name">
+              <Input
+                placeholder="Jane Doe"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                disabled={pending}
+                autoComplete="name"
+              />
+            </Field>
+            <Field label="Email address" required>
+              <Input
+                type="email"
+                placeholder="jane@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={pending}
+                autoComplete="email"
+                inputMode="email"
+              />
+            </Field>
+            <Field label="Role">
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as typeof role)}
+                disabled={pending}
+                className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 text-sm text-[var(--ink-900)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-500)]"
+              >
+                {ROLE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
           </div>
         </AdminModalFrame>
       )}

@@ -2,11 +2,12 @@ import { KycReviewManager } from "@/components/admin/kyc-review-manager";
 import { DataTableCard } from "@/components/shared/data-table-card";
 import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { requireAdminSession } from "@/lib/auth/guards";
+import { rolesForAdminPath } from "@/lib/auth/admin-sections";
 import { getAdminDocumentsTable } from "@/modules/admin/queries";
 import { getAdminKycReviewQueue } from "@/modules/kyc/service";
 
 export default async function AdminDocumentsPage() {
-  const tenant = await requireAdminSession();
+  const tenant = await requireAdminSession(rolesForAdminPath("/admin/documents"));
   const [rows, reviewQueue] = await Promise.all([
     getAdminDocumentsTable(tenant),
     getAdminKycReviewQueue(tenant),

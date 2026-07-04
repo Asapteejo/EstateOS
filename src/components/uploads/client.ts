@@ -33,12 +33,47 @@ type SignedUploadResponse = {
   };
 };
 
+/**
+ * PUTs the file to the presigned URL via XHR so upload progress can be
+ * reported (the Fetch API does not expose request-body upload progress).
+ * Preserves the prior fetch semantics exactly: PUT, the Content-Type header,
+ * and the "Unable to upload file." failure message on any non-2xx/transport
+ * error. `onProgress` receives an integer 0–100 as bytes are sent.
+ */
+function putFileWithProgress(
+  url: string,
+  file: File,
+  contentType: string,
+  onProgress?: (percent: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", contentType);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(new Error("Unable to upload file."));
+      }
+    };
+    xhr.onerror = () => reject(new Error("Unable to upload file."));
+    xhr.send(file);
+  });
+}
+
 export async function uploadTenantFile(input: {
   file: File;
   purpose: UploadPurpose;
   surface: "admin" | "portal";
   mode: "publicAsset" | "document" | "preparedUpload";
   allowExternalUrl?: boolean;
+  onProgress?: (percent: number) => void;
 }) {
   if (input.purpose === "KYC_DOCUMENT" && !kycAllowedMimeTypes.has((input.file.type || "").toLowerCase())) {
     throw new Error("KYC documents must be PDF, JPG, PNG, or WEBP files.");
@@ -73,17 +108,12 @@ export async function uploadTenantFile(input: {
   }
 
   if (signed.data.mode === "live") {
-    const uploadResponse = await fetch(signed.data.url, {
-      method: "PUT",
-      body: input.file,
-      headers: {
-        "Content-Type": input.file.type || "application/octet-stream",
-      },
-    });
-
-    if (!uploadResponse.ok) {
-      throw new Error("Unable to upload file.");
-    }
+    await putFileWithProgress(
+      signed.data.url,
+      input.file,
+      input.file.type || "application/octet-stream",
+      input.onProgress,
+    );
   } else if (!input.allowExternalUrl && input.mode === "publicAsset") {
     throw new Error("Storage is not configured for direct uploads here yet. Use an external asset URL in local development.");
   }

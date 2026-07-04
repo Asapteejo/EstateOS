@@ -7,6 +7,7 @@ import { StatCard } from "@/components/admin/admin-ui";
 import { requirePortalSession } from "@/lib/auth/guards";
 import { formatCurrency } from "@/lib/utils";
 import { getBuyerPaymentExperience } from "@/modules/portal/queries";
+import { humanizePaymentStatus } from "@/modules/payments/progress";
 
 export default async function PortalPaymentsPage() {
   const tenant = await requirePortalSession();
@@ -18,7 +19,7 @@ export default async function PortalPaymentsPage() {
         <StatCard label="Total payable" value={formatCurrency(paymentExperience.progress.totalPayableAmount)} />
         <StatCard label="Paid so far" value={formatCurrency(paymentExperience.progress.amountPaidSoFar)} />
         <StatCard label="Outstanding balance" value={formatCurrency(paymentExperience.progress.outstandingBalance)} />
-        <StatCard label="Payment state" value={paymentExperience.paymentStatus} />
+        <StatCard label="Payment state" value={humanizePaymentStatus(paymentExperience.paymentStatus)} />
         <Card className="h-full min-w-0 p-6">
           <div className="text-sm text-[var(--ink-500)]">Selected marketer</div>
           {paymentExperience.selectedMarketer ? (
@@ -51,7 +52,7 @@ export default async function PortalPaymentsPage() {
                 You are working with {paymentExperience.selectedMarketer.fullName}
               </h2>
               <p className="mt-2 text-sm text-[var(--ink-600)]">
-                EstateOS keeps marketer attribution attached to the payment journey so your payment request and transaction stay routed to the right person.
+                We keep marketer attribution attached to the payment journey so your payment request and transaction stay routed to the right person.
               </p>
             </div>
             <Link href={`/team/${paymentExperience.selectedMarketer.slug}`}>
@@ -86,7 +87,7 @@ export default async function PortalPaymentsPage() {
         </div>
         <div className="mt-6 grid gap-3">
           {paymentExperience.progress.installmentSchedule.map((installment) => (
-            <div key={installment.title} className="rounded-2xl bg-[var(--sand-100)] px-4 py-4 text-sm text-[var(--ink-700)]">
+            <div key={installment.title} className="premium-row rounded-2xl bg-[var(--sand-100)] px-4 py-4 text-sm text-[var(--ink-700)]">
                 <div className="flex items-center justify-between gap-4">
                   <div className="font-semibold text-[var(--ink-950)]">{installment.title}</div>
                   <div className="capitalize">{installment.status}</div>
@@ -107,7 +108,7 @@ export default async function PortalPaymentsPage() {
           <h2 className="text-2xl font-semibold text-[var(--ink-950)]">Payment history</h2>
           <div className="mt-5 space-y-3">
             {paymentExperience.payments.map((payment) => (
-              <div key={payment.reference} className="rounded-2xl bg-[var(--sand-100)] px-4 py-4 text-sm text-[var(--ink-700)]">
+              <div key={payment.reference} className="premium-row rounded-2xl bg-[var(--sand-100)] px-4 py-4 text-sm text-[var(--ink-700)]">
                 <div className="flex items-center justify-between gap-4">
                   <div className="font-semibold text-[var(--ink-950)]">{payment.reference}</div>
                   <div>{payment.status}</div>
@@ -137,7 +138,7 @@ export default async function PortalPaymentsPage() {
           </p>
           <div className="mt-5 space-y-3">
             {paymentExperience.paymentRequests.map((request) => (
-              <div key={request.id} className="rounded-2xl bg-[var(--sand-100)] px-4 py-4 text-sm text-[var(--ink-700)]">
+              <div key={request.id} className="premium-row rounded-2xl bg-[var(--sand-100)] px-4 py-4 text-sm text-[var(--ink-700)]">
                 <div className="flex items-center justify-between gap-4">
                   <div className="font-semibold text-[var(--ink-950)]">{request.title}</div>
                   <div>{request.status}</div>
@@ -179,7 +180,7 @@ export default async function PortalPaymentsPage() {
           </p>
           <div className="mt-5 space-y-3">
             {paymentExperience.receipts.map((receipt) => (
-              <div key={receipt.id} className="rounded-2xl bg-[var(--sand-100)] px-4 py-4 text-sm text-[var(--ink-700)]">
+              <div key={receipt.id} className="premium-row rounded-2xl bg-[var(--sand-100)] px-4 py-4 text-sm text-[var(--ink-700)]">
                 <div className="font-semibold text-[var(--ink-950)]">{receipt.receiptNumber}</div>
                 <div className="mt-2 flex flex-wrap gap-4">
                   <span>{receipt.amount}</span>
