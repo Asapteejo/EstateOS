@@ -7,6 +7,7 @@ import {
 } from "@/modules/front-desk/logbook-actions";
 import type { FrontDeskLogbook } from "@/modules/front-desk/logbook";
 import { WhatsAppButton } from "@/components/shared/whatsapp-button";
+import { Select } from "@/components/ui/select";
 
 const inputClass =
   "admin-focus w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm text-[var(--ink-900)] placeholder:text-[var(--ink-400)]";
@@ -105,10 +106,10 @@ export function FrontDeskLogbookView({ logbook }: { logbook: FrontDeskLogbook })
           <form action={logCallAction} className="mt-4 grid gap-3 sm:grid-cols-2">
             <input name="callerName" required placeholder="Caller name *" className={inputClass} aria-label="Caller name" />
             <input name="phone" placeholder="Phone" className={inputClass} aria-label="Caller phone" />
-            <select name="direction" defaultValue="INBOUND" className={inputClass} aria-label="Call direction">
+            <Select name="direction" defaultValue="INBOUND" className="w-full" aria-label="Call direction">
               <option value="INBOUND">Inbound</option>
               <option value="OUTBOUND">Outbound</option>
-            </select>
+            </Select>
             <input name="purpose" placeholder="Reason for call" className={inputClass} aria-label="Reason for call" />
             <input name="outcome" placeholder="Outcome / next step" className={`${inputClass} sm:col-span-2`} aria-label="Call outcome" />
             <div className="sm:col-span-2">

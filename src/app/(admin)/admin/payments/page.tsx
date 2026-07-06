@@ -1,8 +1,7 @@
-import Link from "next/link";
-
 import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { StatCard } from "@/components/admin/admin-ui";
 import { PaymentRequestManagement } from "@/components/admin/payment-request-management";
+import { PaymentsRegisterTable } from "@/components/admin/payments-register-table";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { requireAdminSession } from "@/lib/auth/guards";
@@ -35,39 +34,7 @@ export default async function AdminPaymentsPage() {
         <div className="border-b border-[var(--line)] px-6 py-4">
           <h3 className="text-lg font-semibold text-[var(--ink-950)]">Deal payment register</h3>
         </div>
-        <div className="overflow-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-[var(--sand-100)] text-[var(--ink-500)]">
-              <tr>
-                {["Reference", "Buyer", "Marketer", "Payment state", "Stage", "Outstanding", "Next due", "Receipt"].map((column) => (
-                  <th key={column} className="px-6 py-3 font-medium">{column}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {monitoring.rows.map((row) => (
-                <tr key={row.id} className="border-t border-[var(--line)]">
-                  <td className="px-6 py-4 text-[var(--ink-700)]">{row.reference}</td>
-                  <td className="px-6 py-4 text-[var(--ink-700)]">{row.buyer}</td>
-                  <td className="px-6 py-4 text-[var(--ink-700)]">{row.marketer}</td>
-                  <td className="px-6 py-4 text-[var(--ink-700)]">{row.paymentStatus}</td>
-                  <td className="px-6 py-4 text-[var(--ink-700)]">{row.stage}</td>
-                  <td className="px-6 py-4 text-[var(--ink-700)]">{row.outstandingBalance}</td>
-                  <td className="px-6 py-4 text-[var(--ink-700)]">{row.nextDueAt}</td>
-                  <td className="px-6 py-4 text-[var(--ink-700)]">
-                    {row.receiptId ? (
-                      <Link href={`/api/receipts/${row.receiptId}/download`} className="text-[var(--brand-700)] underline">
-                        Download
-                      </Link>
-                    ) : (
-                      "Pending"
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <PaymentsRegisterTable rows={monitoring.rows} />
       </Card>
 
       <PaymentRequestManagement

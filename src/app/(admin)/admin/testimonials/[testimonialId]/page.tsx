@@ -6,6 +6,7 @@ import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { Card } from "@/components/ui/card";
 import { requireAdminSession } from "@/lib/auth/guards";
 import { getAdminTestimonialDetail } from "@/modules/testimonials/service";
+import { OptimizedImage } from "@/components/media/optimized-image";
 
 export default async function AdminTestimonialDetailPage({
   params,
@@ -37,8 +38,7 @@ export default async function AdminTestimonialDetailPage({
               <div className="flex items-center gap-3">
                 <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-[var(--sand-100)] text-sm font-semibold text-[var(--ink-700)]">
                   {testimonial.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={testimonial.avatarUrl} alt={`${testimonial.displayName} avatar`} width={48} height={48} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                    <OptimizedImage src={testimonial.avatarUrl} alt={`${testimonial.displayName} avatar`} width={48} height={48} preset="thumbnail" className="h-full w-full object-cover" />
                   ) : (
                     testimonial.displayName.slice(0, 2).toUpperCase()
                   )}

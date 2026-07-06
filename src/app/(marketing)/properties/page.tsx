@@ -18,6 +18,7 @@ import {
 } from "@/modules/properties/queries";
 import { getTenantMarketerLeaderboard } from "@/modules/team/performance";
 import Link from "next/link";
+import { Select } from "@/components/ui/select";
 
 export default async function PropertiesPage({
   searchParams,
@@ -72,10 +73,9 @@ export default async function PropertiesPage({
             defaultLongitude={filters.longitude}
             defaultRadiusKm={filters.radiusKm}
           />
-          <select
+          <Select
             name="propertyType"
             defaultValue={filters.propertyType ?? ""}
-            className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
           >
             <option value="">All property types</option>
             <option value="APARTMENT">Apartment</option>
@@ -85,20 +85,19 @@ export default async function PropertiesPage({
             <option value="SEMI_DETACHED">Semi-detached</option>
             <option value="LAND">Land</option>
             <option value="COMMERCIAL">Commercial</option>
-          </select>
+          </Select>
           <Input name="minPrice" placeholder="Min price" defaultValue={filters.minPrice?.toString() ?? ""} />
           <Input name="maxPrice" placeholder="Max price" defaultValue={filters.maxPrice?.toString() ?? ""} />
           <Input name="bedrooms" placeholder="Bedrooms" defaultValue={filters.bedrooms?.toString() ?? ""} />
-          <select
+          <Select
             name="status"
             defaultValue={filters.status ?? ""}
-            className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
           >
             <option value="">All statuses</option>
             <option value="AVAILABLE">Available</option>
             <option value="RESERVED">Reserved</option>
             <option value="SOLD">Sold</option>
-          </select>
+          </Select>
           <label className="flex items-center gap-3 rounded-2xl border border-[var(--line)] px-4 text-sm text-[var(--ink-700)]">
             <input type="checkbox" name="hasPaymentPlan" value="true" defaultChecked={Boolean(filters.hasPaymentPlan)} />
             Payment plan available

@@ -10,7 +10,7 @@
     "start": "next start",
     "lint": "node --max-old-space-size=4096 ./node_modules/eslint/bin/eslint.js .",
     "encoding:check": "node scripts/check-utf8.mjs",
-    "test": "tsx --test src/**/*.test.ts",
+    "test": "tsx --test \"src/**/*.test.ts\"",
     "typecheck": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc --noEmit --incremental false",
     "db:generate": "prisma generate",
     "db:validate": "prisma validate",

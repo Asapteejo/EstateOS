@@ -8,6 +8,7 @@ import {
   generateContractFormAction,
   type GenerateContractActionState,
 } from "./actions";
+import { Select } from "@/components/ui/select";
 
 type ContractReadiness = {
   ceoName: boolean;
@@ -80,11 +81,10 @@ export function GenerateContractForm({
           <label className="mb-1 block text-xs font-medium text-[var(--ink-600)]">
             Transaction
           </label>
-          <select
+          <Select
             name="transactionId"
             required
-            disabled={!readiness.isConfigured}
-            className="w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm text-[var(--ink-800)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-500)] disabled:cursor-not-allowed disabled:bg-[var(--sand-100)] disabled:text-[var(--ink-400)]"
+            disabled={!readiness.isConfigured} className="w-full"
           >
             <option value="">Select a transaction...</option>
             {transactions.map((tx) => (
@@ -92,7 +92,7 @@ export function GenerateContractForm({
                 {tx.label}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="flex items-end">
           <Button type="submit" variant="default" disabled={disabled}>

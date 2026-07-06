@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { publicEnv } from "@/lib/public-env";
+import { Select } from "@/components/ui/select";
 
 type LocationSuggestion = {
   id?: string;
@@ -117,10 +118,9 @@ export function PropertyLocationSearch({
       </div>
       <input type="hidden" name="latitude" value={latitude} />
       <input type="hidden" name="longitude" value={longitude} />
-      <select
+      <Select
         name="radiusKm"
-        defaultValue={defaultRadiusKm == null ? "" : String(defaultRadiusKm)}
-        className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+        defaultValue={defaultRadiusKm == null ? "" : String(defaultRadiusKm)} className="w-full"
       >
         <option value="">Any distance</option>
         <option value="2">Within 2 km</option>
@@ -128,7 +128,7 @@ export function PropertyLocationSearch({
         <option value="10">Within 10 km</option>
         <option value="25">Within 25 km</option>
         <option value="50">Within 50 km</option>
-      </select>
+      </Select>
       {suggestions.length > 0 ? (
         <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-white">
           {suggestions.map((suggestion) => {

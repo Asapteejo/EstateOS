@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { buildAuthRedirect, buildPublicDomainConfig } from "@/lib/domains";
 import { publicEnv } from "@/lib/public-env";
+import { Select } from "@/components/ui/select";
 
 export function PropertyActions({
   propertyId,
@@ -102,8 +103,7 @@ export function PropertyActions({
   return (
     <div className="mt-6 space-y-3">
       {marketers.length > 0 ? (
-        <select
-          className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+        <Select className="w-full"
           value={selectedMarketerId}
           onChange={(event) => setSelectedMarketerId(event.target.value)}
         >
@@ -113,11 +113,10 @@ export function PropertyActions({
               {marketer.fullName}  -  {marketer.title}
             </option>
           ))}
-        </select>
+        </Select>
       ) : null}
       {paymentPlans.length > 0 ? (
-        <select
-          className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+        <Select className="w-full"
           value={selectedPaymentPlanId}
           onChange={(event) => setSelectedPaymentPlanId(event.target.value)}
         >
@@ -127,7 +126,7 @@ export function PropertyActions({
               {plan.title}  -  {plan.kind.toLowerCase()}
             </option>
           ))}
-        </select>
+        </Select>
       ) : null}
       <Button
         className="w-full"

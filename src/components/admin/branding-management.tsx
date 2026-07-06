@@ -18,6 +18,7 @@ import {
   getBrandingPublishIssues,
 } from "@/modules/branding/theme";
 import { formatStableDate } from "@/lib/utils";
+import { Select } from "@/components/ui/select";
 
 function buildPreviewName(companyName?: string) {
   return companyName?.trim() || "Acme Realty";
@@ -187,11 +188,11 @@ export function BrandingManagement({
                 <ColorField label="Background color" value={draft.backgroundColor} onChange={(value) => setDraft((current) => ({ ...current, backgroundColor: value }))} />
                 <ColorField label="Surface color" value={draft.surfaceColor} onChange={(value) => setDraft((current) => ({ ...current, surfaceColor: value }))} />
                 <Field label="Text mode">
-                  <select className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm" value={draft.textMode} onChange={(event) => setDraft((current) => ({ ...current, textMode: event.target.value as TenantBrandingConfig["textMode"] }))}>
+                  <Select className="w-full min-w-0" value={draft.textMode} onChange={(event) => setDraft((current) => ({ ...current, textMode: event.target.value as TenantBrandingConfig["textMode"] }))}>
                     <option value="AUTO">Auto</option>
                     <option value="LIGHT">Light</option>
                     <option value="DARK">Dark</option>
-                  </select>
+                  </Select>
                 </Field>
               </div>
             </StudioSection>
@@ -203,35 +204,35 @@ export function BrandingManagement({
             >
               <div className="grid gap-4">
                 <Field label="Background style">
-                  <select className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm" value={draft.backgroundStyle} onChange={(event) => setDraft((current) => ({ ...current, backgroundStyle: event.target.value as TenantBrandingConfig["backgroundStyle"] }))}>
+                  <Select className="w-full min-w-0" value={draft.backgroundStyle} onChange={(event) => setDraft((current) => ({ ...current, backgroundStyle: event.target.value as TenantBrandingConfig["backgroundStyle"] }))}>
                     <option value="CLEAN_APP_DEFAULT">Clean app default</option>
                     <option value="LIGHT">Light</option>
                     <option value="DARK">Dark</option>
                     <option value="SOFT_GRADIENT">Soft gradient</option>
                     <option value="BRANDED_GRADIENT">Branded gradient</option>
                     <option value="IMAGE_HERO">Image hero</option>
-                  </select>
+                  </Select>
                 </Field>
                 <Field label="Button style">
-                  <select className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm" value={draft.buttonStyle} onChange={(event) => setDraft((current) => ({ ...current, buttonStyle: event.target.value as TenantBrandingConfig["buttonStyle"] }))}>
+                  <Select className="w-full min-w-0" value={draft.buttonStyle} onChange={(event) => setDraft((current) => ({ ...current, buttonStyle: event.target.value as TenantBrandingConfig["buttonStyle"] }))}>
                     <option value="PILL">Pill</option>
                     <option value="ROUNDED">Rounded</option>
                     <option value="SOFT">Soft</option>
-                  </select>
+                  </Select>
                 </Field>
                 <Field label="Card style">
-                  <select className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm" value={draft.cardStyle} onChange={(event) => setDraft((current) => ({ ...current, cardStyle: event.target.value as TenantBrandingConfig["cardStyle"] }))}>
+                  <Select className="w-full min-w-0" value={draft.cardStyle} onChange={(event) => setDraft((current) => ({ ...current, cardStyle: event.target.value as TenantBrandingConfig["cardStyle"] }))}>
                     <option value="SOFT">Soft</option>
                     <option value="GLASS">Glass</option>
                     <option value="OUTLINED">Outlined</option>
-                  </select>
+                  </Select>
                 </Field>
                 <Field label="Navigation style">
-                  <select className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm" value={draft.navStyle} onChange={(event) => setDraft((current) => ({ ...current, navStyle: event.target.value as TenantBrandingConfig["navStyle"] }))}>
+                  <Select className="w-full min-w-0" value={draft.navStyle} onChange={(event) => setDraft((current) => ({ ...current, navStyle: event.target.value as TenantBrandingConfig["navStyle"] }))}>
                     <option value="FLOATING">Floating</option>
                     <option value="SOLID">Solid</option>
                     <option value="MINIMAL">Minimal</option>
-                  </select>
+                  </Select>
                 </Field>
               </div>
             </StudioSection>

@@ -264,8 +264,7 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
                   <div className="flex items-center gap-3">
                     <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-[var(--sand-100)] text-sm font-semibold text-[var(--ink-700)]">
                       {testimonial.avatarUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={testimonial.avatarUrl} alt={`${testimonial.fullName} avatar`} width={44} height={44} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                        <OptimizedImage src={testimonial.avatarUrl} alt={`${testimonial.fullName} avatar`} width={44} height={44} preset="thumbnail" className="h-full w-full object-cover" />
                       ) : (
                         testimonial.fullName.slice(0, 2).toUpperCase()
                       )}

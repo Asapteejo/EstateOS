@@ -10,6 +10,7 @@ import {
   createCommissionRuleAction,
   deactivateCommissionRuleAction,
 } from "./actions";
+import { Select } from "@/components/ui/select";
 
 const PROPERTY_TYPE_OPTIONS = [
   ["", "All property types"],
@@ -45,14 +46,13 @@ export default async function CommissionRulesPage() {
             <label className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-500)]">
               Fee type
             </label>
-            <select
+            <Select
               name="feeType"
-              required
-              className="admin-focus admin-interactive h-11 min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm text-[var(--ink-700)]"
+              required className="min-w-0"
             >
               <option value="PERCENTAGE">Percentage of payment</option>
               <option value="FLAT">Flat fee</option>
-            </select>
+            </Select>
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -92,16 +92,15 @@ export default async function CommissionRulesPage() {
             <label className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-500)]">
               Scope - property type
             </label>
-            <select
-              name="propertyType"
-              className="admin-focus admin-interactive h-11 min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm text-[var(--ink-700)]"
+            <Select
+              name="propertyType" className="min-w-0"
             >
               {PROPERTY_TYPE_OPTIONS.map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
               ))}
-            </select>
+            </Select>
             <p className="text-xs text-[var(--ink-400)]">Leave as &quot;All&quot; for a company-wide default.</p>
           </div>
 

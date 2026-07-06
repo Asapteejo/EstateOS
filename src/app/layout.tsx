@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Libre_Baskerville } from "next/font/google";
 
 import { AppProviders } from "@/components/providers/app-providers";
@@ -6,6 +6,7 @@ import { DevAccessSwitcher } from "@/components/shared/dev-access-switcher";
 import { RouteProgress } from "@/components/shared/route-progress";
 import { featureFlags } from "@/lib/env";
 import { logStartupReadinessOnce } from "@/lib/ops/startup";
+import { THEME_INIT_SCRIPT } from "@/lib/security/csp";
 import "./globals.css";
 
 // Web-loaded, self-hosted fonts (next/font downloads + serves them from our own
@@ -35,6 +36,29 @@ export const metadata: Metadata = {
   title: "EstateOS",
   description:
     "EstateOS is a real estate SaaS for platform owners and tenant companies spanning listings, CRM, payments, and buyer transaction visibility.",
+  // PWA / install metadata. The manifest itself is served from
+  // src/app/manifest.ts; the apple-touch icon lives in public/.
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "EstateOS",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  // Browser chrome color follows the active theme (brand green on light,
+  // the dashboard's dark background on dark).
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#0e5b49" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e1219" },
+  ],
 };
 
 export default function RootLayout({
@@ -47,10 +71,13 @@ export default function RootLayout({
   return (
     <html lang="en" data-scroll-behavior="smooth" className={`${fontSans.variable} ${fontSerif.variable}`}>
       <body>
+        {/* Pre-hydration theme bootstrap. The text lives in @/lib/security/csp
+            because the enforced CSP authorizes it by SHA-256 hash — keeping the
+            script and its hash in one module (verified by csp.test.ts) means
+            editing one without the other fails tests instead of breaking prod. */}
         <script
           dangerouslySetInnerHTML={{
-            __html:
-              "(function(){try{if(localStorage.getItem('estateos-theme')==='dark'){document.documentElement.classList.add('theme-dark');}}catch(e){}})();",
+            __html: THEME_INIT_SCRIPT,
           }}
         />
         <RouteProgress />

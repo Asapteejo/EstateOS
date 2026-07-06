@@ -1,3 +1,5 @@
+import type { PaymentStatus } from "@prisma/client";
+
 export const PAYMENT_INSTALLMENT_RULE =
   "An installment may receive multiple payments over time, but each payment may reference at most one installment.";
 
@@ -40,4 +42,24 @@ export function buildPaystackWebhookEventId(input: {
   reference: string;
 }) {
   return `${input.event}:${input.providerId ?? input.reference}`;
+}
+
+/**
+ * Idempotency rules for webhook status transitions:
+ *  - Never downgrade: once SUCCESS, later FAILED events cannot unwind it.
+ *  - Money mutations run only on the FIRST transition into SUCCESS, so a
+ *    second success event for the same reference (different provider event
+ *    id, or a concurrent duplicate) can never double-decrement a balance.
+ */
+export function resolveReconciliationStatus(input: {
+  previousStatus: PaymentStatus | null;
+  incomingStatus: PaymentStatus;
+}) {
+  const status: PaymentStatus =
+    input.previousStatus === "SUCCESS" ? "SUCCESS" : input.incomingStatus;
+  return {
+    status,
+    isFirstSuccessfulReconciliation:
+      status === "SUCCESS" && input.previousStatus !== "SUCCESS",
+  };
 }

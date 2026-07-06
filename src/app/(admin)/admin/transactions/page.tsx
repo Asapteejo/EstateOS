@@ -74,6 +74,7 @@ export default async function AdminTransactionsPage() {
           title="Transactions register"
           columns={["Reference", "Property", "Buyer", "Marketer", "Stage", "Balance"]}
           rows={rows}
+          searchPlaceholder="Search transactions…"
         />
       </div>
     </DashboardShell>

@@ -11,6 +11,7 @@ import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { Textarea } from "@/components/ui/textarea";
 import { compareAttentionPriority, getAttentionTone, workflowVocabulary } from "@/modules/admin/workflow-vocabulary";
 import { formatCurrency } from "@/lib/utils";
+import { Select } from "@/components/ui/select";
 
 type TransactionItem = {
   id: string;
@@ -188,8 +189,7 @@ export function TransactionManagement({ items }: { items: TransactionItem[] }) {
                   <div className="text-eyebrow">Outstanding</div>
                   <div className="numeric mt-1 font-semibold text-[var(--ink-950)]">{formatCurrency(item.balance)}</div>
                 </div>
-                <select
-                  className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+                <Select className="w-full min-w-0"
                   value={drafts[item.id]?.reservationStatus ?? item.reservationStatus}
                   onChange={(event) =>
                     setDrafts((current) => ({
@@ -209,11 +209,10 @@ export function TransactionManagement({ items }: { items: TransactionItem[] }) {
                       ] ?? status.replaceAll("_", " ")}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="min-w-0 space-y-3">
-                <select
-                  className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+                <Select className="w-full min-w-0"
                   value={drafts[item.id]?.stage ?? item.stage}
                   onChange={(event) =>
                     setDrafts((current) => ({
@@ -233,7 +232,7 @@ export function TransactionManagement({ items }: { items: TransactionItem[] }) {
                       ] ?? stage.replaceAll("_", " ")}
                     </option>
                   ))}
-                </select>
+                </Select>
                 <Textarea
                   placeholder="Operator note"
                   value={drafts[item.id]?.notes ?? ""}

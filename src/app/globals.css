@@ -716,9 +716,10 @@ html {
 }
 
 /* ----------------------------------------------------------------------------
-   Dark mode — operator dashboards only (opt-in, default off).
+   Dark mode — operator + buyer dashboards (system-aware).
 
-   `theme-dark` is toggled on <html> and persisted in localStorage; the visual
+   First visit follows prefers-color-scheme; an explicit toggle choice is
+   persisted and wins thereafter. `theme-dark` is toggled on <html>; the visual
    change is gated behind `.app-dark-scope`, which is present only on the
    admin / portal / superadmin shells. Public + tenant-branded sites never
    carry that class, so they are completely unaffected. Per the skill's dark

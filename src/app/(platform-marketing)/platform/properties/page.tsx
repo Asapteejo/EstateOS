@@ -10,6 +10,7 @@ import {
   getMarketplaceStats,
   parseMarketplaceSearchParams,
 } from "@/modules/properties/marketplace";
+import { Select } from "@/components/ui/select";
 
 const PROPERTY_TYPE_OPTIONS = [
   ["", "All types"],
@@ -113,17 +114,16 @@ export default async function MarketplacePage({
               placeholder="Search city, state, or title"
               defaultValue={filters.location ?? ""}
             />
-            <select
+            <Select
               name="propertyType"
               defaultValue={filters.propertyType ?? ""}
-              className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
             >
               {PROPERTY_TYPE_OPTIONS.map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
               ))}
-            </select>
+            </Select>
             <Input
               name="minPrice"
               type="number"

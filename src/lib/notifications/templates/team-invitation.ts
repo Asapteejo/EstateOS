@@ -6,6 +6,7 @@ const ROLE_LABELS: Record<AppRole, string> = {
   ADMIN: "Admin",
   LEGAL: "Legal",
   FINANCE: "Finance",
+  MARKETER: "Marketer",
   SUPER_ADMIN: "Super Admin",
 };
 

@@ -14,6 +14,8 @@ export type PaymentMarketerDisplay = {
   title: string;
   slug: string;
   avatarUrl: string | null;
+  phone?: string | null;
+  whatsappNumber?: string | null;
 };
 
 export function buildBuyerPaymentProgress(input: PaymentProgressInput) {

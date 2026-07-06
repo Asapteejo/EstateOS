@@ -17,70 +17,55 @@ import {
 } from "@/modules/contracts/service";
 import { generateContractSubmitAction, sendContractAction, uploadContractAction } from "./actions";
 import { GenerateContractForm } from "./generate-contract-form";
+import {
+  GeneratedContractsTable,
+  UploadedContractsTable,
+} from "@/components/admin/contracts-tables";
+import { Select } from "@/components/ui/select";
 
-// ─── Status badge ─────────────────────────────────────────────────────────────
+// ─── Row flattening for the client tables ─────────────────────────────────────
+// The client DataTable needs serializable rows; dates are formatted here on
+// the server so the table only ever sees display strings.
 
-function ContractStatusBadge({ status }: { status: SignedAgreementRow["status"] }) {
-  const map: Record<SignedAgreementRow["status"], { label: string; tone: string }> = {
-    PENDING:   { label: "Uploaded",  tone: "bg-[var(--sand-100)] text-[var(--ink-600)]" },
-    ACTIVE:    { label: "Sent",      tone: "bg-blue-50 text-blue-700" },
-    COMPLETED: { label: "Accepted",  tone: "bg-emerald-50 text-emerald-700" },
-    BLOCKED:   { label: "Blocked",   tone: "bg-red-50 text-red-700" },
+function toUploadedContractRow(row: SignedAgreementRow) {
+  return {
+    id: row.id,
+    reference: row.transaction.reservation?.reference ?? row.transactionId.slice(0, 8),
+    buyer:
+      [row.transaction.user.firstName, row.transaction.user.lastName].filter(Boolean).join(" ") ||
+      "Buyer",
+    property: row.transaction.property.title,
+    fileName: row.document.fileName,
+    status: row.status,
+    dateLabel: row.acceptedAt
+      ? formatDate(row.acceptedAt, "PP p")
+      : row.sentAt
+        ? formatDate(row.sentAt, "PP")
+        : formatDate(row.createdAt, "PP"),
+    acceptedNote:
+      row.status === "COMPLETED"
+        ? `Accepted ${row.acceptedByIp ? `· ${row.acceptedByIp}` : ""}`.trim()
+        : null,
   };
-  const { label, tone } = map[status] ?? map.PENDING;
-  return (
-    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${tone}`}>
-      {label}
-    </span>
-  );
 }
 
-// ─── Row: contract with actions ───────────────────────────────────────────────
-
-function ContractRow({ row }: { row: SignedAgreementRow }) {
-  const ref = row.transaction.reservation?.reference ?? row.transactionId.slice(0, 8);
-  const buyer = [row.transaction.user.firstName, row.transaction.user.lastName]
-    .filter(Boolean)
-    .join(" ") || "Buyer";
-
-  return (
-    <tr className="border-b border-[var(--line)] last:border-0">
-      <td className="py-3 pr-4 text-sm font-medium text-[var(--ink-900)]">{ref}</td>
-      <td className="py-3 pr-4 text-sm text-[var(--ink-600)]">{buyer}</td>
-      <td className="py-3 pr-4 text-sm text-[var(--ink-600)] max-w-[200px] truncate">
-        {row.transaction.property.title}
-      </td>
-      <td className="py-3 pr-4 text-sm text-[var(--ink-600)]">{row.document.fileName}</td>
-      <td className="py-3 pr-4">
-        <ContractStatusBadge status={row.status} />
-      </td>
-      <td className="py-3 pr-4 text-sm text-[var(--ink-500)]">
-        {row.acceptedAt
-          ? formatDate(row.acceptedAt, "PP p")
-          : row.sentAt
-          ? formatDate(row.sentAt, "PP")
-          : formatDate(row.createdAt, "PP")}
-      </td>
-      <td className="py-3 text-right">
-        {row.status === "PENDING" && (
-          <form action={sendContractAction}>
-            <input type="hidden" name="signedAgreementId" value={row.id} />
-            <Button type="submit" size="sm" variant="outline">
-              Send to buyer
-            </Button>
-          </form>
-        )}
-        {row.status === "ACTIVE" && (
-          <span className="text-xs text-[var(--ink-400)]">Awaiting acceptance</span>
-        )}
-        {row.status === "COMPLETED" && (
-          <span className="text-xs text-emerald-600">
-            Accepted {row.acceptedByIp ? `· ${row.acceptedByIp}` : ""}
-          </span>
-        )}
-      </td>
-    </tr>
-  );
+function toGeneratedContractRow(row: GeneratedContractRow) {
+  return {
+    id: row.id,
+    contractNumber: row.contractNumber,
+    buyer:
+      [row.buyer.firstName, row.buyer.lastName].filter(Boolean).join(" ") ||
+      row.buyer.email ||
+      "Buyer",
+    property: row.property?.title ?? "Unlinked",
+    status: row.status,
+    versionLabel: `v${row.version} - ${formatDate(row.generatedAt, "PP")}`,
+    templateNote: row.templateVersion ? `Template v${row.templateVersion}` : null,
+    documentId: row.documentId,
+    transactionId: row.transactionId,
+    templateId: row.templateId,
+    canRegenerate: row.status !== "REGENERATED",
+  };
 }
 
 // ─── Upload form for a transaction without a contract ─────────────────────────
@@ -99,10 +84,9 @@ function UploadContractForm({ transactions }: { transactions: TransactionWithout
           <label className="mb-1 block text-xs font-medium text-[var(--ink-600)]">
             Transaction
           </label>
-          <select
+          <Select
             name="transactionId"
-            required
-            className="w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm text-[var(--ink-800)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-500)]"
+            required className="w-full"
           >
             <option value="">Select a transaction…</option>
             {transactions.map((tx) => {
@@ -114,7 +98,7 @@ function UploadContractForm({ transactions }: { transactions: TransactionWithout
                 </option>
               );
             })}
-          </select>
+          </Select>
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-[var(--ink-600)]">
@@ -135,46 +119,6 @@ function UploadContractForm({ transactions }: { transactions: TransactionWithout
         </div>
       </form>
     </div>
-  );
-}
-
-function GeneratedContractRowView({ row }: { row: GeneratedContractRow }) {
-  const buyer = [row.buyer.firstName, row.buyer.lastName].filter(Boolean).join(" ") || row.buyer.email || "Buyer";
-
-  return (
-    <tr className="border-b border-[var(--line)] last:border-0">
-      <td className="py-3 pr-4 text-sm font-medium text-[var(--ink-900)]">{row.contractNumber}</td>
-      <td className="py-3 pr-4 text-sm text-[var(--ink-600)]">{buyer}</td>
-      <td className="py-3 pr-4 text-sm text-[var(--ink-600)]">{row.property?.title ?? "Unlinked"}</td>
-      <td className="py-3 pr-4 text-sm text-[var(--ink-600)]">{row.status}</td>
-      <td className="py-3 pr-4 text-sm text-[var(--ink-500)]">
-        v{row.version} - {formatDate(row.generatedAt, "PP")}
-        {row.templateVersion ? <div className="text-xs">Template v{row.templateVersion}</div> : null}
-      </td>
-      <td className="py-3 pr-4 text-right">
-        <div className="flex justify-end gap-2">
-          <a href={`/api/documents/${row.documentId}/download?disposition=attachment`}>
-            <Button size="sm" variant="outline">Download</Button>
-          </a>
-          {row.transactionId && row.status !== "REGENERATED" ? (
-            <form action={generateContractSubmitAction}>
-              <input type="hidden" name="transactionId" value={row.transactionId} />
-              <input type="hidden" name="forceRegenerate" value="true" />
-              <Button type="submit" size="sm" variant="outline">Regenerate</Button>
-            </form>
-          ) : null}
-          {row.transactionId && row.templateId && row.status !== "REGENERATED" ? (
-            <form action={generateContractSubmitAction}>
-              <input type="hidden" name="transactionId" value={row.transactionId} />
-              <input type="hidden" name="forceRegenerate" value="true" />
-              <input type="hidden" name="templateId" value={row.templateId} />
-              <input type="hidden" name="regeneratedFromContractId" value={row.id} />
-              <Button type="submit" size="sm" variant="outline">Original template</Button>
-            </form>
-          ) : null}
-        </div>
-      </td>
-    </tr>
   );
 }
 
@@ -236,63 +180,20 @@ export default async function AdminContractsPage() {
         <div className="border-b border-[var(--line)] px-5 py-4">
           <h2 className="text-sm font-semibold text-[var(--ink-900)]">Generated Contracts of Sale</h2>
         </div>
-        {generatedContracts.length === 0 ? (
-          <div className="px-5 py-10 text-center text-sm text-[var(--ink-400)]">
-            No generated contracts yet. Use the generator above after contract settings are ready.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[var(--line)] text-left">
-                  {["Contract", "Buyer", "Property", "Status", "Version", ""].map((h) => (
-                    <th key={h} className="px-0 pb-3 pt-4 pr-4 first:pl-5 last:pr-5 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ink-400)]">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {generatedContracts.map((row) => (
-                  <GeneratedContractRowView key={row.id} row={row} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <GeneratedContractsTable
+          rows={generatedContracts.map(toGeneratedContractRow)}
+          generateAction={generateContractSubmitAction}
+        />
       </div>
 
       <div className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-white">
         <div className="border-b border-[var(--line)] px-5 py-4">
           <h2 className="text-sm font-semibold text-[var(--ink-900)]">All contracts</h2>
         </div>
-        {contracts.length === 0 ? (
-          <div className="px-5 py-10 text-center text-sm text-[var(--ink-400)]">
-            No contracts uploaded yet. Use the form above to link a contract PDF to a transaction.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[var(--line)] text-left">
-                  {["Reference", "Buyer", "Property", "File", "Status", "Date", ""].map((h) => (
-                    <th
-                      key={h}
-                      className="px-0 pb-3 pt-4 pr-4 first:pl-5 last:pr-5 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--ink-400)]"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--line)] [&>tr]:px-5">
-                {contracts.map((row) => (
-                  <ContractRow key={row.id} row={row} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <UploadedContractsTable
+          rows={contracts.map(toUploadedContractRow)}
+          sendAction={sendContractAction}
+        />
       </div>
     </DashboardShell>
   );

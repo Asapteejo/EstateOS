@@ -8,6 +8,7 @@ import {
   type MediaLibraryAsset,
 } from "@/modules/uploads/library";
 import { uploadPurposeOptions } from "@/modules/uploads/config";
+import { Select } from "@/components/ui/select";
 
 export function AssetLibraryBrowser({
   assets,
@@ -40,13 +41,12 @@ export function AssetLibraryBrowser({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
-        <select className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm" value={kind} onChange={(event) => setKind(event.target.value as typeof kind)}>
+        <Select value={kind} onChange={(event) => setKind(event.target.value as typeof kind)}>
           <option value="ALL">All types</option>
           <option value="image">Images</option>
           <option value="document">Documents</option>
-        </select>
-        <select
-          className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm"
+        </Select>
+        <Select
           value={purpose ?? purposeFilter}
           onChange={(event) => setPurposeFilter(event.target.value)}
           disabled={Boolean(purpose)}
@@ -57,12 +57,12 @@ export function AssetLibraryBrowser({
               {option.label}
             </option>
           ))}
-        </select>
-        <select className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm" value={visibility} onChange={(event) => setVisibility(event.target.value as typeof visibility)}>
+        </Select>
+        <Select value={visibility} onChange={(event) => setVisibility(event.target.value as typeof visibility)}>
           <option value="ALL">All visibility</option>
           <option value="PUBLIC">Public</option>
           <option value="PRIVATE">Private</option>
-        </select>
+        </Select>
       </div>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {filtered.map((asset) => (

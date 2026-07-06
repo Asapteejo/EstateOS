@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Mail, UserPlus } from "lucide-react";
 
-import { AdminModalFrame } from "@/components/admin/admin-ui";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 
 type InvitedMember = {
   id: string;
@@ -142,21 +143,13 @@ export function InviteMemberModal({
         Invite member
       </Button>
 
-      {open && (
-        <AdminModalFrame
-          title="Invite a team member"
-          description="Send an email invitation with a secure link to join your workspace."
-          footer={
-            <div className="flex gap-2">
-              <Button size="sm" onClick={submit} disabled={pending || !isValid}>
-                {pending ? "Sending…" : "Send invitation"}
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-            </div>
-          }
-        >
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Invite a team member"
+        description="Send an email invitation with a secure link to join your workspace."
+        size="sm"
+      >
           <div className="space-y-3">
             <Field label="Full name">
               <Input
@@ -179,22 +172,29 @@ export function InviteMemberModal({
               />
             </Field>
             <Field label="Role">
-              <select
+              <Select
                 value={role}
                 onChange={(e) => setRole(e.target.value as typeof role)}
                 disabled={pending}
-                className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 text-sm text-[var(--ink-900)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-500)]"
+                className="w-full"
               >
                 {ROLE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Field>
           </div>
-        </AdminModalFrame>
-      )}
+          <DialogFooter>
+            <Button size="sm" variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={submit} disabled={pending || !isValid}>
+              {pending ? "Sending…" : "Send invitation"}
+            </Button>
+          </DialogFooter>
+      </Dialog>
     </div>
   );
 }

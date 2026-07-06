@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { DEVELOPMENT_PRESETS, type DevelopmentPresetKey } from "@/modules/development-calculations/presets";
 import type { DevelopmentCalculationListItem } from "@/modules/development-calculations/service";
 
@@ -113,18 +114,14 @@ function PresetModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full max-w-xl rounded-[28px] bg-white p-6 shadow-xl">
-        <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--brand-700)]">
-          New feasibility project
-        </div>
-        <h2 className="mt-3 text-2xl font-semibold text-[var(--ink-950)]">Choose a starting preset</h2>
-        <p className="mt-2 text-sm leading-6 text-[var(--ink-500)]">
-          Presets pre-fill cost ratios and rate assumptions so you can start modelling within minutes. You can adjust every number in the workspace.
-        </p>
-
-        <div className="mt-5 space-y-3">
+    <Dialog
+      open
+      onClose={onClose}
+      title="Choose a starting preset"
+      description="Presets pre-fill cost ratios and rate assumptions so you can start modelling within minutes. You can adjust every number in the workspace."
+      size="lg"
+    >
+        <div className="space-y-3">
           {DEVELOPMENT_PRESETS.map((preset) => (
             <button
               key={preset.key}
@@ -147,16 +144,15 @@ function PresetModal({ onClose }: { onClose: () => void }) {
           ))}
         </div>
 
-        <div className="mt-6 flex justify-end gap-2">
+        <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
           <Button onClick={create} disabled={loading}>
             {loading ? "Creating…" : "Start with this preset"}
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+    </Dialog>
   );
 }
 

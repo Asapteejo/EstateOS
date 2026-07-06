@@ -9,14 +9,29 @@ export function isDarkTheme() {
   return typeof document !== "undefined" && document.documentElement.classList.contains("theme-dark");
 }
 
-export function setDarkTheme(dark: boolean) {
+/** True when the user has explicitly picked a theme (vs following the system). */
+function hasStoredChoice() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored === "dark" || stored === "light";
+  } catch {
+    return false;
+  }
+}
+
+/** Applies the class + notifies listeners WITHOUT persisting a choice. */
+function applyDarkClass(dark: boolean) {
   document.documentElement.classList.toggle("theme-dark", dark);
+  window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: dark }));
+}
+
+export function setDarkTheme(dark: boolean) {
+  applyDarkClass(dark);
   try {
     localStorage.setItem(STORAGE_KEY, dark ? "dark" : "light");
   } catch {
     // localStorage unavailable (private mode / blocked) — theme still applies for the session.
   }
-  window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: dark }));
 }
 
 export function toggleTheme() {
@@ -24,10 +39,12 @@ export function toggleTheme() {
 }
 
 /**
- * Light/dark theme toggle for the operator dashboards. Flips `theme-dark` on
- * <html> (the visual change is gated behind `.app-dark-scope`, so only the
- * dashboards respond) and persists the choice. A FOUC-prevention script in the
- * root layout applies the stored value before first paint.
+ * Light/dark theme toggle for the operator and buyer dashboards. Flips
+ * `theme-dark` on <html> (the visual change is gated behind `.app-dark-scope`,
+ * so only the dashboards respond) and persists the choice. Until the user
+ * makes an explicit choice, the theme follows the SYSTEM preference — applied
+ * pre-paint by the bootstrap script in the root layout, and kept in sync here
+ * if the OS preference changes while the app is open.
  */
 export function ThemeToggle({ className }: { className?: string }) {
   const [dark, setDark] = useState(false);
@@ -39,9 +56,20 @@ export function ThemeToggle({ className }: { className?: string }) {
       setDark((event as CustomEvent<boolean>).detail);
     }
     window.addEventListener(CHANGE_EVENT, onChange);
+
+    // Follow live OS theme changes while the user hasn't picked explicitly.
+    const media = window.matchMedia?.("(prefers-color-scheme: dark)");
+    function onSystemChange(event: MediaQueryListEvent) {
+      if (!hasStoredChoice()) {
+        applyDarkClass(event.matches);
+      }
+    }
+    media?.addEventListener?.("change", onSystemChange);
+
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener(CHANGE_EVENT, onChange);
+      media?.removeEventListener?.("change", onSystemChange);
     };
   }, []);
 

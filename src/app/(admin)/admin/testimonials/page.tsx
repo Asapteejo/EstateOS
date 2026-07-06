@@ -4,6 +4,7 @@ import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { Card } from "@/components/ui/card";
 import { requireAdminSession } from "@/lib/auth/guards";
 import { getAdminTestimonials, testimonialStatusLabels } from "@/modules/testimonials/service";
+import { Select } from "@/components/ui/select";
 
 export default async function AdminTestimonialsPage({
   searchParams,
@@ -34,22 +35,22 @@ export default async function AdminTestimonialsPage({
             placeholder="Search testimonials"
             className="admin-focus rounded-[var(--radius-md)] border border-[var(--line)] px-3 py-2 text-sm"
           />
-          <select name="status" defaultValue={filters.status} className="admin-focus rounded-[var(--radius-md)] border border-[var(--line)] px-3 py-2 text-sm">
+          <Select name="status" defaultValue={filters.status}>
             <option value="">All statuses</option>
             {Object.entries(testimonialStatusLabels).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
-          </select>
-          <select name="rating" defaultValue={filters.rating} className="admin-focus rounded-[var(--radius-md)] border border-[var(--line)] px-3 py-2 text-sm">
+          </Select>
+          <Select name="rating" defaultValue={filters.rating}>
             <option value="">Any rating</option>
             {[5, 4, 3, 2, 1].map((rating) => (
               <option key={rating} value={rating}>
                 {rating} stars
               </option>
             ))}
-          </select>
+          </Select>
           <button className="admin-interactive admin-focus rounded-full bg-[var(--brand-700)] px-5 py-2 text-sm font-semibold text-white" type="submit">
             Filter
           </button>

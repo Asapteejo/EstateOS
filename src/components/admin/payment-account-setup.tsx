@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { normalizeBankOptions } from "@/modules/settings/banks";
 import { getPaymentSetupState, unwrapApiData, type ApiEnvelope } from "@/modules/settings/payment-account-ui";
+import { Select } from "@/components/ui/select";
 
 type Bank = { name: string; code: string };
 
@@ -97,13 +98,13 @@ function SubaccountForm({
       </AdminField>
 
       <AdminField label="Settlement bank">
-        <select
+        <Select
           id="pa-bank"
           value={settlementBank}
           onChange={(e) => setSettlementBank(e.target.value)}
           required
           disabled={disabled}
-          className="h-10 w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 text-sm text-[var(--ink-900)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-500)]"
+          className="w-full"
         >
           <option value="" disabled>
             Select a bank
@@ -113,7 +114,7 @@ function SubaccountForm({
               {b.name}
             </option>
           ))}
-        </select>
+        </Select>
       </AdminField>
 
       <AdminField

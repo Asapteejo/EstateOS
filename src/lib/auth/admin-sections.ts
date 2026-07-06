@@ -16,9 +16,30 @@ import type { QuickAction } from "@/components/dashboard/quick-actions";
  * `roles` lists the NON-owner roles allowed into a section. ADMIN and SUPER_ADMIN
  * are always allowed and never need to be listed.
  */
+/**
+ * Sidebar clusters, in canonical display order. Grouping ~30 flat links into
+ * labeled sections keeps the operator sidebar scannable as the surface grows;
+ * every item belongs to exactly one group. Grouping is presentation-only —
+ * route guards (rolesForAdminPath) are unaffected.
+ */
+export const ADMIN_NAV_GROUPS = [
+  "Workspace",
+  "Front desk",
+  "Sales",
+  "Finance",
+  "Legal",
+  "Insights",
+  "Listings & content",
+  "Organization",
+] as const;
+
+export type AdminNavGroup = (typeof ADMIN_NAV_GROUPS)[number];
+
 export type AdminNavItem = {
   label: string;
   href: string;
+  /** Sidebar cluster this section is displayed under (presentation only). */
+  group: AdminNavGroup;
   /** Non-owner roles permitted to access this section. ADMIN/SUPER_ADMIN always allowed. */
   roles: AppRole[];
   /**
@@ -33,35 +54,37 @@ export type AdminNavItem = {
 };
 
 export const ADMIN_NAV: AdminNavItem[] = [
-  { label: "Overview", href: "/admin/overview", roles: [] },
-  { label: "Deal Board", href: "/admin", roles: [] },
-  { label: "Front Desk", href: "/admin/front-desk", roles: ["STAFF"], operational: true },
-  { label: "Schedule", href: "/admin/schedule", roles: ["STAFF"], operational: true },
-  { label: "Visitor Log", href: "/admin/visitors", roles: ["STAFF"], operational: true },
-  { label: "Finance", href: "/admin/finance", roles: ["FINANCE"] },
-  { label: "Payments", href: "/admin/payments", roles: ["FINANCE"] },
-  { label: "Clients", href: "/admin/clients", roles: ["STAFF", "FINANCE"] },
-  { label: "Messages", href: "/admin/messages", roles: ["STAFF", "FINANCE", "LEGAL"] },
-  { label: "Leads", href: "/admin/leads", roles: ["STAFF"] },
-  { label: "Transactions", href: "/admin/transactions", roles: ["FINANCE"] },
-  { label: "Pipeline", href: "/admin/pipeline", roles: [] },
-  { label: "Analytics", href: "/admin/analytics", roles: ["FINANCE"] },
-  { label: "Benchmarks", href: "/admin/benchmarks", roles: [] },
-  { label: "Feasibility", href: "/admin/feasibility", roles: [] },
-  { label: "Contracts", href: "/admin/contracts", roles: ["LEGAL"] },
-  { label: "Listings", href: "/admin/listings", roles: [] },
-  { label: "Team", href: "/admin/team", roles: [] },
-  { label: "Marketers", href: "/admin/marketers", roles: [] },
-  { label: "Bookings", href: "/admin/bookings", roles: ["STAFF"] },
-  { label: "Assets", href: "/admin/assets", roles: [] },
-  { label: "Billing", href: "/admin/billing", roles: ["FINANCE"] },
-  { label: "Invoices", href: "/admin/invoices", roles: ["FINANCE"] },
-  { label: "Settings", href: "/admin/settings", roles: [] },
-  { label: "Documents", href: "/admin/documents", roles: ["LEGAL"] },
-  { label: "Testimonials", href: "/admin/testimonials", roles: [] },
-  { label: "Announcements", href: "/admin/announcements", roles: [] },
-  { label: "Notifications", href: "/admin/notifications", roles: ["STAFF", "FINANCE", "LEGAL"] },
-  { label: "Audit Logs", href: "/admin/audit-logs", roles: [] },
+  { label: "Overview", href: "/admin/overview", group: "Workspace", roles: [] },
+  { label: "Deal Board", href: "/admin", group: "Workspace", roles: [] },
+  { label: "My Dashboard", href: "/admin/marketer", group: "Workspace", roles: ["MARKETER"] },
+  { label: "Messages", href: "/admin/messages", group: "Workspace", roles: ["STAFF", "FINANCE", "LEGAL", "MARKETER"] },
+  { label: "Notifications", href: "/admin/notifications", group: "Workspace", roles: ["STAFF", "FINANCE", "LEGAL"] },
+  { label: "Front Desk", href: "/admin/front-desk", group: "Front desk", roles: ["STAFF"], operational: true },
+  { label: "Schedule", href: "/admin/schedule", group: "Front desk", roles: ["STAFF"], operational: true },
+  { label: "Visitor Log", href: "/admin/visitors", group: "Front desk", roles: ["STAFF"], operational: true },
+  { label: "Bookings", href: "/admin/bookings", group: "Front desk", roles: ["STAFF"] },
+  { label: "Leads", href: "/admin/leads", group: "Sales", roles: ["STAFF", "MARKETER"] },
+  { label: "Clients", href: "/admin/clients", group: "Sales", roles: ["STAFF", "FINANCE", "MARKETER"] },
+  { label: "Pipeline", href: "/admin/pipeline", group: "Sales", roles: [] },
+  { label: "Finance", href: "/admin/finance", group: "Finance", roles: ["FINANCE"] },
+  { label: "Payments", href: "/admin/payments", group: "Finance", roles: ["FINANCE"] },
+  { label: "Transactions", href: "/admin/transactions", group: "Finance", roles: ["FINANCE"] },
+  { label: "Invoices", href: "/admin/invoices", group: "Finance", roles: ["FINANCE"] },
+  { label: "Billing", href: "/admin/billing", group: "Finance", roles: ["FINANCE"] },
+  { label: "Contracts", href: "/admin/contracts", group: "Legal", roles: ["LEGAL"] },
+  { label: "Documents", href: "/admin/documents", group: "Legal", roles: ["LEGAL"] },
+  { label: "Analytics", href: "/admin/analytics", group: "Insights", roles: ["FINANCE"] },
+  { label: "Benchmarks", href: "/admin/benchmarks", group: "Insights", roles: [] },
+  { label: "Feasibility", href: "/admin/feasibility", group: "Insights", roles: [] },
+  { label: "Listings", href: "/admin/listings", group: "Listings & content", roles: [] },
+  { label: "Assets", href: "/admin/assets", group: "Listings & content", roles: [] },
+  { label: "Testimonials", href: "/admin/testimonials", group: "Listings & content", roles: [] },
+  { label: "Announcements", href: "/admin/announcements", group: "Listings & content", roles: [] },
+  { label: "Team", href: "/admin/team", group: "Organization", roles: [] },
+  { label: "Users", href: "/admin/users", group: "Organization", roles: [] },
+  { label: "Marketers", href: "/admin/marketers", group: "Organization", roles: ["MARKETER"] },
+  { label: "Settings", href: "/admin/settings", group: "Organization", roles: [] },
+  { label: "Audit Logs", href: "/admin/audit-logs", group: "Organization", roles: [] },
 ];
 
 /** Roles with unrestricted access to the entire operator workspace. */
@@ -92,6 +115,26 @@ export function filterAdminNav(roles: AppRole[]): AdminNavItem[] {
   });
 }
 
+export type NavGroup = {
+  label: string;
+  items: ReadonlyArray<readonly [string, string]>;
+};
+
+/**
+ * Groups the visible nav items into ordered sidebar clusters, dropping empty
+ * groups (a FINANCE-only user sees only Workspace + Finance + …). Items are
+ * [label, href] tuples — the shape the sidebar/drawer components consume.
+ */
+export function groupedAdminNav(roles: AppRole[]): NavGroup[] {
+  const visible = filterAdminNav(roles);
+  return ADMIN_NAV_GROUPS.map((group) => ({
+    label: group,
+    items: visible
+      .filter((item) => item.group === group)
+      .map((item) => [item.label, item.href] as const),
+  })).filter((group) => group.items.length > 0);
+}
+
 /**
  * The set of roles allowed to access a given admin path, for server-side guards.
  * ADMIN and SUPER_ADMIN are always included. Unknown paths fall back to
@@ -110,6 +153,7 @@ export function rolesForAdminPath(href: string): AppRole[] {
  */
 export function adminLandingPath(roles: AppRole[]): string {
   if (hasFullAdminAccess(roles)) return "/admin/overview";
+  if (roles.includes("MARKETER")) return "/admin/marketer";
   if (roles.includes("FINANCE")) return "/admin/finance";
   if (roles.includes("STAFF")) return "/admin/front-desk";
   if (roles.includes("LEGAL")) return "/admin/contracts";

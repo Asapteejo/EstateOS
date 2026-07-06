@@ -4,6 +4,8 @@ import { SectionHeading } from "@/components/shared/section-heading";
 import { Card } from "@/components/ui/card";
 import { getPublicCmsContext, getPublicTestimonials } from "@/modules/cms/queries";
 import { getPublicTestimonialPropertyOptions } from "@/modules/testimonials/service";
+import { Select } from "@/components/ui/select";
+import { OptimizedImage } from "@/components/media/optimized-image";
 
 export default async function TestimonialsPage({
   searchParams,
@@ -41,22 +43,22 @@ export default async function TestimonialsPage({
           placeholder="Search testimonials"
           className="admin-focus rounded-[var(--radius-md)] border border-[var(--line)] px-3 py-2 text-sm"
         />
-        <select name="propertyId" defaultValue={filters.propertyId} className="admin-focus rounded-[var(--radius-md)] border border-[var(--line)] px-3 py-2 text-sm">
+        <Select name="propertyId" defaultValue={filters.propertyId}>
           <option value="">All properties</option>
           {propertyOptions.map((property) => (
             <option key={property.id} value={property.id}>
               {property.title}
             </option>
           ))}
-        </select>
-        <select name="rating" defaultValue={filters.rating} className="admin-focus rounded-[var(--radius-md)] border border-[var(--line)] px-3 py-2 text-sm">
+        </Select>
+        <Select name="rating" defaultValue={filters.rating}>
           <option value="">Any rating</option>
           {[5, 4, 3, 2, 1].map((rating) => (
             <option key={rating} value={rating}>
               {rating} stars
             </option>
           ))}
-        </select>
+        </Select>
         <input name="year" defaultValue={filters.year} placeholder="Year" className="admin-focus rounded-[var(--radius-md)] border border-[var(--line)] px-3 py-2 text-sm" />
         <input name="month" defaultValue={filters.month} placeholder="Month" className="admin-focus rounded-[var(--radius-md)] border border-[var(--line)] px-3 py-2 text-sm" />
         <button className="admin-interactive admin-focus rounded-full bg-[var(--brand-700)] px-5 py-2 text-sm font-semibold text-white" type="submit">
@@ -79,8 +81,7 @@ export default async function TestimonialsPage({
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-[var(--sand-100)] text-sm font-semibold text-[var(--ink-700)]">
                 {testimonial.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={testimonial.avatarUrl} alt={`${testimonial.fullName} avatar`} width={44} height={44} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                  <OptimizedImage src={testimonial.avatarUrl} alt={`${testimonial.fullName} avatar`} width={44} height={44} preset="thumbnail" className="h-full w-full object-cover" />
                 ) : (
                   testimonial.fullName.slice(0, 2).toUpperCase()
                 )}

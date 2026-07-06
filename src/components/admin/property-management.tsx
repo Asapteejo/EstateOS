@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { parseFlexibleNumber } from "@/lib/number";
 import { SUPPORTED_CURRENCIES } from "@/lib/utils";
+import { Select } from "@/components/ui/select";
 
 type PropertyFormState = {
   title: string;
@@ -944,8 +945,7 @@ function PropertyEditor({
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2">
         <Input placeholder="Title" value={value.title} onChange={(event) => update("title", event.target.value)} />
-        <select
-          className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+        <Select
           value={value.propertyType}
           onChange={(event) => update("propertyType", event.target.value)}
         >
@@ -956,7 +956,7 @@ function PropertyEditor({
           <option value="SEMI_DETACHED">Semi-detached</option>
           <option value="LAND">Land</option>
           <option value="COMMERCIAL">Commercial</option>
-        </select>
+        </Select>
         <Input
           placeholder="Short description"
           value={value.shortDescription}
@@ -978,8 +978,7 @@ function PropertyEditor({
       <div className="grid gap-4 md:grid-cols-4">
         <Input placeholder="Starting price (required)" value={value.priceFrom} onChange={(event) => update("priceFrom", event.target.value)} />
         <Input placeholder="Maximum price / range end (optional)" value={value.priceTo} onChange={(event) => update("priceTo", event.target.value)} />
-        <select
-          className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+        <Select
           value={value.currency}
           onChange={(event) => update("currency", event.target.value)}
         >
@@ -988,11 +987,10 @@ function PropertyEditor({
               {currency}
             </option>
           ))}
-        </select>
+        </Select>
         {isLand ? (
           <>
-            <select
-              className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+            <Select
               value={value.landSaleUnit}
               onChange={(event) => update("landSaleUnit", event.target.value)}
             >
@@ -1001,7 +999,7 @@ function PropertyEditor({
               <option value="HECTARE">Sell by hectare</option>
               <option value="ACRE">Sell by acre</option>
               <option value="CUSTOM">Custom</option>
-            </select>
+            </Select>
             {value.landSaleUnit === "SQM" || value.landSaleUnit === "PLOT" ? (
               <Input
                 placeholder={value.landSaleUnit === "PLOT" ? "Plot size (sqm, optional)" : "Land size (sqm)"}
@@ -1053,8 +1051,7 @@ function PropertyEditor({
                   update("plotOptions", value.plotOptions.map((item, itemIndex) => itemIndex === index ? { ...item, label: event.target.value } : item))
                 }
               />
-              <select
-                className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+              <Select
                 value={option.unit}
                 onChange={(event) =>
                   update("plotOptions", value.plotOptions.map((item, itemIndex) => itemIndex === index ? { ...item, unit: event.target.value } : item))
@@ -1065,7 +1062,7 @@ function PropertyEditor({
                 <option value="HECTARE">Hectare</option>
                 <option value="ACRE">Acre</option>
                 <option value="CUSTOM">Custom</option>
-              </select>
+              </Select>
               {option.unit === "SQM" ? (
                 <Input
                   placeholder="Size (sqm)"
@@ -1109,8 +1106,7 @@ function PropertyEditor({
                   update("plotOptions", value.plotOptions.map((item, itemIndex) => itemIndex === index ? { ...item, price: event.target.value } : item))
                 }
               />
-              <select
-                className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+              <Select
                 value={option.currency}
                 onChange={(event) =>
                   update("plotOptions", value.plotOptions.map((item, itemIndex) => itemIndex === index ? { ...item, currency: event.target.value } : item))
@@ -1121,9 +1117,8 @@ function PropertyEditor({
                     {currency}
                   </option>
                 ))}
-              </select>
-              <select
-                className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+              </Select>
+              <Select
                 value={option.status}
                 onChange={(event) =>
                   update("plotOptions", value.plotOptions.map((item, itemIndex) => itemIndex === index ? { ...item, status: event.target.value } : item))
@@ -1132,7 +1127,7 @@ function PropertyEditor({
                 <option value="AVAILABLE">Available</option>
                 <option value="RESERVED">Reserved</option>
                 <option value="SOLD">Sold</option>
-              </select>
+              </Select>
               <Input
                 placeholder="Optional note"
                 value={option.note}
@@ -1169,8 +1164,7 @@ function PropertyEditor({
         />
         <label className="block space-y-2">
           <span className="text-sm font-medium text-[var(--ink-700)]">Existing uploaded brochure</span>
-          <select
-            className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+          <Select className="w-full"
             value={value.brochureDocumentId}
           onChange={(event) => update("brochureDocumentId", event.target.value)}
           >
@@ -1180,7 +1174,7 @@ function PropertyEditor({
                 {brochure.fileName}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <UploadField
           inputId={`walkthrough-video-upload-${idPrefix}`}
@@ -1388,8 +1382,7 @@ function PropertyEditor({
                 />
                 Primary image
               </label>
-              <select
-                className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+              <Select
                 value={media.visibility}
                 onChange={(event) =>
                   update("media", value.media.map((item, itemIndex) => itemIndex === index ? { ...item, visibility: event.target.value as "PUBLIC" | "PRIVATE" } : item))
@@ -1397,7 +1390,7 @@ function PropertyEditor({
               >
                 <option value="PUBLIC">Public</option>
                 <option value="PRIVATE">Private</option>
-              </select>
+              </Select>
               <Button type="button" variant="outline" onClick={() => update("media", value.media.filter((_, itemIndex) => itemIndex !== index))}>
                 Remove
               </Button>
@@ -1453,13 +1446,13 @@ function PropertyEditor({
               <Input placeholder="Size sqm" value={unit.sizeSqm} onChange={(event) => update("units", value.units.map((item, itemIndex) => itemIndex === index ? { ...item, sizeSqm: event.target.value } : item))} />
               <Input placeholder="Floor" value={unit.floor} onChange={(event) => update("units", value.units.map((item, itemIndex) => itemIndex === index ? { ...item, floor: event.target.value } : item))} />
               <Input placeholder="Block" value={unit.block} onChange={(event) => update("units", value.units.map((item, itemIndex) => itemIndex === index ? { ...item, block: event.target.value } : item))} />
-              <select className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]" value={unit.status} onChange={(event) => update("units", value.units.map((item, itemIndex) => itemIndex === index ? { ...item, status: event.target.value } : item))}>
+              <Select value={unit.status} onChange={(event) => update("units", value.units.map((item, itemIndex) => itemIndex === index ? { ...item, status: event.target.value } : item))}>
                 <option value="AVAILABLE">Available</option>
                 <option value="RESERVED">Reserved</option>
                 <option value="SOLD">Sold</option>
                 <option value="ARCHIVED">Archived</option>
                 <option value="DRAFT">Draft</option>
-              </select>
+              </Select>
             </div>
             <div>
               <Button type="button" variant="outline" onClick={() => update("units", value.units.filter((_, itemIndex) => itemIndex !== index))}>
@@ -1509,8 +1502,7 @@ function PropertyEditor({
                   )
                 }
               />
-              <select
-                className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+              <Select
                 value={plan.kind}
                 onChange={(event) =>
                   update(
@@ -1526,9 +1518,8 @@ function PropertyEditor({
                 <option value="ONE_TIME">One time</option>
                 <option value="FIXED">Fixed installments</option>
                 <option value="CUSTOM">Custom plan</option>
-              </select>
-              <select
-                className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+              </Select>
+              <Select
                 value={plan.propertyUnitId}
                 onChange={(event) =>
                   update(
@@ -1547,7 +1538,7 @@ function PropertyEditor({
                       {unit.title || unit.unitCode}
                     </option>
                   ))}
-              </select>
+              </Select>
               <Input
                 placeholder="Duration (months)"
                 value={plan.durationMonths}
@@ -1809,8 +1800,7 @@ function PropertyEditor({
           />
           Payment plan available
         </label>
-        <select
-          className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+        <Select
           value={value.status}
           onChange={(event) => update("status", event.target.value)}
         >
@@ -1819,7 +1809,7 @@ function PropertyEditor({
           <option value="RESERVED">Reserved</option>
           <option value="SOLD">Sold</option>
           <option value="ARCHIVED">Archived</option>
-        </select>
+        </Select>
         <Button type="button" onClick={onSubmit} disabled={disabled}>
           {submitLabel}
         </Button>

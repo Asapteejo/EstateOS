@@ -10,6 +10,7 @@ import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { Input } from "@/components/ui/input";
 import { compareAttentionPriority, getAttentionTone, workflowVocabulary } from "@/modules/admin/workflow-vocabulary";
 import type { InspectionManagementItem } from "@/modules/inspections/service";
+import { Select } from "@/components/ui/select";
 
 type StaffOption = {
   id: string;
@@ -271,8 +272,7 @@ export function InspectionManagement({
             <div className="admin-surface-muted space-y-4 p-5">
               <div className="grid gap-3 sm:grid-cols-2">
                 <AdminField label="Status">
-                  <select
-                    className="admin-focus admin-interactive w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm"
+                  <Select className="w-full"
                     value={state[booking.id]?.status ?? booking.status}
                     onChange={(event) =>
                       setState((current) => ({
@@ -289,12 +289,11 @@ export function InspectionManagement({
                         {workflowVocabulary.inspections.statusLabels[status]}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </AdminField>
 
                 <AdminField label="Assigned staff">
-                  <select
-                    className="admin-focus admin-interactive w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm"
+                  <Select className="w-full"
                     value={state[booking.id]?.assignedStaffId ?? ""}
                     onChange={(event) =>
                       setState((current) => ({
@@ -312,7 +311,7 @@ export function InspectionManagement({
                         {option.label}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </AdminField>
               </div>
 

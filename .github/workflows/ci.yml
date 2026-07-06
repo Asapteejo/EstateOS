@@ -1,0 +1,53 @@
+# Continuous integration — runs the same gate as `npm run check` on every PR
+# and every push to main: tests, typecheck, lint, and a production build.
+#
+# Notes:
+# - The build intentionally runs WITHOUT secrets: scripts/run-build.mjs is
+#   designed so builds never require database access, and src/lib/config.ts
+#   treats all integration env vars as optional (features degrade gracefully).
+#   Database migrations are a separate, controlled release step
+#   (`npm run db:migrate:deploy`), never part of CI.
+# - `npm run encoding:check` is NOT included: it currently fails on many
+#   pre-existing files (em dashes etc.). Add it here after a cleanup pass.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Test, typecheck, lint, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # postinstall runs `prisma generate`, so the client exists for tests
+      # and the typecheck without any database connection.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Tests
+        run: npm run test
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build

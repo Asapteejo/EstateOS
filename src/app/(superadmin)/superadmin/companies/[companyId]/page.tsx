@@ -21,6 +21,7 @@ import {
   overrideSuperadminSubscriptionAction,
   updatePlatformCommissionAction,
 } from "@/app/(superadmin)/superadmin/companies/actions";
+import { Select } from "@/components/ui/select";
 
 function statusText(complete: boolean) {
   return complete ? "Complete" : "Missing";
@@ -262,10 +263,10 @@ export default async function SuperadminCompanyOverviewPage({
           </label>
           <label className="space-y-2 text-sm">
             <span className="font-medium text-[var(--ink-700)]">Role</span>
-            <select name="role" defaultValue="ADMIN" className="w-full rounded-xl border border-[var(--line)] px-3 py-2">
+            <Select name="role" defaultValue="ADMIN" className="w-full">
               <option value="ADMIN">Admin</option>
               <option value="STAFF">Staff</option>
-            </select>
+            </Select>
           </label>
           <div className="flex items-end justify-end md:col-span-4">
             <button type="submit" className="rounded-full bg-[var(--brand-700)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--brand-800)]">
@@ -312,26 +313,26 @@ export default async function SuperadminCompanyOverviewPage({
           <input type="hidden" name="companyId" value={companyId} />
           <label className="space-y-2 text-sm">
             <span className="font-medium text-[var(--ink-700)]">Plan</span>
-            <select name="plan" defaultValue="PRO" className="w-full rounded-xl border border-[var(--line)] px-3 py-2">
+            <Select name="plan" defaultValue="PRO" className="w-full">
               <option value="FREE">Free</option>
               <option value="PRO">Pro</option>
               <option value="PREMIUM">Premium</option>
-            </select>
+            </Select>
           </label>
           <label className="space-y-2 text-sm">
             <span className="font-medium text-[var(--ink-700)]">Billing mode</span>
-            <select name="billingMode" defaultValue="MANUAL_OVERRIDE" className="w-full rounded-xl border border-[var(--line)] px-3 py-2">
+            <Select name="billingMode" defaultValue="MANUAL_OVERRIDE" className="w-full">
               <option value="MANUAL_OVERRIDE">Manual override</option>
               <option value="TRIAL">Trial</option>
               <option value="PAID">Paid</option>
-            </select>
+            </Select>
           </label>
           <label className="space-y-2 text-sm">
             <span className="font-medium text-[var(--ink-700)]">Access</span>
-            <select name="accessStatus" defaultValue={company.company.companyStatus === "SUSPENDED" ? "SUSPENDED" : "ACTIVE"} className="w-full rounded-xl border border-[var(--line)] px-3 py-2">
+            <Select name="accessStatus" defaultValue={company.company.companyStatus === "SUSPENDED" ? "SUSPENDED" : "ACTIVE"} className="w-full">
               <option value="ACTIVE">Active</option>
               <option value="SUSPENDED">Suspended</option>
-            </select>
+            </Select>
           </label>
           <label className="space-y-2 text-sm">
             <span className="font-medium text-[var(--ink-700)]">Expiry date</span>

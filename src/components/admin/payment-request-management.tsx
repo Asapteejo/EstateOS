@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
 
 type ClientOption = {
   id: string;
@@ -172,13 +173,13 @@ export function PaymentRequestManagement({
 
         <div className="space-y-4">
           <AdminField label="Client / active deal" hint={selectedClient ? `Outstanding balance: ${selectedClient.outstandingBalance}` : undefined}>
-            <select className="h-11 w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-4 text-sm" value={selectedClientId} onChange={(event) => handleClientChange(event.target.value)}>
+            <Select className="w-full" value={selectedClientId} onChange={(event) => handleClientChange(event.target.value)}>
               {clients.map((client) => (
                 <option key={client.id} value={client.id}>
                   {client.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </AdminField>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -196,19 +197,19 @@ export function PaymentRequestManagement({
 
           <div className="grid gap-4 md:grid-cols-3">
             <AdminField label="Collection method">
-              <select className="h-11 w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-4 text-sm" value={form.collectionMethod} onChange={(event) => setForm((current) => ({ ...current, collectionMethod: event.target.value }))}>
+              <Select className="w-full" value={form.collectionMethod} onChange={(event) => setForm((current) => ({ ...current, collectionMethod: event.target.value }))}>
                 <option value="HOSTED_CHECKOUT">Hosted checkout</option>
                 <option value="BANK_TRANSFER_TEMP_ACCOUNT">Paystack temporary transfer account</option>
                 <option value="CARD_LINK">Card link</option>
                 <option value="MANUAL_BANK_TRANSFER_REFERENCE">Manual bank transfer reference</option>
-              </select>
+              </Select>
             </AdminField>
             <AdminField label="Delivery channel">
-              <select className="h-11 w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-4 text-sm" value={form.channel} onChange={(event) => setForm((current) => ({ ...current, channel: event.target.value }))}>
+              <Select className="w-full" value={form.channel} onChange={(event) => setForm((current) => ({ ...current, channel: event.target.value }))}>
                 <option value="EMAIL">Email</option>
                 <option value="IN_APP">In-app</option>
                 <option value="SHARE_LINK">Share link</option>
-              </select>
+              </Select>
             </AdminField>
             <AdminField label="Due date">
               <Input type="date" value={form.dueAt} onChange={(event) => setForm((current) => ({ ...current, dueAt: event.target.value }))} />
