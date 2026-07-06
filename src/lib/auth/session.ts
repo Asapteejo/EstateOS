@@ -25,7 +25,7 @@ export type AppSession = {
   mode: "clerk" | "demo";
 };
 
-export type DemoSessionRole = "buyer" | "admin" | "superadmin" | "finance" | "frontdesk";
+export type DemoSessionRole = "buyer" | "admin" | "superadmin" | "finance" | "frontdesk" | "marketer";
 export const DEV_SESSION_COOKIE = "estateos_dev_role";
 export const DEV_SESSION_COMPANY_ID_COOKIE = "estateos_dev_company_id";
 export const DEV_SESSION_COMPANY_SLUG_COOKIE = "estateos_dev_company_slug";
@@ -87,6 +87,18 @@ const demoFrontdesk: AppSession = {
   mode: "demo",
 };
 
+const demoMarketer: AppSession = {
+  userId: "demo-marketer",
+  dbUserId: "demo-marketer",
+  email: "marketer@acmerealty.dev",
+  firstName: "Kunle",
+  lastName: "Bello",
+  roles: ["MARKETER"],
+  companyId: demoCompany.companyId,
+  companySlug: demoCompany.companySlug,
+  branchId: demoCompany.branchId,
+  mode: "demo",
+};
 const demoSuperAdmin: AppSession = {
   userId: "demo-superadmin",
   dbUserId: "demo-superadmin",
@@ -112,7 +124,8 @@ function isDemoSessionRole(value: string | undefined | null): value is DemoSessi
     value === "admin" ||
     value === "superadmin" ||
     value === "finance" ||
-    value === "frontdesk"
+    value === "frontdesk" ||
+    value === "marketer"
   );
 }
 
@@ -150,6 +163,15 @@ export function buildDemoSession(
   if (role === "frontdesk") {
     return {
       ...demoFrontdesk,
+      companyId: company.companyId,
+      companySlug: company.companySlug,
+      branchId: company.branchId,
+    };
+  }
+
+  if (role === "marketer") {
+    return {
+      ...demoMarketer,
       companyId: company.companyId,
       companySlug: company.companySlug,
       branchId: company.branchId,
@@ -291,7 +313,7 @@ export async function resolveDemoSessionRole(
     if (cookieRole === "superadmin") return "superadmin";
     // Honor the operator-role presets (accountant / front desk) so each role-based
     // dashboard can be previewed in dev. Any other value falls back to the owner.
-    if (cookieRole === "finance" || cookieRole === "frontdesk") return cookieRole;
+    if (cookieRole === "finance" || cookieRole === "frontdesk" || cookieRole === "marketer") return cookieRole;
     return "admin";
   }
 

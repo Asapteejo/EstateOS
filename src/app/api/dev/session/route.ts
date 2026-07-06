@@ -17,6 +17,7 @@ const ALLOWED_ROLES = new Set<DemoSessionRole>([
   "admin",
   "finance",
   "frontdesk",
+  "marketer",
   "superadmin",
 ]);
 

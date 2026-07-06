@@ -43,6 +43,13 @@ const devUsers: Record<
     lastName: "Lawal",
     roles: ["STAFF"],
   },
+  marketer: {
+    clerkUserId: "demo-marketer",
+    email: "marketer@acmerealty.dev",
+    firstName: "Kunle",
+    lastName: "Bello",
+    roles: ["MARKETER"],
+  },
   superadmin: {
     clerkUserId: "demo-superadmin",
     email: "owner@estateos.dev",
@@ -183,6 +190,16 @@ export async function ensureDevSessionUser(role: DemoSessionRole) {
         },
       });
     }
+  }
+
+  if (role === "marketer") {
+    // Give the demo marketer a StaffProfile so they are assignable in the Leads
+    // workflow and their personal dashboard can resolve assigned work.
+    await prisma.staffProfile.upsert({
+      where: { userId: user.id },
+      update: { isAssignable: true, title: "Marketer" },
+      create: { userId: user.id, isAssignable: true, title: "Marketer" },
+    });
   }
 
   return {
