@@ -1,10 +1,12 @@
 import { TenantThemeShell } from "@/components/branding/tenant-theme-shell";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { MarketingHeader } from "@/components/marketing/marketing-header";
+import { FloatingWhatsApp } from "@/components/marketing/floating-whatsapp";
 import { buildAuthRedirect, buildServerDomainConfig } from "@/lib/domains";
 import { env } from "@/lib/env";
 import type { TenantContext } from "@/lib/tenancy/context";
 import { getPublicTenantPresentation } from "@/modules/branding/service";
+import { getTenantAdminSettings } from "@/modules/settings/service";
 import { resolveTenantSiteContent } from "@/modules/cms/site-content";
 import { getPublishedSiteContent } from "@/modules/cms/site-content-service";
 
@@ -16,6 +18,7 @@ export async function TenantPublicShell({
   children: React.ReactNode;
 }) {
   const presentation = await getPublicTenantPresentation(tenant);
+  const settings = await getTenantAdminSettings(tenant);
   const branding = presentation.branding;
   const runtimeConfig = buildServerDomainConfig(env);
   const buyerPortalHref = buildAuthRedirect(runtimeConfig, {
@@ -51,6 +54,10 @@ export async function TenantPublicShell({
         buyerPortalHref={buyerPortalHref}
         adminPortalHref={adminPortalHref}
         tagline={siteContent.footer.tagline}
+      />
+      <FloatingWhatsApp
+        phone={settings.whatsappNumber}
+        message={`Hi ${presentation.companyName}, I\u2019d like to know more about your properties.`}
       />
     </TenantThemeShell>
   );

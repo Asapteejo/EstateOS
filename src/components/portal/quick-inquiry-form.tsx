@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
 
 const categories = [
   ["PROPERTY_GUIDANCE", "Choosing a property"],
@@ -56,17 +57,17 @@ export function QuickInquiryForm() {
     <div className="space-y-4">
       <label className="block space-y-2">
         <span className="text-sm font-medium text-[var(--ink-700)]">What do you need help with?</span>
-        <select
+        <Select
           value={category}
           onChange={(event) => setCategory(event.target.value as typeof category)}
-          className="h-11 w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-900)] focus:outline-none focus:ring-2 focus:ring-[var(--tenant-ring)]"
+          className="w-full"
         >
           {categories.map(([value, label]) => (
             <option key={value} value={value}>
               {label}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
       <label className="block space-y-2">
         <span className="text-sm font-medium text-[var(--ink-700)]">Message</span>

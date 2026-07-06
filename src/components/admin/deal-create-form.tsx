@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 
 type DealCreationOptions = {
   properties: Array<{
@@ -189,8 +190,7 @@ export function DealCreateForm({ options }: { options: DealCreationOptions }) {
             <div className="grid gap-5 md:grid-cols-2">
               <label className="space-y-2">
                 <span className="text-sm font-medium text-[var(--ink-700)]">Property</span>
-                <select
-                  className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-900)]"
+                <Select className="w-full"
                   value={propertyId}
                   onChange={(event) => {
                     const nextPropertyId = event.target.value;
@@ -206,7 +206,7 @@ export function DealCreateForm({ options }: { options: DealCreationOptions }) {
                       {property.title}
                     </option>
                   ))}
-                </select>
+                </Select>
                 <div className="flex items-center justify-between gap-3 text-xs text-[var(--ink-500)]">
                   <span>Select an existing property or add one inline.</span>
                   <button
@@ -221,8 +221,7 @@ export function DealCreateForm({ options }: { options: DealCreationOptions }) {
 
               <label className="space-y-2">
                 <span className="text-sm font-medium text-[var(--ink-700)]">Unit</span>
-                <select
-                  className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-900)]"
+                <Select className="w-full"
                   value={propertyUnitId}
                   onChange={(event) => {
                     const nextUnitId = event.target.value;
@@ -237,7 +236,7 @@ export function DealCreateForm({ options }: { options: DealCreationOptions }) {
                       {unit.unitCode} - {unit.title}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             </div>
 
@@ -318,8 +317,7 @@ export function DealCreateForm({ options }: { options: DealCreationOptions }) {
             {paymentMode === "INSTALLMENT" ? (
               <label className="space-y-2">
                 <span className="text-sm font-medium text-[var(--ink-700)]">Payment plan</span>
-                <select
-                  className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-900)]"
+                <Select className="w-full"
                   value={paymentPlanId}
                   onChange={(event) => setPaymentPlanId(event.target.value)}
                 >
@@ -329,7 +327,7 @@ export function DealCreateForm({ options }: { options: DealCreationOptions }) {
                       {plan.title}
                     </option>
                   ))}
-                </select>
+                </Select>
                 <div className="text-xs text-[var(--ink-500)]">
                   Optional. If you select a plan, the deal can inherit the first installment amount.
                 </div>

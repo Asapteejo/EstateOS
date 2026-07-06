@@ -9,6 +9,11 @@ import {
 } from "@/lib/domains";
 import { env, featureFlags } from "@/lib/env";
 import { logWarn } from "@/lib/ops/logger";
+import {
+  buildContentSecurityPolicy,
+  generateCspNonce,
+  resolveMediaHost,
+} from "@/lib/security/csp";
 
 const isPortalRoute = createRouteMatcher(["/portal(.*)"]);
 const isAppRoute = createRouteMatcher(["/app(.*)"]);
@@ -18,12 +23,58 @@ const isSignInRoute = createRouteMatcher(["/sign-in(.*)"]);
 const isSignUpRoute = createRouteMatcher(["/sign-up(.*)"]);
 const isAuthAccessRoute = createRouteMatcher(["/auth/access(.*)"]);
 
+/**
+ * Nonce-based CSP, enforced in production.
+ *
+ * The nonce is forwarded on the REQUEST via the `content-security-policy`
+ * header — Next.js reads the nonce from there and stamps it onto its own
+ * inline/bootstrap scripts and /_next chunk tags. The same policy is then set
+ * on the RESPONSE so the browser enforces it. See src/lib/security/csp.ts for
+ * the policy itself and the browser-generation fallback strategy.
+ *
+ * Dev/test skip the CSP entirely (React Fast Refresh needs eval; the old
+ * report-only header never applied meaningfully there either).
+ */
+const cspMediaHost = resolveMediaHost(env.R2_PUBLIC_BASE_URL);
+
+function createCspContext() {
+  if (!featureFlags.isProduction) {
+    return null;
+  }
+  const nonce = generateCspNonce();
+  return {
+    nonce,
+    policy: buildContentSecurityPolicy({ nonce, mediaHost: cspMediaHost }),
+  };
+}
+
+function applyCspResponseHeader(
+  response: NextResponse,
+  csp: ReturnType<typeof createCspContext>,
+) {
+  if (!csp) {
+    return response;
+  }
+  response.headers.set(
+    featureFlags.cspReportOnly
+      ? "Content-Security-Policy-Report-Only"
+      : "Content-Security-Policy",
+    csp.policy,
+  );
+  return response;
+}
+
 async function handleProxyRequest(
   req: NextRequest,
   protect?: () => Promise<unknown>,
 ) {
   const runtimeConfig = buildServerDomainConfig(env);
   const requestHeaders = new Headers(req.headers);
+  const csp = createCspContext();
+  if (csp) {
+    requestHeaders.set("x-nonce", csp.nonce);
+    requestHeaders.set("content-security-policy", csp.policy);
+  }
   const devTenant = req.nextUrl.searchParams.get("devTenant");
   const sanitizedDevTenant =
     featureFlags.devAccessMode && devTenant && /^[a-z0-9-]+$/.test(devTenant)
@@ -103,7 +154,7 @@ async function handleProxyRequest(
         maxAge: 60 * 60 * 8,
       });
     }
-    return response;
+    return applyCspResponseHeader(response, csp);
   }
 
   if (isPortalRoute(req) || isAdminRoute(req) || isSuperadminRoute(req)) {
@@ -123,7 +174,7 @@ async function handleProxyRequest(
       maxAge: 60 * 60 * 8,
     });
   }
-  return response;
+  return applyCspResponseHeader(response, csp);
 }
 
 const proxy = featureFlags.hasClerk

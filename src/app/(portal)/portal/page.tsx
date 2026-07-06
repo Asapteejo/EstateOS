@@ -7,6 +7,8 @@ import { formatCurrency } from "@/lib/utils";
 import { getBuyerDashboardSummary, getBuyerPaymentExperience } from "@/modules/portal/queries";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Avatar } from "@/components/ui/avatar";
+import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { QuickInquiryForm } from "@/components/portal/quick-inquiry-form";
 import { getTenantPresentation } from "@/modules/branding/service";
 import { getAppSession } from "@/lib/auth/session";
@@ -138,6 +140,28 @@ export default async function PortalDashboardPage() {
           <StatCard label="Selected plan" value={paymentExperience.selectedPaymentPlan ?? "Unselected"} />
         </div>
       </Card>
+      {paymentExperience.selectedMarketer ? (
+        <Card className="p-8">
+          <h2 className="text-2xl font-semibold text-[var(--ink-950)]">Your dedicated agent</h2>
+          <p className="mt-2 text-sm leading-7 text-[var(--ink-600)]">
+            Reach out any time with questions about your property, payments, or next steps.
+          </p>
+          <div className="mt-5 flex flex-wrap items-center gap-4">
+            <Avatar name={paymentExperience.selectedMarketer.fullName} imageUrl={paymentExperience.selectedMarketer.avatarUrl} size="lg" />
+            <div className="min-w-0">
+              <div className="text-lg font-semibold text-[var(--ink-950)]">{paymentExperience.selectedMarketer.fullName}</div>
+              <div className="text-sm text-[var(--brand-700)]">{paymentExperience.selectedMarketer.title}</div>
+            </div>
+            <div className="sm:ml-auto">
+              <WhatsAppButton
+                phone={paymentExperience.selectedMarketer.whatsappNumber || paymentExperience.selectedMarketer.phone}
+                label="Message your agent on WhatsApp"
+                message={`Hi ${paymentExperience.selectedMarketer.fullName}, I have a question about my purchase.`}
+              />
+            </div>
+          </div>
+        </Card>
+      ) : null}
       <Card className="p-8">
         <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
           <div>

@@ -41,6 +41,7 @@ export type DealBoardCard = {
   reservationId: string | null;
   stage: DealBoardStage;
   buyerName: string;
+  buyerPhone?: string | null;
   propertyLabel: string;
   totalValue: number;
   amountPaid: number;
@@ -123,6 +124,7 @@ const inquirySelect = Prisma.validator<Prisma.InquiryFindManyArgs>()({
   select: {
     id: true,
     fullName: true,
+    phone: true,
     status: true,
     createdAt: true,
     property: {
@@ -150,6 +152,7 @@ const inspectionSelect = Prisma.validator<Prisma.InspectionBookingFindManyArgs>(
   select: {
     id: true,
     fullName: true,
+    phone: true,
     status: true,
     scheduledFor: true,
     createdAt: true,
@@ -194,6 +197,7 @@ const transactionSelect = Prisma.validator<Prisma.TransactionFindManyArgs>()({
         id: true,
         firstName: true,
         lastName: true,
+        phone: true,
       },
     },
     property: {
@@ -815,6 +819,7 @@ export async function getAdminDealBoard(context: TenantContext): Promise<DealBoa
         reservationId: null,
         stage: "NEW_LEADS",
         buyerName: inquiry.fullName,
+        buyerPhone: inquiry.phone,
         propertyLabel: inquiry.property?.title ?? "General inquiry",
         totalValue: 0,
         amountPaid: 0,
@@ -851,6 +856,7 @@ export async function getAdminDealBoard(context: TenantContext): Promise<DealBoa
         reservationId: null,
         stage: "INSPECTIONS",
         buyerName: booking.fullName,
+        buyerPhone: booking.phone,
         propertyLabel: booking.property.title,
         totalValue: 0,
         amountPaid: 0,
@@ -922,6 +928,7 @@ export async function getAdminDealBoard(context: TenantContext): Promise<DealBoa
         lastName: transaction.user.lastName,
         fallback: "Buyer",
       }),
+      buyerPhone: transaction.user.phone ?? null,
       propertyLabel: [transaction.property.title, transaction.propertyUnit?.title].filter(Boolean).join(" / "),
       totalValue: decimalToNumber(transaction.totalValue),
       amountPaid,

@@ -11,6 +11,7 @@ import { buildSafeErrorLogContext, logError } from "@/lib/ops/logger";
 import { formatDate } from "@/lib/utils";
 import { buildDefaultWalletSnapshot, getCompanyWalletOverview } from "@/modules/communication/wallet";
 import { adjustCommunicationWalletAction } from "@/app/(superadmin)/superadmin/communication-wallets/actions";
+import { Select } from "@/components/ui/select";
 
 export default async function SuperadminCompanyWalletPage({
   params,
@@ -100,10 +101,10 @@ export default async function SuperadminCompanyWalletPage({
           </label>
           <label className="space-y-2 text-sm">
             <span className="font-medium text-[var(--ink-700)]">Type</span>
-            <select name="type" defaultValue="TOP_UP" className="w-full rounded-xl border border-[var(--line)] px-3 py-2">
+            <Select name="type" defaultValue="TOP_UP" className="w-full">
               <option value="TOP_UP">Top up</option>
               <option value="ADJUSTMENT">Adjustment</option>
-            </select>
+            </Select>
           </label>
           <label className="space-y-2 text-sm">
             <span className="font-medium text-[var(--ink-700)]">Note / reference</span>

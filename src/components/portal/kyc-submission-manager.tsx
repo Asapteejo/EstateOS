@@ -16,6 +16,7 @@ import {
   globalBuyerIdentityDocuments,
   nigeriaBuyerIdentityDocuments,
 } from "@/modules/kyc/presentation";
+import { Select } from "@/components/ui/select";
 
 type BuyerKycSubmissionListItem = {
   id: string;
@@ -205,8 +206,7 @@ export function KycSubmissionManager({
         <div className="grid gap-4 md:grid-cols-2">
           <label className="space-y-2">
             <span className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--ink-500)]">Country</span>
-            <select
-              className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+            <Select className="w-full"
             value={country}
             onChange={(event) => {
                 const nextCountry = event.target.value;
@@ -216,19 +216,18 @@ export function KycSubmissionManager({
             >
               <option value="Nigeria">Nigeria</option>
               <option value="Other">Other country</option>
-            </select>
+            </Select>
           </label>
           <label className="space-y-2">
             <span className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--ink-500)]">Identity document type</span>
-            <select
-              className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+            <Select className="w-full"
               value={identityDocumentType}
               onChange={(event) => setIdentityDocumentType(event.target.value)}
             >
               {acceptedDocuments.map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
-            </select>
+            </Select>
           </label>
           <UploadField
             label="KYC file"

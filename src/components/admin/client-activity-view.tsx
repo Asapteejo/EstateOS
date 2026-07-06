@@ -15,6 +15,7 @@ import { PrintButton } from "@/components/shared/print-button";
 import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { compareAttentionPriority, getAttentionTone, workflowVocabulary } from "@/modules/admin/workflow-vocabulary";
 import type { AdminClientProfile } from "@/modules/clients/queries";
+import { Select } from "@/components/ui/select";
 
 export function ClientActivityView({ client }: { client: AdminClientProfile }) {
   const router = useRouter();
@@ -191,8 +192,7 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
               </div>
 
               <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-                <select
-                  className="admin-focus admin-interactive h-11 min-w-0 rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+                <Select className="min-w-0"
                   value={drafts[item.id]?.assignedStaffId ?? ""}
                   onChange={(event) =>
                     setDrafts((current) => ({
@@ -210,9 +210,8 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
                       {option.label}
                     </option>
                   ))}
-                </select>
-                <select
-                  className="admin-focus admin-interactive h-11 min-w-0 rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+                </Select>
+                <Select className="min-w-0"
                   value={drafts[item.id]?.followUpStatus ?? "NONE"}
                   onChange={(event) =>
                     setDrafts((current) => ({
@@ -229,7 +228,7 @@ export function ClientActivityView({ client }: { client: AdminClientProfile }) {
                   <option value="CONTACTED">{workflowVocabulary.clients.followUpStatusLabels.CONTACTED}</option>
                   <option value="FOLLOW_UP_SCHEDULED">{workflowVocabulary.clients.followUpStatusLabels.FOLLOW_UP_SCHEDULED}</option>
                   <option value="CLOSED">{workflowVocabulary.clients.followUpStatusLabels.CLOSED}</option>
-                </select>
+                </Select>
                 <div className="flex flex-wrap gap-2 lg:justify-end">
                   {item.whatsappHref ? (
                     <a href={item.whatsappHref} target="_blank" rel="noreferrer">

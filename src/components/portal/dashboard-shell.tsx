@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { unstable_cache } from "next/cache";
 
 import { CommandPalette, CommandPaletteTrigger } from "@/components/shared/command-palette";
@@ -11,8 +10,10 @@ import { getBuyerUnreadCount, getTeamUnreadCount } from "@/modules/messaging/ser
 import { getActiveBuyerAnnouncements, getActiveOperatorAnnouncements } from "@/modules/announcements/service";
 import { LiveSurfaceSync } from "@/components/realtime/live-surface-sync";
 import { Avatar } from "@/components/ui/avatar";
+import { PortalBottomNav } from "@/components/portal/portal-bottom-nav";
+import { SidebarNavGroups, type SidebarNavGroup } from "@/components/portal/sidebar-nav-groups";
 import { requireAdminSession, requirePortalSession } from "@/lib/auth/guards";
-import { adminQuickActions, filterAdminNav } from "@/lib/auth/admin-sections";
+import { adminQuickActions, groupedAdminNav } from "@/lib/auth/admin-sections";
 import { DashboardGreeting } from "@/components/dashboard/dashboard-greeting";
 import { LiveClock } from "@/components/dashboard/live-clock";
 import { QuickActions, type QuickAction } from "@/components/dashboard/quick-actions";
@@ -24,23 +25,48 @@ import { getTenantPresentation } from "@/modules/branding/service";
 import { resolveBuyerTenantContextForKyc } from "@/modules/kyc/buyer-user";
 import { cn } from "@/lib/utils";
 
-const portalLinks = [
-  ["Overview", "/portal"],
-  ["Profile", "/portal/profile"],
-  ["KYC", "/portal/kyc"],
-  ["Saved", "/portal/saved"],
-  ["Inspections", "/portal/inspections"],
-  ["Reservations", "/portal/reservations"],
-  ["Messages", "/portal/messages"],
-  ["Payments", "/portal/payments"],
-  ["Invoices", "/portal/invoices"],
-  ["Timeline", "/portal/timeline"],
-  ["Contracts", "/portal/contracts"],
-  ["Testimonials", "/portal/testimonials"],
-  ["Notifications", "/portal/notifications"],
-  ["Documents", "/portal/documents"],
-  ["Support", "/portal/support"],
-] as const;
+/**
+ * Buyer portal navigation, grouped the same way the operator sidebar is: a
+ * few scannable clusters instead of a flat 15-link list. Grouping here is
+ * presentation-only — every buyer sees every section.
+ */
+const portalNavGroups: SidebarNavGroup[] = [
+  {
+    label: "My journey",
+    items: [
+      ["Overview", "/portal"],
+      ["Timeline", "/portal/timeline"],
+      ["Profile", "/portal/profile"],
+      ["KYC", "/portal/kyc"],
+    ],
+  },
+  {
+    label: "Properties",
+    items: [
+      ["Saved", "/portal/saved"],
+      ["Inspections", "/portal/inspections"],
+      ["Reservations", "/portal/reservations"],
+    ],
+  },
+  {
+    label: "Money & documents",
+    items: [
+      ["Payments", "/portal/payments"],
+      ["Invoices", "/portal/invoices"],
+      ["Contracts", "/portal/contracts"],
+      ["Documents", "/portal/documents"],
+    ],
+  },
+  {
+    label: "Help & updates",
+    items: [
+      ["Messages", "/portal/messages"],
+      ["Notifications", "/portal/notifications"],
+      ["Testimonials", "/portal/testimonials"],
+      ["Support", "/portal/support"],
+    ],
+  },
+];
 
 type PortalUserRow = {
   firstName: string | null;
@@ -65,11 +91,13 @@ export async function DashboardShell({
     : await requireAdminSession(undefined, { redirectOnMissingAuth: false });
   // The operator sidebar is role-scoped: each role only sees the sections it is
   // allowed to access (ADMIN/SUPER_ADMIN see everything). The buyer portal nav is
-  // the same for every buyer.
-  const links: ReadonlyArray<readonly [string, string]> =
-    area === "portal"
-      ? portalLinks
-      : filterAdminNav(tenant.roles).map((item) => [item.label, item.href] as const);
+  // the same for every buyer. Both surfaces group their links into labeled
+  // clusters; `links` is the flat view for the command palette and counters.
+  const navGroups: SidebarNavGroup[] =
+    area === "portal" ? portalNavGroups : groupedAdminNav(tenant.roles);
+  const links: ReadonlyArray<readonly [string, string]> = navGroups.flatMap(
+    (group) => group.items,
+  );
   // Tenant branding/presentation is company-level data (identical for every user
   // of the company) and changes only when an admin publishes branding. Cache it
   // briefly per company so it is not re-queried on every page navigation. The
@@ -85,11 +113,16 @@ export async function DashboardShell({
       )
     : () => getTenantPresentation(tenant);
 
-  // getAppSession reads request cookies (dynamic) and is never cached. It is
-  // independent of presentation, so resolve the two concurrently.
-  const [presentation, appSession] = await Promise.all([
+  // getAppSession reads request cookies (dynamic) and is never cached.
+  // Presentation, session, and announcements are mutually independent (all
+  // derive from `tenant`), so resolve all three concurrently — one round trip
+  // instead of three sequential ones on every authenticated page load.
+  const [presentation, appSession, announcements] = await Promise.all([
     loadPresentation(),
     getAppSession(area),
+    area === "portal"
+      ? getActiveBuyerAnnouncements(tenant)
+      : getActiveOperatorAnnouncements(tenant),
   ]);
   const branding = presentation.branding;
 
@@ -101,13 +134,13 @@ export async function DashboardShell({
   const notificationCompanyId = tenant.companyId;
   const notificationUserId = area === "portal" ? profileTenant.userId : tenant.userId;
 
-  // The buyer identity row and the unread-notification count both depend only on
-  // profileTenant, so fetch them concurrently rather than sequentially. The
-  // notification count is per-user and changes frequently, so it is cached only
-  // very briefly (15s) and keyed by companyId + userId (tenant- and user-scoped)
-  // — enough to absorb rapid re-navigation without showing a materially stale
-  // badge. See the invalidation caveat in the change notes.
-  const [portalUserRows, unreadNotificationCount] = await Promise.all([
+  // The buyer identity row, the unread-notification count, and the unread
+  // message count all depend only on profileTenant/notification ids, so fetch
+  // the three concurrently rather than sequentially. The notification count is
+  // per-user and changes frequently, so it is cached only very briefly (15s)
+  // and keyed by companyId + userId (tenant- and user-scoped) — enough to
+  // absorb rapid re-navigation without showing a materially stale badge.
+  const [portalUserRows, unreadNotificationCount, messagesUnreadCount] = await Promise.all([
     area === "portal" && featureFlags.hasDatabase && profileTenant.userId && profileTenant.companyId
       ? prisma.$queryRaw<PortalUserRow[]>`
             SELECT "firstName", "lastName", "email", "profileImageUrl"
@@ -143,23 +176,16 @@ export async function DashboardShell({
           return 0;
         })
       : Promise.resolve(0),
-  ]);
-
-  // Unread message count for the Messages nav badge. Buyers see unread replies
-  // from the team; operators see unread buyer messages across the workspace. The
-  // service degrades to 0 on any error, so this never blocks the shell.
-  const messagesUnreadCount =
+    // Unread message count for the Messages nav badge. Buyers see unread
+    // replies from the team; operators see unread buyer messages across the
+    // workspace. The service degrades to 0 on any error, so this never blocks
+    // the shell.
     featureFlags.hasDatabase && notificationCompanyId
       ? area === "portal"
-        ? await getBuyerUnreadCount({ companyId: notificationCompanyId, userId: notificationUserId })
-        : await getTeamUnreadCount({ companyId: notificationCompanyId })
-      : 0;
-
-  // Active broadcast notices for this surface: buyers see buyer/everyone notices,
-  // operators (including the CEO) see staff/everyone notices. Shown as a banner.
-  const announcements = await (area === "portal"
-    ? getActiveBuyerAnnouncements(tenant)
-    : getActiveOperatorAnnouncements(tenant));
+        ? getBuyerUnreadCount({ companyId: notificationCompanyId, userId: notificationUserId })
+        : getTeamUnreadCount({ companyId: notificationCompanyId })
+      : Promise.resolve(0),
+  ]);
 
   const portalUser = portalUserRows[0] ?? null;
   const portalUserName =
@@ -199,10 +225,12 @@ export async function DashboardShell({
       {/* Mobile/tablet (below lg): sticky top bar + slide-in drawer. Hidden on desktop. */}
       <DashboardMobileNav
         area={area}
-        links={links}
+        groups={navGroups}
+        linkCount={links.length}
         companyName={presentation.companyName}
         logoUrl={branding.logoUrl}
         unreadNotificationCount={unreadNotificationCount}
+        messagesUnreadCount={messagesUnreadCount}
         portalUser={
           area === "portal"
             ? { name: portalUserName, imageUrl: portalUser?.profileImageUrl ?? null }
@@ -241,32 +269,31 @@ export async function DashboardShell({
             <ThemeToggle />
           </div>
         </div>
-        <div className="mt-5 grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 lg:mt-6 lg:block lg:space-y-2">
-          {links.map(([label, href]) => (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "tenant-nav-link admin-interactive admin-focus flex items-center justify-between gap-2 rounded-[var(--radius-md)] px-4 py-3 text-sm font-medium text-[var(--ink-700)] hover:bg-[var(--sand-100)] hover:text-[var(--ink-950)]",
-                href === `/${area}` && "tenant-nav-link-active bg-[var(--sand-100)] text-[var(--ink-950)] shadow-[inset_0_0_0_1px_rgba(15,23,42,0.06)]",
-              )}
-            >
-              <span className="truncate">{label}</span>
-              {label === "Notifications" && unreadNotificationCount > 0 ? (
-                <span className="min-w-5 rounded-full bg-[var(--brand-700)] px-1.5 py-0.5 text-center text-[11px] font-semibold leading-4 text-white">
-                  {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
-                </span>
-              ) : null}
-              {label === "Messages" && messagesUnreadCount > 0 ? (
-                <span className="min-w-5 rounded-full bg-[var(--brand-700)] px-1.5 py-0.5 text-center text-[11px] font-semibold leading-4 text-white">
-                  {messagesUnreadCount > 99 ? "99+" : messagesUnreadCount}
-                </span>
-              ) : null}
-            </Link>
-          ))}
+        <div className="mt-5 lg:mt-6">
+          <SidebarNavGroups
+            area={area}
+            groups={navGroups}
+            unreadNotificationCount={unreadNotificationCount}
+            messagesUnreadCount={messagesUnreadCount}
+          />
         </div>
       </aside>
-      <main id="main-content" tabIndex={-1} className="min-w-0 space-y-6 overflow-x-hidden py-0 lg:py-8">
+      {/* Mobile bottom tab bar — buyers only; the drawer covers the long tail. */}
+      {area === "portal" ? (
+        <PortalBottomNav
+          unreadNotificationCount={unreadNotificationCount}
+          messagesUnreadCount={messagesUnreadCount}
+        />
+      ) : null}
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className={cn(
+          "min-w-0 space-y-6 overflow-x-hidden py-0 lg:py-8",
+          // Keep content clear of the fixed bottom tab bar on small screens.
+          area === "portal" && "pb-24 lg:pb-8",
+        )}
+      >
         <div className="flex flex-col gap-4 pt-1 sm:flex-row sm:items-start sm:justify-between">
           <DashboardGreeting name={greetingName} subtitle={greetingSubtitle} />
           <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">

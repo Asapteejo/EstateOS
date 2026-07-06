@@ -127,6 +127,9 @@ const serverEnvSchema = z
     DEFAULT_COMPANY_SLUG: optionalSlug,
     DEV_ACCESS_MODE: optionalBoolean,
     ESTATEOS_ENABLE_DEV_BYPASS: optionalBoolean,
+    // Escape hatch: ship the CSP as Report-Only instead of enforced (e.g. on a
+    // Vercel preview if a third-party script misbehaves under the nonce policy).
+    ESTATEOS_CSP_REPORT_ONLY: optionalBoolean,
     ALLOW_PRODUCTION_DB_WRITES: optionalBoolean,
     PRODUCTION_DATABASE_PROJECT_REF: optionalString,
     PRODUCTION_DATABASE_HOST: optionalString,
@@ -472,6 +475,9 @@ export function buildFeatureFlags(env: ServerEnv) {
       env.DEV_ACCESS_MODE === true &&
       env.VERCEL !== true &&
       !isKnownProductionDatabase(env),
+    // When true, the proxy sends Content-Security-Policy-Report-Only instead
+    // of the enforced header. Off by default: production enforces the CSP.
+    cspReportOnly: env.ESTATEOS_CSP_REPORT_ONLY === true,
     hasDatabase: Boolean(env.DATABASE_URL),
     hasClerk:
       Boolean(env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) &&

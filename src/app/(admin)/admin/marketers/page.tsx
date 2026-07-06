@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { requireAdminSession } from "@/lib/auth/guards";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { getAdminMarketerPerformanceDashboard } from "@/modules/team/performance";
+import { MarketerRankingTable } from "@/components/admin/marketer-ranking-table";
+import { Select } from "@/components/ui/select";
 
 const SORT_OPTIONS = [
   ["score", "Score"],
@@ -93,28 +95,26 @@ export default async function AdminMarketersPage({
       <AdminToolbar>
         <form method="GET" className="grid w-full gap-3 lg:grid-cols-[minmax(0,1fr)_180px_220px_auto]">
           <Input className="min-w-0" name="q" placeholder="Search marketer name or role" defaultValue={search} />
-          <select
+          <Select
             name="period"
-            defaultValue={period}
-            className="admin-focus admin-interactive h-11 min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm text-[var(--ink-700)]"
+            defaultValue={period} className="min-w-0"
           >
             {PERIOD_OPTIONS.map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
-          </select>
-          <select
+          </Select>
+          <Select
             name="sort"
-            defaultValue={sortBy}
-            className="admin-focus admin-interactive h-11 min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm text-[var(--ink-700)]"
+            defaultValue={sortBy} className="min-w-0"
           >
             {SORT_OPTIONS.map(([value, label]) => (
               <option key={value} value={value}>
                 Sort by {label}
               </option>
             ))}
-          </select>
+          </Select>
           <Button className="whitespace-nowrap" type="submit">Apply</Button>
         </form>
       </AdminToolbar>
@@ -215,69 +215,29 @@ export default async function AdminMarketersPage({
         description={`${dashboard.rows.length} marketer${dashboard.rows.length === 1 ? "" : "s"} in this tenant workspace.`}
         className="px-0 py-0"
       >
-        {dashboard.rows.length > 0 ? (
-          <div className="overflow-x-auto pb-1">
-            <table className="admin-table min-w-[1180px]">
-              <thead>
-                <tr>
-                  {["Rank", "Marketer", "Score", "Stars", "Weekly revenue", "Monthly revenue", "Lifetime revenue", "Commission earned", "Deals", "Payments", "Inspections", "Reservations", "Trend"].map((column) => (
-                    <th key={column}>{column}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {dashboard.rows.map((row) => (
-                  <tr key={row.id} className="align-top">
-                    <td className="numeric font-semibold text-[var(--ink-950)] whitespace-nowrap">#{row.rank}</td>
-                    <td>
-                      <div className="flex min-w-[220px] items-center gap-3">
-                        <Avatar
-                          name={row.fullName}
-                          imageUrl={row.avatarUrl}
-                          size="md"
-                          className="rounded-[16px] bg-[var(--sand-50)]"
-                        />
-                        <div>
-                          <div className="font-semibold text-[var(--ink-950)]">{row.fullName}</div>
-                          <div className="text-[var(--ink-500)]">{row.title}</div>
-                          <div className="mt-1 flex flex-wrap gap-2 text-xs text-[var(--ink-500)]">
-                            {!row.isActive ? <span className="rounded-full border border-[var(--border-subtle,var(--line))] bg-[var(--sand-50)] px-2.5 py-1 whitespace-nowrap">Inactive</span> : null}
-                            {!row.isPublished ? <span className="rounded-full border border-[var(--border-subtle,var(--line))] bg-[var(--sand-50)] px-2.5 py-1 whitespace-nowrap">Private</span> : null}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="numeric font-semibold text-[var(--ink-950)] whitespace-nowrap">{row.score}</td>
-                    <td className="numeric whitespace-nowrap">{row.starRating.toFixed(1)}</td>
-                    <td className="numeric whitespace-nowrap">{formatCurrency(row.revenue.weekly)}</td>
-                    <td className="numeric whitespace-nowrap">{formatCurrency(row.revenue.monthly)}</td>
-                    <td className="numeric whitespace-nowrap">{formatCurrency(row.revenue.lifetime)}</td>
-                    <td>
-                      <div className="numeric font-medium text-[var(--ink-950)] whitespace-nowrap">{formatCurrency(row.commissionTotal)}</div>
-                      {row.commissionPending > 0 && (
-                        <div className="numeric mt-0.5 text-xs text-[var(--ink-400)] whitespace-nowrap">
-                          {formatCurrency(row.commissionPending)} pending
-                        </div>
-                      )}
-                    </td>
-                    <td className="numeric whitespace-nowrap">{row.metrics.completedDeals}</td>
-                    <td className="numeric whitespace-nowrap">{row.metrics.successfulPayments}</td>
-                    <td className="numeric whitespace-nowrap">{row.metrics.inspectionsHandled}</td>
-                    <td className="numeric whitespace-nowrap">{row.metrics.reservations}</td>
-                    <td className="numeric text-[var(--ink-600)] whitespace-nowrap">{trendLabel(row.trend)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="px-5 py-5">
-            <AdminEmptyState
-              title="No marketers matched this filter"
-              description="Adjust search or period filters to bring marketers back into the ranking view."
-            />
-          </div>
-        )}
+        <MarketerRankingTable
+          rows={dashboard.rows.map((row) => ({
+            id: row.id,
+            rank: row.rank,
+            fullName: row.fullName,
+            title: row.title,
+            avatarUrl: row.avatarUrl,
+            isActive: row.isActive,
+            isPublished: row.isPublished,
+            score: row.score,
+            starRating: row.starRating,
+            revenueWeekly: row.revenue.weekly,
+            revenueMonthly: row.revenue.monthly,
+            revenueLifetime: row.revenue.lifetime,
+            commissionTotal: row.commissionTotal,
+            commissionPending: row.commissionPending,
+            completedDeals: row.metrics.completedDeals,
+            successfulPayments: row.metrics.successfulPayments,
+            inspectionsHandled: row.metrics.inspectionsHandled,
+            reservations: row.metrics.reservations,
+            trendLabel: trendLabel(row.trend),
+          }))}
+        />
       </AdminPanel>
     </DashboardShell>
   );

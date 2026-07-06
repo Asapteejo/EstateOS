@@ -25,6 +25,7 @@ export default async function AdminDocumentsPage() {
           title="Document register"
           columns={["File", "Owner", "Type", "Status"]}
           rows={rows}
+          searchPlaceholder="Search documents…"
         />
       </div>
     </DashboardShell>

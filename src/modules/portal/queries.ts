@@ -194,6 +194,8 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
             title: true,
             slug: true,
             avatarUrl: true,
+            phone: true,
+            whatsappNumber: true,
           },
         },
         reservation: {
@@ -205,6 +207,8 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
                 title: true,
                 slug: true,
                 avatarUrl: true,
+                phone: true,
+                whatsappNumber: true,
               },
             },
           },
@@ -242,6 +246,8 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
                 title: true,
                 slug: true,
                 avatarUrl: true,
+                phone: true,
+                whatsappNumber: true,
               },
             },
             receipt: {
@@ -280,10 +286,10 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
     id: string;
     totalValue: { toNumber?: () => number } | number;
     outstandingBalance: { toNumber?: () => number } | number;
-    marketer: { fullName: string; title: string; slug: string; avatarUrl: string | null } | null;
+    marketer: { fullName: string; title: string; slug: string; avatarUrl: string | null; phone: string | null; whatsappNumber: string | null } | null;
     reservation: {
       createdAt: Date;
-      marketer: { fullName: string; title: string; slug: string; avatarUrl: string | null } | null;
+      marketer: { fullName: string; title: string; slug: string; avatarUrl: string | null; phone: string | null; whatsappNumber: string | null } | null;
     } | null;
     paymentPlan: {
       title: string;
@@ -301,7 +307,7 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
       status: string;
       method: string;
       installmentId: string | null;
-      marketer: { fullName: string; title: string; slug: string; avatarUrl: string | null } | null;
+      marketer: { fullName: string; title: string; slug: string; avatarUrl: string | null; phone: string | null; whatsappNumber: string | null } | null;
       receipt: {
         id: string;
         receiptNumber: string;
@@ -405,6 +411,8 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
               title: payment.marketer.title,
               slug: payment.marketer.slug,
               avatarUrl: payment.marketer.avatarUrl,
+              phone: payment.marketer.phone,
+              whatsappNumber: payment.marketer.whatsappNumber,
             }
           : null,
       })),
@@ -414,6 +422,8 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
           title: transaction.marketer.title,
           slug: transaction.marketer.slug,
           avatarUrl: transaction.marketer.avatarUrl,
+          phone: transaction.marketer.phone,
+          whatsappNumber: transaction.marketer.whatsappNumber,
         }
       : null,
     reservationMarketer: transaction.reservation?.marketer
@@ -422,6 +432,8 @@ export async function getBuyerPaymentExperience(context: TenantContext) {
           title: transaction.reservation.marketer.title,
           slug: transaction.reservation.marketer.slug,
           avatarUrl: transaction.reservation.marketer.avatarUrl,
+          phone: transaction.reservation.marketer.phone,
+          whatsappNumber: transaction.reservation.marketer.whatsappNumber,
         }
       : null,
   });

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { compareAttentionPriority, getAttentionTone, workflowVocabulary } from "@/modules/admin/workflow-vocabulary";
 import type { InquiryManagementItem } from "@/modules/inquiries/service";
+import { Select } from "@/components/ui/select";
 
 type StaffOption = {
   id: string;
@@ -272,8 +273,7 @@ export function InquiryManagement({
             <div className="admin-surface-muted min-w-0 space-y-4 p-5">
               <div className="grid gap-3 sm:grid-cols-2">
                 <AdminField label="Status">
-                  <select
-                    className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm"
+                  <Select className="w-full min-w-0"
                     value={state[inquiry.id]?.status ?? inquiry.status}
                     onChange={(event) =>
                       setState((current) => ({
@@ -290,12 +290,11 @@ export function InquiryManagement({
                         {workflowVocabulary.inquiries.statusLabels[status]}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </AdminField>
 
                 <AdminField label="Assigned staff">
-                  <select
-                    className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm"
+                  <Select className="w-full min-w-0"
                     value={state[inquiry.id]?.assignedStaffId ?? ""}
                     onChange={(event) =>
                       setState((current) => ({
@@ -313,7 +312,7 @@ export function InquiryManagement({
                         {option.label}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </AdminField>
               </div>
 

@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { TeamMemberManagementRecord } from "@/modules/team/queries";
 import { buildWhatsAppHref } from "@/modules/team/contact";
+import { Select } from "@/components/ui/select";
 
 type PendingInvitation = {
   id: string;
@@ -443,8 +444,7 @@ function TeamMemberEditor({
         />
         <label className="block space-y-2">
           <span className="text-sm font-medium text-[var(--ink-700)]">Existing uploaded resume</span>
-          <select
-            className="admin-focus admin-interactive h-11 w-full min-w-0 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-4 text-sm text-[var(--ink-700)]"
+          <Select className="w-full min-w-0"
             value={value.resumeDocumentId}
             onChange={(event) => update("resumeDocumentId", event.target.value)}
           >
@@ -454,7 +454,7 @@ function TeamMemberEditor({
                 {document.fileName}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
       </div>
 

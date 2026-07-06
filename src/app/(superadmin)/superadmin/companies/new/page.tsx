@@ -9,6 +9,7 @@ import {
   createMockCompanyAction,
   createSuperadminCompanyAction,
 } from "@/app/(superadmin)/superadmin/companies/actions";
+import { Select } from "@/components/ui/select";
 
 export default async function NewSuperadminCompanyPage({
   searchParams,
@@ -92,26 +93,26 @@ export default async function NewSuperadminCompanyPage({
           <div className="mt-5 grid gap-4 md:grid-cols-4">
             <label className="space-y-2 text-sm">
               <span className="font-medium text-[var(--ink-700)]">Plan</span>
-              <select name="plan" defaultValue="PRO" className="w-full rounded-xl border border-[var(--line)] px-3 py-2">
+              <Select name="plan" defaultValue="PRO" className="w-full">
                 <option value="FREE">Free</option>
                 <option value="PRO">Pro</option>
                 <option value="PREMIUM">Premium</option>
-              </select>
+              </Select>
             </label>
             <label className="space-y-2 text-sm">
               <span className="font-medium text-[var(--ink-700)]">Billing mode</span>
-              <select name="billingMode" defaultValue="MANUAL_OVERRIDE" className="w-full rounded-xl border border-[var(--line)] px-3 py-2">
+              <Select name="billingMode" defaultValue="MANUAL_OVERRIDE" className="w-full">
                 <option value="MANUAL_OVERRIDE">Manual override</option>
                 <option value="TRIAL">Trial</option>
                 <option value="PAID">Paid</option>
-              </select>
+              </Select>
             </label>
             <label className="space-y-2 text-sm">
               <span className="font-medium text-[var(--ink-700)]">Access status</span>
-              <select name="accessStatus" defaultValue="ACTIVE" className="w-full rounded-xl border border-[var(--line)] px-3 py-2">
+              <Select name="accessStatus" defaultValue="ACTIVE" className="w-full">
                 <option value="ACTIVE">Active</option>
                 <option value="SUSPENDED">Suspended</option>
-              </select>
+              </Select>
             </label>
             <label className="space-y-2 text-sm">
               <span className="font-medium text-[var(--ink-700)]">Expiry date</span>

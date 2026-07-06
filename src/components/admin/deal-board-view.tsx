@@ -10,6 +10,7 @@ import { DealBoardActivationCard } from "@/components/admin/deal-board-activatio
 import { DealBoardSetupPrompt } from "@/components/admin/deal-board-setup-prompt";
 import { LoadSampleWorkspaceButton } from "@/components/admin/load-sample-workspace-button";
 import { QuickPaymentRequestButton } from "@/components/admin/quick-payment-request-button";
+import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { TransactionFollowUpButton } from "@/components/admin/transaction-follow-up-button";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -153,6 +154,14 @@ function BoardCard({
         <div className="min-w-0">
           <div className="truncate text-base font-semibold text-[var(--ink-950)]">{card.buyerName}</div>
           <div className="mt-1 line-clamp-2 text-sm text-[var(--ink-600)]">{card.propertyLabel}</div>
+          {card.buyerPhone ? (
+            <div className="mt-2">
+              <WhatsAppButton
+                phone={card.buyerPhone}
+                message={`Hi ${card.buyerName}, reaching out about ${card.propertyLabel}.`}
+              />
+            </div>
+          ) : null}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1.5">
           <span className={cn("whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold", tone.badgeClass)}>

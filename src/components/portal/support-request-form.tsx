@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
 
 const CATEGORY_OPTIONS = [
   ["bug", "Bug"],
@@ -117,17 +118,17 @@ export function SupportRequestForm({ initialName, initialEmail, companyName }: P
       <Card className="space-y-5 p-6 sm:p-8">
         <div className="grid gap-5 md:grid-cols-2">
           <Field label="Category">
-            <select
+            <Select
               value={category}
               onChange={(event) => setCategory(event.target.value as (typeof category))}
-              className="admin-interactive admin-focus h-11 w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-900)]"
+              className="w-full"
             >
               {CATEGORY_OPTIONS.map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field label="Subject">
             <Input

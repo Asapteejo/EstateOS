@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { createAnnouncementAction, type AnnouncementFormState } from "@/modules/announcements/actions";
+import { Select } from "@/components/ui/select";
 
 const INITIAL: AnnouncementFormState = { ok: false, error: null };
 
@@ -53,11 +54,11 @@ export function AnnouncementComposer() {
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm text-[var(--ink-600)]">
             Audience
-            <select name="audience" defaultValue="BUYERS" className={`${inputClass} mt-1`} aria-label="Audience">
+            <Select name="audience" defaultValue="BUYERS" className="mt-1 w-full" aria-label="Audience">
               <option value="BUYERS">Buyers</option>
               <option value="OPERATORS">Staff</option>
               <option value="ALL">Everyone</option>
-            </select>
+            </Select>
           </label>
           <label className="text-sm text-[var(--ink-600)]">
             Expires (optional)

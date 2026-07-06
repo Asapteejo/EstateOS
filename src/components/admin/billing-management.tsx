@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
 
 type PlanRecord = {
   id: string;
@@ -311,8 +312,7 @@ export function BillingManagement({
               <Input placeholder="Name" value={planForm.name} onChange={(event) => setPlanForm((current) => ({ ...current, name: event.target.value }))} />
               <Input placeholder="Price amount" value={planForm.priceAmount} onChange={(event) => setPlanForm((current) => ({ ...current, priceAmount: event.target.value }))} />
               <Input placeholder="Currency" value={planForm.currency} onChange={(event) => setPlanForm((current) => ({ ...current, currency: event.target.value.toUpperCase() }))} />
-              <select
-                className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+              <Select
                 value={planForm.interval}
                 onChange={(event) =>
                   setPlanForm((current) => ({
@@ -323,7 +323,7 @@ export function BillingManagement({
               >
                 <option value="MONTHLY">Monthly</option>
                 <option value="ANNUAL">Annual</option>
-              </select>
+              </Select>
             </div>
             <Textarea
               placeholder="Description"
@@ -364,8 +364,7 @@ export function BillingManagement({
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <select
-                className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+              <Select
                 value={assignment.companyId}
                 onChange={(event) => setAssignment((current) => ({ ...current, companyId: event.target.value }))}
               >
@@ -374,9 +373,8 @@ export function BillingManagement({
                     {company.companyName}
                   </option>
                 ))}
-              </select>
-              <select
-                className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+              </Select>
+              <Select
                 value={assignment.planId}
                 onChange={(event) => setAssignment((current) => ({ ...current, planId: event.target.value }))}
               >
@@ -385,18 +383,16 @@ export function BillingManagement({
                     {plan.name}  -  {plan.interval.toLowerCase()}
                   </option>
                 ))}
-              </select>
-              <select
-                className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+              </Select>
+              <Select
                 value={assignment.status}
                 onChange={(event) => setAssignment((current) => ({ ...current, status: event.target.value }))}
               >
                 <option value="GRANTED">Granted</option>
                 <option value="ACTIVE">Active paid</option>
                 <option value="TRIAL">Trial</option>
-              </select>
-              <select
-                className="h-11 rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-700)]"
+              </Select>
+              <Select
                 value={assignment.interval}
                 onChange={(event) =>
                   setAssignment((current) => ({
@@ -407,7 +403,7 @@ export function BillingManagement({
               >
                 <option value="MONTHLY">Monthly</option>
                 <option value="ANNUAL">Annual</option>
-              </select>
+              </Select>
             </div>
             <Input
               placeholder="Reason"

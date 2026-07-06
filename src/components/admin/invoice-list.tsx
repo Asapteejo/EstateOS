@@ -1,5 +1,9 @@
+"use client";
+
+import { useMemo } from "react";
 import { Download } from "lucide-react";
 
+import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 import type { InvoiceSummary } from "@/modules/invoices/service";
 
 const STATUS_STYLE: Record<string, string> = {
@@ -9,6 +13,12 @@ const STATUS_STYLE: Record<string, string> = {
   VOID: "bg-[var(--danger-50,#fef2f2)] text-[var(--danger-700,#b91c1c)]",
 };
 
+/**
+ * Invoice register (admin + buyer portal), migrated to the shared DataTable:
+ * sortable columns, search, and pagination for long registers. Status badge
+ * and the download link render as custom cells; the buyer column stays
+ * conditional (hidden on the buyer's own portal via `showBuyer`).
+ */
 export function InvoiceList({
   invoices,
   showBuyer = true,
@@ -18,63 +28,85 @@ export function InvoiceList({
   showBuyer?: boolean;
   emptyMessage?: string;
 }) {
-  if (invoices.length === 0) {
-    return (
-      <div className="rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--surface-1,#fff)] p-10 text-center shadow-[var(--shadow-sm)]">
-        <p className="text-sm font-medium text-[var(--ink-700)]">{emptyMessage}</p>
-      </div>
+  const columns = useMemo<ColumnDef<InvoiceSummary, unknown>[]>(() => {
+    const defs: ColumnDef<InvoiceSummary, unknown>[] = [
+      {
+        accessorKey: "invoiceNumber",
+        header: "Invoice",
+        cell: ({ row }) => (
+          <span className="font-medium text-[var(--ink-950)]">{row.original.invoiceNumber}</span>
+        ),
+      },
+    ];
+
+    if (showBuyer) {
+      defs.push({
+        accessorKey: "buyerName",
+        header: "Buyer",
+        cell: ({ row }) => (
+          <div>
+            <div>{row.original.buyerName}</div>
+            <div className="text-xs text-[var(--ink-400)]">{row.original.buyerEmail}</div>
+          </div>
+        ),
+      });
+    }
+
+    defs.push(
+      {
+        accessorKey: "propertyTitle",
+        header: "Property",
+        cell: ({ row }) => (
+          <span className="text-[var(--ink-600)]">{row.original.propertyTitle ?? "—"}</span>
+        ),
+      },
+      {
+        accessorKey: "total",
+        header: "Total",
+        cell: ({ row }) => (
+          <span className="numeric font-semibold text-[var(--ink-950)]">{row.original.total}</span>
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => (
+          <span
+            className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLE[row.original.status] ?? STATUS_STYLE.DRAFT}`}
+          >
+            {row.original.status}
+          </span>
+        ),
+      },
+      { accessorKey: "issuedAt", header: "Issued" },
+      {
+        id: "document",
+        header: "Document",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <a
+            href={`/api/invoices/${row.original.id}/download`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="admin-focus inline-flex items-center gap-1.5 rounded-[var(--radius-md)] border border-[var(--line)] px-3 py-1.5 text-xs font-medium text-[var(--ink-700)] transition-colors hover:bg-[var(--sand-100,#f1f5f9)]"
+          >
+            <Download className="h-3.5 w-3.5" aria-hidden />
+            View / print
+          </a>
+        ),
+      },
     );
-  }
+
+    return defs;
+  }, [showBuyer]);
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--surface-1,#fff)] shadow-[var(--shadow-sm)]">
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-left text-sm">
-          <thead className="bg-[var(--sand-100,#f1f5f9)] text-xs uppercase tracking-wide text-[var(--ink-500)]">
-            <tr>
-              <th className="px-4 py-3 font-medium">Invoice</th>
-              {showBuyer ? <th className="px-4 py-3 font-medium">Buyer</th> : null}
-              <th className="px-4 py-3 font-medium">Property</th>
-              <th className="px-4 py-3 text-right font-medium">Total</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Issued</th>
-              <th className="px-4 py-3 text-right font-medium">Document</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--line)]">
-            {invoices.map((invoice) => (
-              <tr key={invoice.id} className="text-[var(--ink-800)]">
-                <td className="px-4 py-3 font-medium text-[var(--ink-950)]">{invoice.invoiceNumber}</td>
-                {showBuyer ? (
-                  <td className="px-4 py-3">
-                    <div>{invoice.buyerName}</div>
-                    <div className="text-xs text-[var(--ink-400)]">{invoice.buyerEmail}</div>
-                  </td>
-                ) : null}
-                <td className="px-4 py-3 text-[var(--ink-600)]">{invoice.propertyTitle ?? "—"}</td>
-                <td className="numeric px-4 py-3 text-right font-semibold text-[var(--ink-950)]">{invoice.total}</td>
-                <td className="px-4 py-3">
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS_STYLE[invoice.status] ?? STATUS_STYLE.DRAFT}`}>
-                    {invoice.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-[var(--ink-500)]">{invoice.issuedAt}</td>
-                <td className="px-4 py-3 text-right">
-                  <a
-                    href={`/api/invoices/${invoice.id}/download`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="admin-focus inline-flex items-center gap-1.5 rounded-[var(--radius-md)] border border-[var(--line)] px-3 py-1.5 text-xs font-medium text-[var(--ink-700)] transition-colors hover:bg-[var(--sand-100,#f1f5f9)]"
-                  >
-                    <Download className="h-3.5 w-3.5" aria-hidden />
-                    View / print
-                  </a>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <DataTable
+      columns={columns}
+      data={invoices}
+      searchPlaceholder={showBuyer ? "Search invoices by number, buyer, or property…" : undefined}
+      pageSize={25}
+      emptyTitle={emptyMessage}
+    />
   );
 }

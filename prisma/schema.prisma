@@ -14,6 +14,7 @@ enum AppRole {
   ADMIN
   LEGAL
   FINANCE
+  MARKETER
   SUPER_ADMIN
 }
 
@@ -2064,6 +2065,12 @@ model WebhookEvent {
   payment           Payment? @relation(fields: [paymentId], references: [id])
   createdAt         DateTime @default(now())
 
+  // Hard idempotency: the same provider event can only ever be recorded once
+  // per tenant. The reconciliation creates this row INSIDE the same DB
+  // transaction as the money mutations, so a concurrent duplicate delivery
+  // hits P2002 and the entire duplicate pipeline rolls back atomically.
+  // (Postgres allows multiple NULL providerEventIds, so legacy rows are safe.)
+  @@unique([companyId, provider, providerEventId])
   @@index([companyId, provider, eventType])
   @@index([companyId, paymentId])
 }

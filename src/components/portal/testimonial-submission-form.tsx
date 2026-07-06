@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import type { TestimonialPropertyOption } from "@/modules/testimonials/service";
+import { Select } from "@/components/ui/select";
 
 type Props = {
   properties: TestimonialPropertyOption[];
@@ -78,10 +79,9 @@ export function TestimonialSubmissionForm({
         <label className="block text-sm font-semibold text-[var(--ink-900)]" htmlFor="testimonial-property">
           Related property
         </label>
-        <select
+        <Select
           id="testimonial-property"
-          name="propertyId"
-          className="admin-focus mt-2 w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm"
+          name="propertyId" className="mt-2 w-full"
         >
           <option value="">Company testimonial</option>
           {properties.map((property) => (
@@ -89,7 +89,7 @@ export function TestimonialSubmissionForm({
               {property.title}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       <div>

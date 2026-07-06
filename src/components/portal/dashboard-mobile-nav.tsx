@@ -1,15 +1,11 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 import { Logo } from "@/components/shared/logo";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { SidebarNavGroups, type SidebarNavGroup } from "@/components/portal/sidebar-nav-groups";
 import { Avatar } from "@/components/ui/avatar";
-import { cn } from "@/lib/utils";
-
-type NavLink = readonly [string, string];
 
 /**
  * Mobile/tablet (below `lg`) navigation for the dashboard shell.
@@ -17,36 +13,37 @@ type NavLink = readonly [string, string];
  * Replaces the stacked tile grid of nav links — which previously pushed the
  * actual page content far down the screen on small viewports — with a sticky
  * top bar (company identity + menu button) plus a slide-in drawer that holds
- * the full navigation. Rendered only below `lg`; the desktop sidebar in
- * DashboardShell is unchanged. This is a client component because the drawer
+ * the full navigation. The drawer renders the same grouped, collapsible nav
+ * (SidebarNavGroups) as the desktop sidebar, so the two surfaces never drift.
+ * Rendered only below `lg`. This is a client component because the drawer
  * needs interactivity (open/close, Escape, focus management, body scroll lock).
  */
 export function DashboardMobileNav({
   area,
-  links,
+  groups,
+  linkCount,
   companyName,
   logoUrl,
   unreadNotificationCount,
+  messagesUnreadCount = 0,
   portalUser,
 }: {
   area: "portal" | "admin";
-  links: ReadonlyArray<NavLink>;
+  groups: SidebarNavGroup[];
+  linkCount: number;
   companyName: string;
   logoUrl?: string | null;
   unreadNotificationCount: number;
+  messagesUnreadCount?: number;
   portalUser?: { name: string; imageUrl?: string | null } | null;
 }) {
   const [open, setOpen] = useState(false);
-  const pathname = usePathname();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const drawerId = useId();
 
   const workspaceTagline = area === "portal" ? "Buyer workspace" : "Company workspace";
   const surfaceLabel = area === "portal" ? "Buyer surface" : "Operator surface";
-
-  const isActive = (href: string) =>
-    pathname === href || (href !== `/${area}` && Boolean(pathname?.startsWith(`${href}/`)));
 
   // While the drawer is open: lock body scroll, close on Escape, trap Tab focus,
   // and move focus into the panel. Everything is restored on close/unmount.
@@ -204,34 +201,17 @@ export function DashboardMobileNav({
                 {surfaceLabel}
               </span>
               <span className="admin-chip border-[var(--tenant-nav-border)] bg-white/60 text-[var(--ink-600)]">
-                {links.length} views
+                {linkCount} views
               </span>
             </div>
 
-            <nav className="flex flex-col gap-1" aria-label={`${surfaceLabel} navigation`}>
-              {links.map(([label, href]) => {
-                const active = isActive(href);
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    onClick={() => setOpen(false)}
-                    aria-current={active ? "page" : undefined}
-                    className={cn(
-                      "tenant-nav-link admin-interactive admin-focus flex items-center justify-between gap-2 rounded-[var(--radius-md)] px-4 py-3 text-sm font-medium text-[var(--ink-700)] hover:bg-[var(--sand-100)] hover:text-[var(--ink-950)]",
-                      active && "tenant-nav-link-active bg-[var(--sand-100)] text-[var(--ink-950)] shadow-[inset_0_0_0_1px_rgba(15,23,42,0.06)]",
-                    )}
-                  >
-                    <span className="truncate">{label}</span>
-                    {label === "Notifications" && unreadNotificationCount > 0 ? (
-                      <span className="min-w-5 rounded-full bg-[var(--brand-700)] px-1.5 py-0.5 text-center text-[11px] font-semibold leading-4 text-white">
-                        {unreadNotificationCount > 99 ? "99+" : unreadNotificationCount}
-                      </span>
-                    ) : null}
-                  </Link>
-                );
-              })}
-            </nav>
+            <SidebarNavGroups
+              area={area}
+              groups={groups}
+              unreadNotificationCount={unreadNotificationCount}
+              messagesUnreadCount={messagesUnreadCount}
+              onNavigate={() => setOpen(false)}
+            />
           </div>
         </div>
       ) : null}

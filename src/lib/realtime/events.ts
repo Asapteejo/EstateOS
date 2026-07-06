@@ -1,5 +1,7 @@
 import { EventEmitter } from "node:events";
 
+import { bumpChangeCounters } from "@/lib/realtime/change-counter";
+
 type RealtimeScope = "platform" | "company";
 
 export type PlatformRealtimeEvent = {
@@ -51,6 +53,11 @@ export function publishRealtimeEvent(
   };
 
   getRealtimeBus().emit("platform-event", event);
+  // Cross-instance signal for conditional polling: bump the per-company and
+  // platform change counters in Redis. Fire-and-forget — publishing an event
+  // must never fail or slow down the mutation that triggered it (the bump
+  // catches internally and degrades to blind polling on the client).
+  void bumpChangeCounters(event.companyId);
   return event;
 }
 

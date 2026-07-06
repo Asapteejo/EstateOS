@@ -38,6 +38,11 @@ export const DEV_ACCESS_PRESETS = [
     href: DEV_ACCESS_ROUTES.admin,
   },
   {
+    label: "Marketer",
+    role: "marketer",
+    href: "/admin/marketer",
+  },
+  {
     label: "Superadmin",
     role: "superadmin",
     href: DEV_ACCESS_ROUTES.superadmin,

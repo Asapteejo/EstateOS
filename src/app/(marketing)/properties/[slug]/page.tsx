@@ -6,6 +6,7 @@ import { InspectionForm } from "@/components/marketing/inspection-form";
 import { MapSection } from "@/components/marketing/map-section";
 import { NearbyAmenitiesSection } from "@/components/marketing/nearby-amenities-section";
 import { PropertyActions } from "@/components/marketing/property-actions";
+import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { PropertyCountdown } from "@/components/marketing/property-countdown";
 import { Container } from "@/components/shared/container";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -18,6 +19,7 @@ import {
   getPublicPropertyDetailBySlug,
 } from "@/modules/properties/queries";
 import { getVisibleTeamMembers } from "@/modules/team/queries";
+import { getTenantAdminSettings } from "@/modules/settings/service";
 
 function formatLandOptionLabel(option: {
   label?: string;
@@ -51,9 +53,10 @@ export default async function PropertyDetailPage({
 }) {
   const { slug } = await params;
   const tenant = await getPublicPropertiesContext();
-  const [property, marketers] = await Promise.all([
+  const [property, marketers, settings] = await Promise.all([
     getPublicPropertyDetailBySlug(slug, tenant),
     getVisibleTeamMembers(tenant),
+    getTenantAdminSettings(tenant),
   ]);
   const isLand = property.type.toUpperCase() === "LAND";
 
@@ -188,6 +191,14 @@ export default async function PropertyDetailPage({
                     kind: plan.kind,
                   }))}
                 />
+                {settings.whatsappNumber ? (
+                  <WhatsAppButton
+                    phone={settings.whatsappNumber}
+                    label="Chat with us on WhatsApp"
+                    message={`Hi, I\u2019m interested in ${property.title} (${formatCurrency(property.priceFrom, property.currency)}). Can you share more details?`}
+                    className="admin-focus flex w-full items-center justify-center gap-2 rounded-full bg-[#25D366] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#1eb959]"
+                  />
+                ) : null}
                 {property.brochureUrl ? (
                   <Link href={property.brochureUrl} className="block">
                     <Button variant="outline" className="w-full">

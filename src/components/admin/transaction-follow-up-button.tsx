@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AdminModalFrame, AdminStateBanner } from "@/components/admin/admin-ui";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
 
 export function TransactionFollowUpButton({
   transactionId,
@@ -102,8 +103,7 @@ export function TransactionFollowUpButton({
                 message="Use this when money is still outstanding or a promised payment date needs operator follow-up."
               />
             )}
-            <select
-              className="h-10 w-full rounded-[var(--radius-md)] border border-[color:var(--danger-200)] bg-white px-3 text-sm text-[var(--ink-900)]"
+            <Select className="w-full"
               value={followUpStatus}
               onChange={(event) => setFollowUpStatus(event.target.value)}
               disabled={readOnly}
@@ -112,7 +112,7 @@ export function TransactionFollowUpButton({
               <option value="PROMISED_TO_PAY">Promised to pay</option>
               <option value="NOT_REACHABLE">Not reachable</option>
               <option value="CLOSED">Resolved</option>
-            </select>
+            </Select>
             <Textarea
               className="min-h-24 border-[color:var(--danger-200)]"
               placeholder="Add a short collections note"

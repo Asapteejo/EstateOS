@@ -51,6 +51,7 @@ import type {
   DevelopmentCalculationListItem,
   DevelopmentCalculationVersionListItem,
 } from "@/modules/development-calculations/service";
+import { Select } from "@/components/ui/select";
 
 type WorkspaceProps = {
   calculations: DevelopmentCalculationListItem[];
@@ -3680,8 +3681,7 @@ function SelectField({
 }) {
   return (
     <Field label={label} helper={helper}>
-      <select
-        className="h-11 w-full rounded-2xl border border-[var(--line)] bg-white px-4 text-sm text-[var(--ink-900)]"
+      <Select className="w-full"
         value={value}
         onChange={(event) => onChange(event.target.value)}
       >
@@ -3690,7 +3690,7 @@ function SelectField({
             {optionLabel}
           </option>
         ))}
-      </select>
+      </Select>
     </Field>
   );
 }

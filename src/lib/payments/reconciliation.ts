@@ -14,6 +14,7 @@ import {
   assertInstallmentMatchesCompany,
   assertInstallmentMatchesTransaction,
   buildPaystackWebhookEventId,
+  resolveReconciliationStatus,
   selectTenantOwnedRelationId,
 } from "@/lib/payments/semantics";
 import {
@@ -56,9 +57,19 @@ function normalizePaystackStatus(status?: string): PaymentStatus {
   return status === "success" ? "SUCCESS" : "FAILED";
 }
 
+/** Prisma P2002 — unique constraint violation (concurrent duplicate webhook). */
+function isUniqueConstraintError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { code?: string }).code === "P2002"
+  );
+}
+
 export function shouldPersistSuccessfulPaymentArtifacts(status: PaymentStatus) {
   return status === "SUCCESS";
 }
+
 
 async function resolveCompanyFromReference(reference: string) {
   const parsed = parseTenantPaymentReference(reference);
@@ -309,10 +320,11 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
     };
   }
 
-  const status = normalizePaystackStatus(rawPayload.data?.status);
+  const incomingStatus = normalizePaystackStatus(rawPayload.data?.status);
   const isCommunicationTopUp = isCommunicationTopUpMetadata(rawPayload.data?.metadata);
 
   if (isCommunicationTopUp) {
+    const status = incomingStatus;
     let topUpResult:
       | Awaited<ReturnType<typeof reconcileCommunicationTopUpWebhook>>
       | null = null;
@@ -353,17 +365,26 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
       : null;
 
     if (featureFlags.hasDatabase) {
-      await prisma.webhookEvent.create({
-        data: {
-          companyId: company.id,
-          provider: "PAYSTACK",
-          eventType: rawPayload.event,
-          providerEventId,
-          paymentId: payment?.id ?? null,
-          signatureVerified: true,
-          payload: rawPayload as unknown as Prisma.InputJsonValue,
-        },
-      });
+      try {
+        await prisma.webhookEvent.create({
+          data: {
+            companyId: company.id,
+            provider: "PAYSTACK",
+            eventType: rawPayload.event,
+            providerEventId,
+            paymentId: payment?.id ?? null,
+            signatureVerified: true,
+            payload: rawPayload as unknown as Prisma.InputJsonValue,
+          },
+        });
+      } catch (error) {
+        // Concurrent duplicate delivery lost the unique-index race — treat
+        // exactly like the fast-path dedup above.
+        if (isUniqueConstraintError(error)) {
+          return { duplicate: true, companyId: company.id, providerEventId };
+        }
+        throw error;
+      }
     }
 
     return {
@@ -400,6 +421,15 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
           },
         })
       : null;
+
+  // Idempotency guards — see resolveReconciliationStatus for the rules.
+  // Receipt/commission/settlement upserts stay unconditional below: they are
+  // keyed by paymentId and idempotent, so a re-delivery can self-heal a
+  // partially failed first attempt without double-applying money mutations.
+  const { status, isFirstSuccessfulReconciliation } = resolveReconciliationStatus({
+    previousStatus: payment?.status ?? null,
+    incomingStatus,
+  });
 
   let resolvedTransactionId =
     payment?.transactionId ?? transactionIdFromMetadata ?? undefined;
@@ -555,7 +585,9 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
     });
     const companyPlanStatus = await getCompanyPlanStatus({ companyId: company.id });
 
-    const transactionUpdate = await prisma.$transaction(async (tx) => {
+    let transactionUpdate;
+    try {
+      transactionUpdate = await prisma.$transaction(async (tx) => {
       let updatedTransactionId = payment.transactionId;
       let updatedTransactionStage: string | null = null;
       // Captured inside the tx, dispatched AFTER commit — never run external
@@ -578,7 +610,7 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
       let commissionRecordId: string | null = null;
       let splitSettlementId: string | null = null;
 
-      if (shouldPersistArtifacts && payment.transactionId) {
+      if (shouldPersistArtifacts && isFirstSuccessfulReconciliation && payment.transactionId) {
         const transaction = await tx.transaction.findFirst({
           where: {
             companyId: company.id,
@@ -859,7 +891,16 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
         splitSettlementId,
         paymentConfirmedBuyerUserId,
       };
-    });
+      });
+    } catch (error) {
+      // A concurrent duplicate delivery lost the webhookEvent unique-index
+      // race — the ENTIRE transaction (balance, receipt, notifications)
+      // rolled back atomically. Report it as the duplicate it is.
+      if (isUniqueConstraintError(error)) {
+        return { duplicate: true, companyId: company.id, providerEventId };
+      }
+      throw error;
+    }
 
     receipt = transactionUpdate.receipt;
     receiptDocumentId = transactionUpdate.receiptDocumentId;
@@ -878,7 +919,7 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
       });
     }
 
-    if (shouldPersistArtifacts) {
+    if (shouldPersistArtifacts && isFirstSuccessfulReconciliation) {
       await recordBillingEvent({
         companyId: company.id,
         subscriptionId: companyPlanStatus.subscription?.id,
@@ -914,7 +955,7 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
       } as Prisma.InputJsonValue,
     });
 
-    if (shouldPersistArtifacts) {
+    if (shouldPersistArtifacts && isFirstSuccessfulReconciliation) {
       await trackProductEvent({
         companyId: company.id,
         userId: payment.userId ?? undefined,

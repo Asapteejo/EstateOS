@@ -13,6 +13,7 @@ export default async function AdminAuditLogsPage() {
         title="Audit trail"
         columns={["Actor", "Action", "Target", "Time"]}
         rows={rows}
+        searchPlaceholder="Search audit trail…"
       />
     </DashboardShell>
   );
