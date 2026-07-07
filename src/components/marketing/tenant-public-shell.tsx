@@ -54,9 +54,11 @@ export async function TenantPublicShell({
         buyerPortalHref={buyerPortalHref}
         adminPortalHref={adminPortalHref}
         tagline={siteContent.footer.tagline}
+        social={siteContent.social}
+        showCareers={siteContent.careers.visible}
       />
       <FloatingWhatsApp
-        phone={settings.whatsappNumber}
+        phone={settings.whatsappNumber || siteContent.social.whatsapp || null}
         message={`Hi ${presentation.companyName}, I\u2019d like to know more about your properties.`}
       />
     </TenantThemeShell>
