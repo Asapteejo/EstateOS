@@ -16,6 +16,8 @@
     "db:validate": "prisma validate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:status": "prisma migrate status",
+    "db:migrate:check": "node scripts/check-migrations.mjs",
     "db:seed": "prisma db seed",
     "seed:mock-company": "tsx scripts/seed-mock-company.ts",
     "audit:superadmins": "tsx scripts/audit-superadmins.ts",
