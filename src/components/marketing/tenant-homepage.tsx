@@ -10,7 +10,9 @@ import { SectionHeading } from "@/components/shared/section-heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Magnetic } from "@/components/ui/magnetic";
+import { Select } from "@/components/ui/select";
 import { buildAuthRedirect, buildServerDomainConfig } from "@/lib/domains";
 import { env } from "@/lib/env";
 import { buildSafeErrorLogContext, logError } from "@/lib/ops/logger";
@@ -116,41 +118,56 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
                     <Button variant="ghost">View marketers</Button>
                   </Link>
                 </div>
+                {/* Property search — the front door of a real estate site.
+                    Plain GET form to /properties, matching its filter params. */}
+                <form
+                  action="/properties"
+                  method="GET"
+                  className="grid gap-3 rounded-[24px] border border-[var(--line)] bg-white/85 p-4 backdrop-blur sm:grid-cols-[1.4fr_1fr_1fr_auto]"
+                  aria-label="Search properties"
+                >
+                  <Input
+                    type="search"
+                    name="location"
+                    placeholder="City, state, or estate name…"
+                    aria-label="Location"
+                  />
+                  <Select name="propertyType" defaultValue="" aria-label="Property type" className="w-full">
+                    <option value="">Any type</option>
+                    <option value="APARTMENT">Apartment</option>
+                    <option value="DUPLEX">Duplex</option>
+                    <option value="TERRACE">Terrace</option>
+                    <option value="DETACHED">Detached</option>
+                    <option value="SEMI_DETACHED">Semi-detached</option>
+                    <option value="LAND">Land</option>
+                    <option value="COMMERCIAL">Commercial</option>
+                  </Select>
+                  <Input
+                    type="number"
+                    name="maxPrice"
+                    min="1"
+                    placeholder="Max budget (NGN)"
+                    aria-label="Maximum budget"
+                  />
+                  <Button type="submit" className="whitespace-nowrap">Search</Button>
+                </form>
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
-                <Card className="rounded-[26px] border-[var(--line)] bg-white/85 p-5 backdrop-blur">
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-500)]">
-                    Live inventory
-                  </div>
-                  <div className="mt-2 text-3xl font-semibold text-[var(--ink-950)]">
-                    {latestInventory.total}
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-[var(--ink-600)]">
-                    Public listings remain verification-aware so buyers do not browse hidden or stale inventory as active.
-                  </p>
-                </Card>
-                <Card className="rounded-[26px] border-[var(--line)] bg-white/85 p-5 backdrop-blur">
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-500)]">
-                    Top marketers
-                  </div>
-                  <div className="mt-2 text-3xl font-semibold text-[var(--ink-950)]">
-                    {leaderboard.length}
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-[var(--ink-600)]">
-                    Ranked from real tenant activity using explicit buyer-selected attribution first.
-                  </p>
-                </Card>
-                <Card className="rounded-[26px] border-[var(--line)] bg-white/85 p-5 backdrop-blur">
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-500)]">
-                    Client trust
-                  </div>
-                  <div className="mt-2 text-3xl font-semibold text-[var(--ink-950)]">
-                    {testimonials.length}
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-[var(--ink-600)]">
-                    Testimonials and branded communication reinforce that this tenant experience is current and operational.
-                  </p>
-                </Card>
+                {[
+                  [siteContent.heroStats.inventoryLabel, latestInventory.total, siteContent.heroStats.inventoryNote],
+                  [siteContent.heroStats.marketersLabel, leaderboard.length, siteContent.heroStats.marketersNote],
+                  [siteContent.heroStats.trustLabel, testimonials.length, siteContent.heroStats.trustNote],
+                ].map(([label, value, note]) => (
+                  <Card key={String(label)} className="rounded-[26px] border-[var(--line)] bg-white/85 p-5 backdrop-blur">
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-500)]">
+                      {label}
+                    </div>
+                    <div className="mt-2 text-3xl font-semibold text-[var(--ink-950)]">
+                      {value}
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-[var(--ink-600)]">{note}</p>
+                  </Card>
+                ))}
               </div>
             </div>
             <div className="flex flex-col gap-5">
@@ -166,39 +183,29 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
                 ) : null}
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,17,27,0.08),rgba(7,17,27,0.58))]" />
                 <div className="relative flex h-full flex-col justify-end gap-4 p-6 text-white">
-                  <Badge className="w-fit bg-white/14 text-white">Branded tenant experience</Badge>
+                  <Badge className="w-fit bg-white/14 text-white">{siteContent.heroPanel.badge}</Badge>
                   <div className="space-y-2">
                     <h2 className="max-w-md font-serif text-3xl leading-tight">
-                      Verified listings with a clearer route into reservation, payment, and support.
+                      {siteContent.heroPanel.title}
                     </h2>
                     <p className="max-w-md text-sm leading-7 text-white/86">
-                      Tenant branding, public trust indicators, and marketer visibility stay aligned from homepage browsing through central portal entry.
+                      {siteContent.heroPanel.body}
                     </p>
                   </div>
                 </div>
               </div>
               <Card className="rounded-[28px] border-[var(--line)] bg-white p-6">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-2">
-                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-500)]">
-                      Buyer journey
-                    </div>
-                    <h3 className="text-xl font-semibold text-[var(--ink-950)]">
-                      Public browsing stays here. Authenticated actions move through the central portal cleanly.
-                    </h3>
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-500)]">
+                    {siteContent.journey.heading}
                   </div>
-                  <Badge>Current phase</Badge>
                 </div>
                 <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                  {[
-                    ["1", "Explore listings", "Browse featured inventory, team pages, testimonials, and branded property detail pages on this tenant domain."],
-                    ["2", "Start purchase", "When a buyer needs auth, the flow continues through the secure central portal without losing context."],
-                    ["3", "Complete with trust", "Reservations, payments, marketer attribution, and receipts remain tied back to the same tenant company."],
-                  ].map(([step, title, description]) => (
-                    <div key={step} className="rounded-[22px] border border-[var(--line)] bg-[var(--tenant-surface)] p-4">
-                      <div className="text-sm font-semibold text-[var(--brand-700)]">0{step}</div>
-                      <div className="mt-2 text-base font-semibold text-[var(--ink-950)]">{title}</div>
-                      <p className="mt-2 text-sm leading-6 text-[var(--ink-600)]">{description}</p>
+                  {siteContent.journey.steps.map((step, index) => (
+                    <div key={step.title} className="rounded-[22px] border border-[var(--line)] bg-[var(--tenant-surface)] p-4">
+                      <div className="text-sm font-semibold text-[var(--brand-700)]">0{index + 1}</div>
+                      <div className="mt-2 text-base font-semibold text-[var(--ink-950)]">{step.title}</div>
+                      <p className="mt-2 text-sm leading-6 text-[var(--ink-600)]">{step.description}</p>
                     </div>
                   ))}
                 </div>
@@ -212,9 +219,9 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
         <Reveal>
           <section className="space-y-8">
           <SectionHeading
-            eyebrow="Featured Properties"
-            title="Listings worth opening first."
-            description="Featured inventory is pulled from the current tenant dataset. If no listing is explicitly featured, the newest public inventory is surfaced instead."
+            eyebrow={siteContent.sections.featured.eyebrow}
+            title={siteContent.sections.featured.title}
+            description={siteContent.sections.featured.description}
           />
           {featuredProperties.length > 0 ? (
             <div className="grid gap-6 lg:grid-cols-3">
@@ -242,20 +249,20 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
         <Reveal>
           <TopMarketersSection
             leaderboard={leaderboard}
-          compact
-          period="MONTHLY"
-          periodHrefBuilder={(period) => `/team?topMarketers=${period}`}
-          title="Top marketers already moving deals forward"
-            description="Public ranking stays tenant-scoped and grounded in persisted reservations, successful payments, inspections, and qualified inquiry progress."
+            compact
+            period="MONTHLY"
+            periodHrefBuilder={(period) => `/team?topMarketers=${period}`}
+            title={siteContent.sections.marketers.title}
+            description={siteContent.sections.marketers.description}
           />
         </Reveal>
 
         <Reveal>
           <section className="space-y-8">
           <SectionHeading
-            eyebrow="Testimonials"
-            title="Clients remember the process as much as the property."
-            description="This homepage pulls public testimonial content from the tenant CMS so the trust layer stays branded and company-specific."
+            eyebrow={siteContent.sections.testimonials.eyebrow}
+            title={siteContent.sections.testimonials.title}
+            description={siteContent.sections.testimonials.description}
           />
           {testimonials.length > 0 ? (
             <div className="grid gap-6 lg:grid-cols-3">

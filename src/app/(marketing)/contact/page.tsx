@@ -1,18 +1,40 @@
-import { Mail, MapPin, Phone, type LucideIcon } from "lucide-react";
+import { Clock, Mail, MapPin, MessageCircle, Phone, type LucideIcon } from "lucide-react";
 
 import { InquiryForm } from "@/components/marketing/inquiry-form";
 import { Container } from "@/components/shared/container";
 import { Reveal } from "@/components/shared/reveal";
 import { SectionHeading } from "@/components/shared/section-heading";
 import { Card } from "@/components/ui/card";
+import { buildAuthRedirect, buildServerDomainConfig } from "@/lib/domains";
+import { env } from "@/lib/env";
 import { requirePublicTenantContext } from "@/lib/tenancy/context";
-import { getPublicTenantContact } from "@/modules/cms/site-content-service";
+import { resolveTenantSiteContent } from "@/modules/cms/site-content";
+import {
+  getPublicTenantContact,
+  getPublishedSiteContent,
+} from "@/modules/cms/site-content-service";
+import { getPublicTenantPresentation } from "@/modules/branding/service";
 
 export const dynamic = "force-dynamic";
 
 export default async function ContactPage() {
   const tenant = await requirePublicTenantContext();
-  const contact = await getPublicTenantContact(tenant);
+  const [contact, presentation, storedContent] = await Promise.all([
+    getPublicTenantContact(tenant),
+    getPublicTenantPresentation(tenant),
+    getPublishedSiteContent(tenant),
+  ]);
+  const runtimeConfig = buildServerDomainConfig(env);
+  const siteContent = resolveTenantSiteContent({
+    companyName: presentation.companyName,
+    startPurchaseHref: buildAuthRedirect(runtimeConfig, {
+      returnTo: "/portal",
+      tenantSlug: tenant.companySlug,
+      tenantHost: tenant.host,
+      entry: "buyer",
+    }),
+    stored: storedContent,
+  });
 
   const methods: { icon: LucideIcon; label: string; value: string; href?: string }[] = [];
   if (contact.address) {
@@ -29,14 +51,23 @@ export default async function ContactPage() {
       href: `tel:${contact.phone.replace(/[^+\d]/g, "")}`,
     });
   }
+  if (siteContent.social.whatsapp) {
+    methods.push({
+      icon: MessageCircle,
+      label: "WhatsApp",
+      value: siteContent.social.whatsapp,
+      href: `https://wa.me/${siteContent.social.whatsapp.replace(/[^\d]/g, "")}`,
+    });
+  }
+  methods.push({ icon: Clock, label: "Office hours", value: siteContent.contact.hours });
 
   return (
     <Container className="grid items-start gap-8 py-16 lg:grid-cols-[1fr_0.9fr]">
       <Reveal className="space-y-6">
         <SectionHeading
           eyebrow="Contact"
-          title="Talk to a team that treats the transaction like a product."
-          description="Use the inquiry form for purchase intent, partnership conversations, or serious buyer support."
+          title={`Talk to the ${presentation.companyName} team.`}
+          description={siteContent.contact.note}
         />
         {methods.length > 0 ? (
           <Card className="divide-y divide-[var(--line)] p-2">
