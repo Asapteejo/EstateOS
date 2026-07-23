@@ -49,9 +49,17 @@ export const THEME_INIT_SCRIPT =
 export const THEME_INIT_SCRIPT_HASH =
   "sha256-w5CLdwY1rvtdOOogyHdhic7hvIwyqw6GFGkVfA4nRDU=";
 
+/**
+ * Clerk PRODUCTION Frontend API custom domain. Clerk production instances serve
+ * their FAPI from `clerk.<primary-domain>` (here clerk.estateos.tech), which is
+ * NOT covered by the *.clerk.accounts.dev / *.clerk.com dev patterns. Without it
+ * the browser blocks every Clerk sign-in request and login silently fails.
+ */
+const CLERK_PROD_DOMAIN = "https://clerk.estateos.tech";
+
 /** Hosts that may serve <script src> (CSP2 fallback; ignored under strict-dynamic). */
 const SCRIPT_HOSTS =
-  "https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com https://js.paystack.co https://vercel.live";
+  `https://*.clerk.accounts.dev https://*.clerk.com ${CLERK_PROD_DOMAIN} https://challenges.cloudflare.com https://js.paystack.co https://vercel.live`;
 
 /**
  * Generates a random base64 nonce. Edge-runtime safe (Web Crypto + btoa are
@@ -115,9 +123,9 @@ export function buildContentSecurityPolicy(options: {
     // Fonts: self-hosted (next/font) + data URIs. No external font CDN at runtime.
     "font-src 'self' data:",
     // XHR/fetch/websocket targets: own origin + every third-party API the browser calls.
-    "connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://clerk-telemetry.com https://api.paystack.co https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://*.posthog.com https://*.i.posthog.com https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io https://*.r2.cloudflarestorage.com https://vercel.live wss://ws-us3.pusher.com",
+    `connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.com ${CLERK_PROD_DOMAIN} https://clerk-telemetry.com https://api.paystack.co https://api.mapbox.com https://events.mapbox.com https://*.tiles.mapbox.com https://*.posthog.com https://*.i.posthog.com https://*.sentry.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io https://*.r2.cloudflarestorage.com https://vercel.live wss://ws-us3.pusher.com`,
     // Iframes the app embeds: Clerk components, Cloudflare Turnstile, Paystack checkout, Vercel toolbar.
-    "frame-src 'self' https://*.clerk.accounts.dev https://challenges.cloudflare.com https://checkout.paystack.com https://*.paystack.com https://vercel.live",
+    `frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com ${CLERK_PROD_DOMAIN} https://challenges.cloudflare.com https://checkout.paystack.com https://*.paystack.com https://vercel.live`,
     // Web/Service workers (Mapbox GL spawns blob: workers).
     "worker-src 'self' blob:",
     "child-src 'self' blob:",
