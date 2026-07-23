@@ -188,6 +188,7 @@ const serverEnvSchema = z
     TWILIO_WHATSAPP_FROM: optionalString, // e.g. "whatsapp:+14155238886"
     GEMINI_API_KEY: optionalString,
     SENTRY_DSN: optionalUrl,
+    CLERK_PASSWORD_ENABLED: optionalBoolean,
   })
   .superRefine((value, ctx) => {
     const requireGroup = (name: string, keys: Array<keyof typeof value>) => {
@@ -518,6 +519,7 @@ export function buildFeatureFlags(env: ServerEnv) {
       Boolean(env.TWILIO_ACCOUNT_SID) &&
       Boolean(env.TWILIO_AUTH_TOKEN) &&
       Boolean(env.TWILIO_WHATSAPP_FROM),
+    hasClerkPassword: env.CLERK_PASSWORD_ENABLED === true,
   };
 }
 

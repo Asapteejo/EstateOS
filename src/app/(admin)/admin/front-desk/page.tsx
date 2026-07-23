@@ -2,7 +2,9 @@ import { DashboardShell } from "@/components/portal/dashboard-shell";
 import { requireAdminSession } from "@/lib/auth/guards";
 import { filterAdminNav, rolesForAdminPath } from "@/lib/auth/admin-sections";
 import { FrontDeskBoard } from "@/components/admin/front-desk-board";
+import { AddBuyerButton } from "@/components/admin/add-buyer-form";
 import { SectionDirectory } from "@/components/dashboard/section-directory";
+import { featureFlags } from "@/lib/env";
 import { getFrontDeskOverview } from "@/modules/front-desk/service";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +23,9 @@ export default async function AdminFrontDeskPage() {
       title="Front Desk"
       subtitle="Walk-ins, viewings, and the day's incoming leads at a glance."
     >
+      <div className="flex justify-end">
+        <AddBuyerButton hasClerkPassword={featureFlags.hasClerkPassword} />
+      </div>
       <FrontDeskBoard overview={overview} />
       <SectionDirectory items={sections} />
     </DashboardShell>
