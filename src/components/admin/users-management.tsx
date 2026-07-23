@@ -1,27 +1,193 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronDown, Mail, Phone, ShieldCheck, Trash2, UserCog } from "lucide-react";
+import { ChevronDown, Mail, Phone, ShieldCheck, Trash2, UserCog, UserPlus } from "lucide-react";
 
 import { AdminEmptyState, StatCard } from "@/components/admin/admin-ui";
+import { ProvisionResultDialog } from "@/components/admin/provision-result-modal";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { deleteUserAction, setUserActiveAction, setUserRoleAction } from "@/modules/admin/user-actions";
+import { provisionPersonAction } from "@/modules/provisioning/actions";
 import { ASSIGNABLE_ROLES, ROLE_LABELS, type CompanyUserRow } from "@/modules/admin/users";
+import type { ProvisionUserResult } from "@/modules/provisioning/provision-user";
 import type { AppRole } from "@prisma/client";
 
-export function UsersManagement({ users }: { users: CompanyUserRow[] }) {
+const PROVISION_INITIAL: ProvisionUserResult | null = null;
+
+const inputCls =
+  "admin-focus w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm text-[var(--ink-900)] placeholder:text-[var(--ink-400)]";
+const labelCls = "block text-xs font-medium uppercase tracking-[0.12em] text-[var(--ink-500)]";
+
+const PROVISIONABLE_ROLES: Array<{ value: AppRole; label: string }> = [
+  { value: "BUYER", label: "Buyer" },
+  { value: "STAFF", label: "Staff" },
+  { value: "FINANCE", label: "Finance" },
+  { value: "LEGAL", label: "Legal" },
+  { value: "MARKETER", label: "Marketer" },
+];
+
+function AddPersonSubmitButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" disabled={pending}>
+      {pending ? "Creating…" : "Create account"}
+    </Button>
+  );
+}
+
+function AddPersonDialog({
+  hasClerkPassword,
+  onClose,
+}: {
+  hasClerkPassword: boolean;
+  onClose: () => void;
+}) {
+  const [state, formAction] = useActionState(provisionPersonAction, PROVISION_INITIAL);
+  const [selectedRole, setSelectedRole] = useState<AppRole>("STAFF");
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (!state?.ok) return;
+    formRef.current?.reset();
+    const id = setTimeout(() => setSelectedRole("STAFF"), 0);
+    return () => clearTimeout(id);
+  }, [state?.ok]);
+
+  if (state?.ok) {
+    return <ProvisionResultDialog result={state} onClose={onClose} />;
+  }
+
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      title="Add person"
+      description="Create a login account for a team member or buyer."
+      size="lg"
+    >
+      <form ref={formRef} action={formAction} className="space-y-5">
+        <fieldset className="grid gap-3 sm:grid-cols-2">
+          <legend className={`${labelCls} col-span-2 mb-1`}>Identity</legend>
+          <div>
+            <label htmlFor="person-firstName" className={labelCls}>
+              First name <span aria-hidden className="text-[var(--danger-600)]">*</span>
+            </label>
+            <input id="person-firstName" name="firstName" required className={`${inputCls} mt-1`} autoComplete="given-name" />
+          </div>
+          <div>
+            <label htmlFor="person-lastName" className={labelCls}>
+              Last name <span aria-hidden className="text-[var(--danger-600)]">*</span>
+            </label>
+            <input id="person-lastName" name="lastName" required className={`${inputCls} mt-1`} autoComplete="family-name" />
+          </div>
+          <div>
+            <label htmlFor="person-email" className={labelCls}>
+              Email <span aria-hidden className="text-[var(--danger-600)]">*</span>
+            </label>
+            <input id="person-email" name="email" type="email" required className={`${inputCls} mt-1`} autoComplete="email" />
+          </div>
+          <div>
+            <label htmlFor="person-phone" className={labelCls}>Phone</label>
+            <input id="person-phone" name="phone" type="tel" className={`${inputCls} mt-1`} autoComplete="tel" />
+          </div>
+        </fieldset>
+
+        <div>
+          <label htmlFor="person-role" className={labelCls}>
+            Role <span aria-hidden className="text-[var(--danger-600)]">*</span>
+          </label>
+          <select
+            id="person-role"
+            name="role"
+            required
+            value={selectedRole}
+            onChange={(e) => {
+              const id = setTimeout(() => setSelectedRole(e.target.value as AppRole), 0);
+              return () => clearTimeout(id);
+            }}
+            className={`${inputCls} mt-1`}
+          >
+            {PROVISIONABLE_ROLES.map((r) => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {selectedRole !== "BUYER" ? (
+          <fieldset className="grid gap-3 rounded-[var(--radius-lg)] border border-[var(--line)] p-4 sm:grid-cols-2">
+            <legend className={`${labelCls} col-span-2 mb-1`}>Staff details (optional)</legend>
+            <div>
+              <label htmlFor="person-title" className={labelCls}>Title / position</label>
+              <input id="person-title" name="title" className={`${inputCls} mt-1`} placeholder="e.g. Sales Executive" />
+            </div>
+            <div>
+              <label htmlFor="person-staffCode" className={labelCls}>Staff code</label>
+              <input id="person-staffCode" name="staffCode" className={`${inputCls} mt-1`} placeholder="e.g. STF-001" />
+            </div>
+          </fieldset>
+        ) : null}
+
+        {hasClerkPassword ? (
+          <fieldset>
+            <legend className={`${labelCls} mb-2`}>Account delivery</legend>
+            <div className="space-y-2">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input type="radio" name="delivery" value="invite" defaultChecked className="mt-0.5" />
+                <span className="text-sm text-[var(--ink-700)]">
+                  <span className="font-medium">Send invitation link</span>
+                  <span className="block text-xs text-[var(--ink-500)]">Person sets their own password on first sign-in. Recommended.</span>
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-3">
+                <input type="radio" name="delivery" value="password" className="mt-0.5" />
+                <span className="text-sm text-[var(--ink-700)]">
+                  <span className="font-medium">Generate temporary password</span>
+                  <span className="block text-xs text-[var(--ink-500)]">Shown once. Must be handed to the person directly. They will be required to change it.</span>
+                </span>
+              </label>
+            </div>
+          </fieldset>
+        ) : (
+          <input type="hidden" name="delivery" value="invite" />
+        )}
+
+        {state && !state.ok ? (
+          <p role="alert" className="rounded-[var(--radius-md)] bg-[var(--danger-50,#fef2f2)] px-4 py-2.5 text-sm text-[var(--danger-700,#b91c1c)]">
+            {state.error}
+          </p>
+        ) : null}
+
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          <AddPersonSubmitButton />
+        </DialogFooter>
+      </form>
+    </Dialog>
+  );
+}
+
+export function UsersManagement({
+  users,
+  hasClerkPassword = false,
+}: {
+  users: CompanyUserRow[];
+  hasClerkPassword?: boolean;
+}) {
   const router = useRouter();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const [query, setQuery] = useState("");
+  const [addPersonOpen, setAddPersonOpen] = useState(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -70,22 +236,48 @@ export function UsersManagement({ users }: { users: CompanyUserRow[] }) {
     run(() => setUserRoleAction(user.id, roleName, grant), user.id, grant ? "Role granted." : "Role removed.");
   }
 
+  const addPersonButton = (
+    <Button variant="outline" size="sm" onClick={() => setAddPersonOpen(true)}>
+      <UserPlus className="h-4 w-4" aria-hidden />
+      Add person
+    </Button>
+  );
+
   if (users.length === 0) {
     return (
-      <AdminEmptyState
-        title="No staff accounts yet"
-        description="Invite team members from the Team section. Their login accounts will appear here for you to manage."
-      />
+      <>
+        <div className="flex justify-end">{addPersonButton}</div>
+        <AdminEmptyState
+          title="No staff accounts yet"
+          description="Create accounts directly or invite team members from the Team section."
+        />
+        {addPersonOpen ? (
+          <AddPersonDialog
+            hasClerkPassword={hasClerkPassword}
+            onClose={() => setAddPersonOpen(false)}
+          />
+        ) : null}
+      </>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <StatCard label="Total staff" value={String(users.length)} />
-        <StatCard label="Active" value={String(activeCount)} />
-        <StatCard label="Suspended" value={String(suspendedCount)} />
+      <div className="flex items-center justify-between gap-4">
+        <div className="grid grow gap-3 sm:grid-cols-3">
+          <StatCard label="Total staff" value={String(users.length)} />
+          <StatCard label="Active" value={String(activeCount)} />
+          <StatCard label="Suspended" value={String(suspendedCount)} />
+        </div>
+        {addPersonButton}
       </div>
+
+      {addPersonOpen ? (
+        <AddPersonDialog
+          hasClerkPassword={hasClerkPassword}
+          onClose={() => setAddPersonOpen(false)}
+        />
+      ) : null}
 
       <input
         value={query}
