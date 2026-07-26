@@ -81,7 +81,10 @@ test("payment summary cards wrap long values instead of clipping", () => {
   assert.match(logoSource, /showTagline = true/);
   assert.match(logoSource, /showTagline && tagline/);
   assert.match(dashboardShellSource, /showTagline=\{false\}/);
-  assert.match(logoSource, /overflow-visible/);
+  // The name wrapper uses break-words (not a hard min-width) so long company
+  // names wrap instead of overflowing the sidebar card.
+  assert.match(logoSource, /break-words/);
+  assert.doesNotMatch(logoSource, /sm:min-w-\[11rem\]/);
   assert.doesNotMatch(logoSource, /tenant-logo-tagline[^\n]+whitespace-nowrap/);
   assert.match(globalsSource, /--duration-fast: 120ms/);
   assert.match(globalsSource, /--tenant-motion-duration: 160ms/);

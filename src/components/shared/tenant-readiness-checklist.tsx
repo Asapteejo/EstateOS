@@ -16,18 +16,35 @@ const statusClasses = {
   missing: "border-rose-200 bg-rose-50 text-rose-800",
 } as const;
 
+/**
+ * Readiness items owned by EstateOS itself (platform Paystack keys, R2 storage,
+ * superadmin-only checks). A tenant admin can neither see nor action these — and
+ * their action links point at /superadmin/*, which tenants cannot open — so they
+ * are hidden from the tenant audience and shown only to superadmins.
+ */
+const PLATFORM_OWNERS = new Set(["Platform", "Superadmin"]);
+
+export function isTenantVisibleReadinessItem(item: TenantReadinessItem) {
+  return !PLATFORM_OWNERS.has(item.owner) && !item.actionLink.startsWith("/superadmin");
+}
+
 export function TenantReadinessChecklist({
   title = "Go-live readiness",
   description = "Resolve these items before onboarding real buyers and payments.",
   items,
+  audience = "superadmin",
 }: {
   title?: string;
   description?: string;
   items: TenantReadinessItem[];
+  /** "tenant" hides platform/superadmin-owned items. Defaults to the full list. */
+  audience?: "tenant" | "superadmin";
 }) {
-  const missing = items.filter((item) => item.status === "missing").length;
-  const warnings = items.filter((item) => item.status === "warning").length;
-  const complete = items.filter((item) => item.status === "complete").length;
+  const visibleItems =
+    audience === "tenant" ? items.filter(isTenantVisibleReadinessItem) : items;
+  const missing = visibleItems.filter((item) => item.status === "missing").length;
+  const warnings = visibleItems.filter((item) => item.status === "warning").length;
+  const complete = visibleItems.filter((item) => item.status === "complete").length;
 
   return (
     <Card className="p-6">
@@ -43,7 +60,7 @@ export function TenantReadinessChecklist({
         </div>
       </div>
       <div className="mt-5 grid gap-3 md:grid-cols-2">
-        {items.map((item) => (
+        {visibleItems.map((item) => (
           <div key={item.id} className="rounded-2xl border border-[var(--line)] bg-white p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>

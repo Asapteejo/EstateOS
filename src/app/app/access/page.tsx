@@ -2,7 +2,18 @@ import Link from "next/link";
 
 import { Card } from "@/components/ui/card";
 
-function resolveCopy(status: string | undefined, reason: string | undefined) {
+type AccessCopy = {
+  eyebrow: string;
+  title: string;
+  body: string;
+  reason?: string;
+  actionHref: string;
+  actionLabel: string;
+  /** Overrides the default "what this means" bullets (which describe suspension). */
+  points?: string[];
+};
+
+function resolveCopy(status: string | undefined, reason: string | undefined): AccessCopy {
   if (status === "superadmin-setup") {
     return {
       eyebrow: "Platform owner setup required",
@@ -22,8 +33,18 @@ function resolveCopy(status: string | undefined, reason: string | undefined) {
       body:
         "Superadmin access is private and requires both an allowlisted email address and a persisted platform role.",
       reason: "Use the normal admin or buyer workspace for this account.",
-      actionHref: "/",
-      actionLabel: "Return to homepage",
+      // Send tenant operators back to their own workspace, not the marketing
+      // homepage — this page is reached by an ordinary admin who simply hit a
+      // /superadmin URL.
+      actionHref: "/admin",
+      actionLabel: "Go to your dashboard",
+      // The default bullets describe a SUSPENDED company, which is wrong here:
+      // nothing is blocked for this user, they just aren't a platform owner.
+      points: [
+        "Your company workspace is unaffected — admin, portal, and payment actions all still work.",
+        "The platform owner dashboard is reserved for EstateOS staff.",
+        "If you reached this by mistake, continue in your own admin dashboard.",
+      ],
     };
   }
 
@@ -80,9 +101,15 @@ export default async function AppAccessPage({
                 What this means
               </h2>
               <ul className="mt-4 space-y-3 text-sm leading-7 text-[var(--ink-600)]">
-                <li>Admin dashboards, portal access, and payment actions are currently blocked.</li>
-                <li>Super admins can still inspect the company safely from the platform command center.</li>
-                <li>Once the company is reactivated, normal access resumes automatically.</li>
+                {(
+                  copy.points ?? [
+                    "Admin dashboards, portal access, and payment actions are currently blocked.",
+                    "Super admins can still inspect the company safely from the platform command center.",
+                    "Once the company is reactivated, normal access resumes automatically.",
+                  ]
+                ).map((point) => (
+                  <li key={point}>{point}</li>
+                ))}
               </ul>
             </div>
 

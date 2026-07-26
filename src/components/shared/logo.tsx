@@ -35,8 +35,13 @@ export function Logo({
           monogram
         )}
       </div>
-      <div className="min-w-0 flex-1 overflow-visible sm:min-w-[11rem]">
-        <div className="tenant-logo-name font-serif text-lg font-semibold leading-tight text-[var(--ink-950)]">
+      {/* min-w-0 lets this flex child shrink inside narrow shells (e.g. the
+          dashboard sidebar). A hard min-width here caused long company names
+          such as "Blueprint Urban Residences LTD" to overflow and get clipped
+          by the parent's overflow-hidden. The name wraps instead of truncating
+          so the full company name always stays readable. */}
+      <div className="min-w-0 flex-1">
+        <div className="tenant-logo-name break-words font-serif text-lg font-semibold leading-tight text-[var(--ink-950)]">
           {name}
         </div>
         {showTagline && tagline ? (

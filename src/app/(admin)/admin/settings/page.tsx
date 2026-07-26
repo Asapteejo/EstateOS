@@ -49,8 +49,9 @@ export default async function AdminSettingsPage() {
       {readiness ? (
         <TenantReadinessChecklist
           title="Tenant readiness"
-          description="Production launch checks for this company. Items show who owns the next action."
+          description="Production launch checks your team owns. Platform-managed items are handled by EstateOS."
           items={readiness.checklist}
+          audience="tenant"
         />
       ) : null}
 
