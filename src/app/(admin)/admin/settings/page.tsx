@@ -153,19 +153,21 @@ export default async function AdminSettingsPage() {
         </Card>
       ) : null}
 
-      <Card className="rounded-[30px] border-[var(--line)] bg-white p-6">
-        <div className="mb-5">
-          <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--brand-700)]">
-            Payments
+      <div id="payment-account" className="scroll-mt-8">
+        <Card className="rounded-[30px] border-[var(--line)] bg-white p-6">
+          <div className="mb-5">
+            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--brand-700)]">
+              Payments
+            </div>
+            <h2 className="mt-3 text-2xl font-semibold text-[var(--ink-950)]">Payment account</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--ink-500)]">
+              Connect your Paystack subaccount so buyers can complete checkout and funds settle
+              directly to your bank.
+            </p>
           </div>
-          <h2 className="mt-3 text-2xl font-semibold text-[var(--ink-950)]">Payment account</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--ink-500)]">
-            Connect your Paystack subaccount so buyers can complete checkout and funds settle
-            directly to your bank.
-          </p>
-        </div>
-        <PaymentAccountSetup />
-      </Card>
+          <PaymentAccountSetup />
+        </Card>
+      </div>
     </DashboardShell>
   );
 }
