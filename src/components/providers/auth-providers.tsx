@@ -1,5 +1,3 @@
-"use client";
-
 import { ClerkProvider } from "@clerk/nextjs";
 
 import { PostHogClerkIdentity } from "@/components/providers/posthog-clerk-identity";
@@ -17,7 +15,7 @@ export function AuthProviders({
   }
 
   return (
-    <ClerkProvider publishableKey={publicEnv.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
+    <ClerkProvider publishableKey={publicEnv.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY} dynamic>
       <PostHogClerkIdentity />
       {children}
     </ClerkProvider>
