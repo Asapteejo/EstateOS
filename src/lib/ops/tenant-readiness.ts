@@ -33,6 +33,7 @@ export type TenantReadinessInput = {
   heroConfigured?: boolean;
   propertiesCount: number;
   paymentAccountConfigured: boolean;
+  paymentAccountPending?: boolean;
   paystackConfigured: boolean;
   contractSettingsConfigured: boolean;
   stampConfigured: boolean;
@@ -112,10 +113,12 @@ export function buildTenantReadinessChecklist(input: TenantReadinessInput): Tena
     {
       id: "payment-account",
       label: "Payment account",
-      status: status(input.paymentAccountConfigured),
+      status: status(input.paymentAccountConfigured, input.paymentAccountPending),
       owner: "Tenant Admin",
       actionLink: adminLink("/admin/settings"),
-      explanation: "Connect the tenant Paystack subaccount so buyer payments can settle correctly.",
+      explanation: input.paymentAccountPending
+        ? "Paystack subaccount created but pending verification. Payments will become active once Paystack confirms the settlement bank account."
+        : "Connect the tenant Paystack subaccount so buyer payments can settle correctly.",
     },
     {
       id: "paystack-platform",

@@ -22,7 +22,7 @@ const companyReadinessSelect = {
   providerAccounts: {
     where: {
       provider: "PAYSTACK",
-      status: "ACTIVE",
+      status: { in: ["ACTIVE", "PENDING"] },
     },
     select: {
       id: true,
@@ -136,7 +136,8 @@ export async function getTenantReadinessForCompany(companyId: string) {
       : {};
   const logoConfigured = Boolean(company.logoUrl || publishedBranding.logoUrl);
   const brandingConfigured = Boolean(company.siteSetting?.brandingPublishedAt || company.siteSetting?.publishedBrandingConfig);
-  const paymentAccountConfigured = company.providerAccounts.some((account) => Boolean(account.subaccountCode));
+  const paymentAccountConfigured = company.providerAccounts.some((account) => account.status === "ACTIVE" && Boolean(account.subaccountCode));
+  const paymentAccountPending = !paymentAccountConfigured && company.providerAccounts.some((account) => account.status === "PENDING");
   const customDomainConfigured = Boolean(company.customDomain && company.customDomainStatus === "VERIFIED");
   const customDomainSkipped = isCustomDomainIntentionallySkipped(company.brandSettings);
   const companyProfileComplete = Boolean(
@@ -157,6 +158,7 @@ export async function getTenantReadinessForCompany(companyId: string) {
     heroConfigured: Boolean(publishedBranding.heroImageUrl),
     propertiesCount: company._count.properties,
     paymentAccountConfigured,
+    paymentAccountPending,
     paystackConfigured: featureFlags.hasPaystack,
     contractSettingsConfigured: company.contractSettings?.isConfigured === true,
     stampConfigured: Boolean(company.contractSettings?.stampKey),
