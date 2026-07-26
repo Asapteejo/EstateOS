@@ -28,7 +28,7 @@ const labelCls = "block text-xs font-medium uppercase tracking-[0.12em] text-[va
 
 const PROVISIONABLE_ROLES: Array<{ value: AppRole; label: string }> = [
   { value: "BUYER", label: "Buyer" },
-  { value: "STAFF", label: "Staff" },
+  { value: "STAFF", label: "Front Desk" },
   { value: "FINANCE", label: "Finance" },
   { value: "LEGAL", label: "Legal" },
   { value: "MARKETER", label: "Marketer" },
@@ -365,8 +365,8 @@ export function UsersManagement({
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={busy || user.isSelf || user.isOwner}
-                      title={lockReason ?? undefined}
+                      disabled={busy || user.isSelf}
+                      title={user.isSelf ? "You cannot delete your own account" : undefined}
                       onClick={() => setConfirmingId(user.id)}
                       className="border-[var(--danger-200,#fecaca)] text-[var(--danger-700,#b91c1c)] hover:bg-[var(--danger-50,#fef2f2)]"
                     >

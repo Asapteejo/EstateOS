@@ -21,14 +21,14 @@ type InvitedMember = {
 };
 
 const ROLE_OPTIONS = [
-  { value: "STAFF", label: "Staff" },
+  { value: "STAFF", label: "Front Desk" },
   { value: "ADMIN", label: "Admin" },
   { value: "FINANCE", label: "Finance" },
   { value: "LEGAL", label: "Legal" },
 ] as const;
 
 const ROLE_LABELS: Record<string, string> = {
-  STAFF: "Staff",
+  STAFF: "Front Desk",
   ADMIN: "Admin",
   FINANCE: "Finance",
   LEGAL: "Legal",

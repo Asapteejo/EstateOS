@@ -13,7 +13,7 @@ export const OWNER_ROLES: AppRole[] = ["ADMIN", "SUPER_ADMIN"];
 export const ASSIGNABLE_ROLES: AppRole[] = ["STAFF", "FINANCE", "LEGAL", "MARKETER"];
 /** Display labels for assignable roles. */
 export const ROLE_LABELS: Record<string, string> = {
-  STAFF: "Staff",
+  STAFF: "Front Desk",
   FINANCE: "Finance",
   LEGAL: "Legal",
   MARKETER: "Marketer",
@@ -62,7 +62,7 @@ export async function getCompanyUsers(context: TenantContext): Promise<CompanyUs
     .map((user) => {
       const roles = user.roles.map((entry) => ({
         name: entry.role.name,
-        label: entry.role.label,
+        label: ROLE_LABELS[entry.role.name] ?? entry.role.label,
       }));
       return {
         id: user.id,

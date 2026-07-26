@@ -103,7 +103,22 @@ export async function deleteUserAction(userId: string): Promise<UserActionResult
 
   const target = await loadTargetUser(tenant.companyId, userId);
   if (!target) return { ok: false, error: "User not found in your company." };
-  if (isOwner(target.roles)) return { ok: false, error: "Owner accounts cannot be deleted here." };
+
+  if (isOwner(target.roles)) {
+    const remainingAdmins = await prisma.user.count({
+      where: {
+        companyId: tenant.companyId,
+        id: { not: target.id },
+        isActive: true,
+        roles: {
+          some: { companyId: tenant.companyId, role: { name: { in: ["ADMIN", "SUPER_ADMIN"] } } },
+        },
+      },
+    });
+    if (remainingAdmins === 0) {
+      return { ok: false, error: "Cannot delete the last admin account. At least one admin must remain." };
+    }
+  }
 
   await prisma.user.delete({ where: { id: target.id } });
   revalidatePath(PATH);
