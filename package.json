@@ -10,6 +10,12 @@
     "start": "next start",
     "lint": "node --max-old-space-size=4096 ./node_modules/eslint/bin/eslint.js .",
     "encoding:check": "node scripts/check-utf8.mjs",
+    "migrations:manifest": "node scripts/generate-migration-manifest.mjs",
+    "migrations:check": "node scripts/generate-migration-manifest.mjs --check",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:install": "playwright install --with-deps chromium",
+    "e2e:health": "playwright test e2e/health.spec.ts",
     "test": "tsx --test \"src/**/*.test.ts\"",
     "typecheck": "node --max-old-space-size=4096 ./node_modules/typescript/bin/tsc --noEmit --incremental false",
     "db:generate": "prisma generate",
@@ -65,6 +71,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.50.0",
     "@tailwindcss/postcss": "^4",
     "@types/mapbox-gl": "^3.4.1",
     "@types/node": "^20",

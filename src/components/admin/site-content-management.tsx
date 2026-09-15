@@ -292,6 +292,34 @@ export function SiteContentManagement({
     router.refresh();
   }
 
+  // The content columns could not be read — almost always a database that is
+  // behind the deployed code. Explain it instead of showing a broken editor.
+  if (state.unavailable) {
+    return (
+      <Card className="rounded-[28px] border-[color:var(--warning-200,#f7d7a1)] bg-[color:var(--warning-50,#fff7e8)] p-6 shadow-[var(--shadow-sm)] lg:p-8">
+        <div className="max-w-2xl">
+          <div className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--amber-700,#b45309)]">
+            Site content unavailable
+          </div>
+          <h2 className="mt-3 font-serif text-2xl text-[var(--ink-950)]">
+            Your site editor is temporarily unavailable.
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-[var(--ink-700)]">
+            Your public website is still online and is showing its default copy — visitors are
+            unaffected. The editor needs a pending database update before your saved content can
+            be loaded.
+          </p>
+          <p className="mt-3 text-sm leading-7 text-[var(--ink-600)]">
+            If you administer this deployment, run the pending database migrations
+            (<code className="rounded bg-white/70 px-1.5 py-0.5">npm run db:migrate:deploy</code>)
+            and reload. <code className="rounded bg-white/70 px-1.5 py-0.5">/api/readyz</code>{" "}
+            lists exactly which migrations are missing.
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <Card className="rounded-[28px] border-[var(--border-subtle,var(--line))] bg-[linear-gradient(135deg,#ffffff,#fbf7ef)] p-6 shadow-[var(--shadow-sm)] lg:p-8">

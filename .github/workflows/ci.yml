@@ -40,6 +40,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Fails when a migration was added without regenerating the manifest,
+      # which would leave /api/readyz blind to the new migration and let a
+      # database that is behind the code report a false green.
+      - name: Migration manifest up to date
+        run: npm run migrations:check
+
       - name: Tests
         run: npm run test
 
@@ -51,3 +57,72 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  e2e:
+    name: E2E smoke (browser)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Loads every route in a real browser and fails on 5xx / error boundaries /
+    # console errors. This is the layer that catches runtime-only faults such
+    # as a database behind the deployed code (Prisma P2022), which typecheck
+    # and unit tests cannot see.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: estateos_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/estateos_e2e
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/estateos_e2e
+      # Lets the authenticated sweep mint sessions without Clerk. Safe here:
+      # the database is a throwaway container, never production.
+      ESTATEOS_ENABLE_DEV_BYPASS: "true"
+      NODE_ENV: development
+      # Public marketing routes resolve their tenant from the host; on
+      # localhost there is no tenant subdomain, so fall back to the seeded
+      # demo company or every public route 404s instead of rendering.
+      DEFAULT_COMPANY_SLUG: acme-realty
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npm run e2e:install
+
+      # The E2E database is migrated from the same migration files production
+      # uses, so a broken or missing migration fails here instead of in prod.
+      - name: Apply migrations
+        run: npm run db:migrate:deploy
+
+      - name: Seed demo tenant
+        run: npm run db:seed
+        continue-on-error: true
+
+      - name: Run E2E smoke suite
+        run: npm run e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
