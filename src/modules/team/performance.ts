@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { subDays } from "date-fns";
+import { unstable_cache } from "next/cache";
 
 import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
@@ -780,13 +781,46 @@ export async function getTenantMarketerLeaderboard(
   limit = 3,
   period: Extract<MarketerPerformancePeriod, "WEEKLY" | "MONTHLY"> = "MONTHLY",
 ): Promise<MarketerPerformanceEntry[]> {
-  const entries = await getTenantMarketerPerformanceEntries(context, now, {
-    includeInactive: false,
-    includeUnpublished: false,
-    period,
-  });
+  if (!featureFlags.hasDatabase || !context.companyId) {
+    return [];
+  }
+  const companyId = context.companyId;
 
-  return entries.filter((entry) => entry.score > 0).slice(0, limit).map(toPublicMarketerPerformanceEntry);
+  // The public leaderboard aggregates ~6 activity tables and is identical for
+  // every visitor of a tenant, so it is cached across requests for 5 minutes.
+  //
+  // Tenant isolation: the computation runs against a context carrying ONLY the
+  // companyId. Passing the viewer's context through would be unsafe — for a
+  // super admin, findManyForTenant skips the companyId filter, and that
+  // cross-tenant result would then be cached under this tenant's key and served
+  // to all of its visitors.
+  const publicContext: TenantContext = {
+    userId: null,
+    companyId,
+    companySlug: context.companySlug,
+    branchId: null,
+    roles: [],
+    isSuperAdmin: false,
+    host: null,
+    resolutionSource: context.resolutionSource,
+  };
+  // Key on the UTC day, not the window start: WEEKLY is a rolling window whose
+  // start changes every millisecond and would never produce a cache hit. The day
+  // bucket rolls over at month boundaries for MONTHLY; the TTL bounds staleness.
+  const dayBucket = now.toISOString().slice(0, 10);
+
+  return unstable_cache(
+    async () => {
+      const entries = await getTenantMarketerPerformanceEntries(publicContext, now, {
+        includeInactive: false,
+        includeUnpublished: false,
+        period,
+      });
+      return entries.filter((entry) => entry.score > 0).slice(0, limit).map(toPublicMarketerPerformanceEntry);
+    },
+    ["public-marketer-leaderboard", companyId, period, dayBucket, String(limit)],
+    { revalidate: 300, tags: [`marketer-leaderboard:${companyId}`] },
+  )();
 }
 
 export async function getTenantMarketerPerformanceSummary(
