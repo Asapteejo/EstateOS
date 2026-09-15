@@ -1,4 +1,6 @@
 import { Prisma } from "@prisma/client";
+import { unstable_cache } from "next/cache";
+import { cache } from "react";
 
 import { writeAuditLog } from "@/lib/audit/service";
 import { prisma } from "@/lib/db/prisma";
@@ -106,17 +108,14 @@ export function resolveTenantBrandingPresentation(input: {
   };
 }
 
-export async function getTenantBrandingState(context: TenantContext) {
-  if (!featureFlags.hasDatabase || !context.companyId) {
-    return resolveBrandingState({
-      published: defaultTenantBranding,
-      draft: defaultTenantBranding,
-      publishedAt: null,
-    });
-  }
-
-  const company = await prisma.company.findUnique({
-    where: { id: context.companyId },
+/**
+ * Full branding row including the unpublished draft — admin editor only.
+ * Request-scoped (React cache) but never cached across requests: saving a draft
+ * does not revalidate a tag, so a shared cache would show admins stale drafts.
+ */
+const loadCompanyBrandingRow = cache((companyId: string) =>
+  prisma.company.findUnique({
+    where: { id: companyId },
     select: {
       logoUrl: true,
       primaryColor: true,
@@ -129,7 +128,52 @@ export async function getTenantBrandingState(context: TenantContext) {
         },
       },
     },
-  });
+  }),
+);
+
+/**
+ * Published branding only — what every public page, metadata and app shell
+ * renders. The layout, generateMetadata, the public shell and the page each ask
+ * for it; before this they issued 3-5 identical queries per render.
+ *  - unstable_cache (cross-request, 60s) is keyed and tagged by companyId so a
+ *    tenant can only ever read its own row; publishing branding or site content
+ *    revalidates `tenant-presentation:<companyId>` immediately.
+ *  - React cache() dedupes within one render.
+ * The selected fields are plain JSON (no Dates), so they survive serialization.
+ */
+const loadPublishedBrandingRow = cache((companyId: string) =>
+  unstable_cache(
+    () =>
+      prisma.company.findUnique({
+        where: { id: companyId },
+        select: {
+          name: true,
+          logoUrl: true,
+          primaryColor: true,
+          accentColor: true,
+          siteSetting: {
+            select: {
+              companyName: true,
+              publishedBrandingConfig: true,
+            },
+          },
+        },
+      }),
+    ["public-tenant-branding", companyId],
+    { revalidate: 60, tags: [`tenant-presentation:${companyId}`] },
+  )(),
+);
+
+export async function getTenantBrandingState(context: TenantContext) {
+  if (!featureFlags.hasDatabase || !context.companyId) {
+    return resolveBrandingState({
+      published: defaultTenantBranding,
+      draft: defaultTenantBranding,
+      publishedAt: null,
+    });
+  }
+
+  const company = await loadCompanyBrandingRow(context.companyId);
 
   const fallback = buildFallbackBranding({
     logoUrl: company?.logoUrl,
@@ -153,8 +197,22 @@ export async function getTenantBrandingState(context: TenantContext) {
 
 export async function getPublishedTenantBranding(context: TenantContext) {
   try {
-    const state = await getTenantBrandingState(context);
-    return state.published;
+    if (!featureFlags.hasDatabase || !context.companyId) {
+      return resolveBrandingState({ published: defaultTenantBranding }).published;
+    }
+
+    // Same derivation as getTenantBrandingState().published, without reading
+    // the draft, so it can come from the shared published-branding cache.
+    const company = await loadPublishedBrandingRow(context.companyId);
+    const { published } = resolveBrandingState({
+      published: company?.siteSetting?.publishedBrandingConfig as Partial<TenantBrandingConfig> | null | undefined,
+      fallback: buildFallbackBranding({
+        logoUrl: company?.logoUrl,
+        primaryColor: company?.primaryColor,
+        accentColor: company?.accentColor,
+      }),
+    });
+    return resolveTenantBrandingAssetUrls(published);
   } catch (error) {
     logError("Published tenant branding lookup failed; using default branding.", {
       route: "public-marketing",
@@ -182,21 +240,7 @@ async function loadTenantPresentation(context: TenantContext) {
     };
   }
 
-  const company = await prisma.company.findUnique({
-    where: { id: context.companyId },
-    select: {
-      name: true,
-      logoUrl: true,
-      primaryColor: true,
-      accentColor: true,
-      siteSetting: {
-        select: {
-          companyName: true,
-          publishedBrandingConfig: true,
-        },
-      },
-    },
-  });
+  const company = await loadPublishedBrandingRow(context.companyId);
 
   const presentation = resolveTenantBrandingPresentation({
     companyName: company?.siteSetting?.companyName ?? company?.name ?? fallbackName,

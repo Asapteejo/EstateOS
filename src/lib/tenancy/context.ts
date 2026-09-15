@@ -1,4 +1,5 @@
 import type { AppRole } from "@prisma/client";
+import { cache } from "react";
 import { headers } from "next/headers";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -126,7 +127,24 @@ function getHostResolution(host: string | null) {
   };
 }
 
-export async function resolveTenantContext(
+/**
+ * Memoized per server render: a page, its layout(s), generateMetadata and
+ * nested server components each call this, and without memoization every call
+ * re-ran the company lookups. React's cache() is scoped to a single request,
+ * and the result depends only on that request's host/cookies, so it cannot
+ * leak one tenant's context into another request.
+ */
+const resolveTenantContextCached = cache(resolveTenantContextUncached);
+
+export function resolveTenantContext(
+  area: "marketing" | "portal" | "admin" | "superadmin" = "marketing",
+): Promise<TenantContext> {
+  // Normalize the default so `resolveTenantContext()` and
+  // `resolveTenantContext("marketing")` share one cache entry.
+  return resolveTenantContextCached(area);
+}
+
+async function resolveTenantContextUncached(
   area: "marketing" | "portal" | "admin" | "superadmin" = "marketing",
 ): Promise<TenantContext> {
   const requestHeaders = await headers();

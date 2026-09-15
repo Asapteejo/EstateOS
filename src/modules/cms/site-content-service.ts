@@ -1,4 +1,6 @@
 import { Prisma } from "@prisma/client";
+import { unstable_cache } from "next/cache";
+import { cache } from "react";
 
 import { writeAuditLog } from "@/lib/audit/service";
 import { prisma } from "@/lib/db/prisma";
@@ -22,6 +24,12 @@ export type TenantSiteContentState = {
   draft: StoredSiteContent;
   published: StoredSiteContent;
   publishedAt: string | null;
+  /**
+   * True when the content columns could not be read — in practice a database
+   * that is behind the deployed code (pending migration). The editor renders
+   * read-only with an explanatory banner rather than throwing.
+   */
+  unavailable?: boolean;
 };
 
 function asStored(value: Prisma.JsonValue | null | undefined): StoredSiteContent {
@@ -51,26 +59,41 @@ export async function getTenantSiteContentState(
     return { draft: {}, published: {}, publishedAt: null };
   }
 
-  const settings = await prisma.siteSettings.findUnique({
-    where: { companyId: context.companyId },
-    select: {
-      draftSiteContent: true,
-      publishedSiteContent: true,
-      siteContentPublishedAt: true,
-    },
-  });
+  try {
+    const settings = await prisma.siteSettings.findUnique({
+      where: { companyId: context.companyId },
+      select: {
+        draftSiteContent: true,
+        publishedSiteContent: true,
+        siteContentPublishedAt: true,
+      },
+    });
 
-  const published = asStored(settings?.publishedSiteContent);
-  // Before the tenant has edited anything, the draft mirrors the published copy.
-  const draft = settings?.draftSiteContent ? asStored(settings.draftSiteContent) : published;
+    const published = asStored(settings?.publishedSiteContent);
+    // Before the tenant has edited anything, the draft mirrors the published copy.
+    const draft = settings?.draftSiteContent ? asStored(settings.draftSiteContent) : published;
 
-  return {
-    draft,
-    published,
-    publishedAt: settings?.siteContentPublishedAt
-      ? settings.siteContentPublishedAt.toISOString()
-      : null,
-  };
+    return {
+      draft,
+      published,
+      publishedAt: settings?.siteContentPublishedAt
+        ? settings.siteContentPublishedAt.toISOString()
+        : null,
+      unavailable: false,
+    };
+  } catch (error) {
+    // A database that is behind the deployed code (missing migration →
+    // Prisma P2022 "column does not exist") must not 500 the settings page.
+    // Return empty content flagged as unavailable so the editor renders with
+    // fallback copy and an explanatory banner instead of an error screen.
+    logError("Tenant site content state lookup failed; rendering editor as unavailable.", {
+      route: "/admin/settings/site-content",
+      companyId: context.companyId,
+      ...buildSafeErrorLogContext(error),
+    });
+
+    return { draft: {}, published: {}, publishedAt: null, unavailable: true };
+  }
 }
 
 export type TenantPublicContact = {
@@ -113,6 +136,25 @@ export async function getPublicTenantContact(
   }
 }
 
+// Published content is company-level, identical for every visitor, and changes
+// only when an admin publishes. Two layers:
+//  - unstable_cache (cross-request, 60s) keyed and tagged by companyId, so one
+//    tenant can never be served another's content; the publish route
+//    invalidates `tenant-presentation:<companyId>` immediately.
+//  - React cache() dedupes the lookup within a single render (layout, shell,
+//    metadata and page all read it).
+const loadPublishedSiteContentRow = cache((companyId: string) =>
+  unstable_cache(
+    () =>
+      prisma.siteSettings.findUnique({
+        where: { companyId },
+        select: { publishedSiteContent: true },
+      }),
+    ["public-site-content", companyId],
+    { revalidate: 60, tags: [`tenant-presentation:${companyId}`] },
+  )(),
+);
+
 /** Public render entry point. Never throws — returns null so callers fall back. */
 export async function getPublishedSiteContent(
   context: TenantContext,
@@ -122,10 +164,7 @@ export async function getPublishedSiteContent(
   }
 
   try {
-    const settings = await prisma.siteSettings.findUnique({
-      where: { companyId: context.companyId },
-      select: { publishedSiteContent: true },
-    });
+    const settings = await loadPublishedSiteContentRow(context.companyId);
     return settings?.publishedSiteContent ? asStored(settings.publishedSiteContent) : null;
   } catch (error) {
     logError("Published tenant site content lookup failed; using fallback copy.", {
