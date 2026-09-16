@@ -40,6 +40,9 @@ const IGNORABLE_CONSOLE = [
   /googletagmanager|posthog|sentry|clerk-telemetry/i,
   /ERR_BLOCKED_BY_CLIENT/i,
   /Download the React DevTools/i,
+  // Dev-server noise: the suite runs against `next dev`, whose hot-reload
+  // socket logs a console error in headless CI. Not an application fault.
+  /webpack-hmr|hot-update|__nextjs|turbopack-hmr/i,
 ];
 
 function watchForErrors(page: Page) {

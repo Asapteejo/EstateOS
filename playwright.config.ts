@@ -12,7 +12,16 @@ import { defineConfig, devices } from "@playwright/test";
  * with E2E_BASE_URL (then the local server is not started):
  *   E2E_BASE_URL=https://staging.example.com npm run e2e
  */
-const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:3000";
+/**
+ * Public pages resolve their tenant from the HOST, and for marketing routes a
+ * DEFAULT_COMPANY_SLUG fallback is deliberately NOT applied — only a tenant
+ * host counts. On 127.0.0.1 every tenant page therefore renders the platform
+ * site or 404s. `<slug>.localhost` is the supported dev tenant host (see
+ * resolveTenantSubdomainFromHost), and Chromium resolves *.localhost to
+ * loopback itself, so the suite drives the seeded demo tenant by default.
+ */
+const localTenantHost = `http://${process.env.E2E_TENANT_SLUG ?? "acme-realty"}.localhost:3000`;
+const baseURL = process.env.E2E_BASE_URL ?? localTenantHost;
 const usingExternalTarget = Boolean(process.env.E2E_BASE_URL);
 
 export default defineConfig({
@@ -24,7 +33,11 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["github"], ["list"]] : [["list"]],
-  timeout: 60_000,
+  // The suite runs against `next dev`, which compiles each route on its first
+  // request — 30s+ per admin route on a cold, slow machine. 60s was tight
+  // enough that the first visit to a route timed out and took the rest of the
+  // file's navigations down with it (net::ERR_ABORTED on teardown).
+  timeout: 120_000,
   expect: { timeout: 15_000 },
 
   use: {
@@ -32,6 +45,12 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "off",
+    // Windows (and some Linux setups) do not resolve *.localhost, so the
+    // tenant host is mapped to loopback in the browser itself rather than
+    // relying on the OS resolver. Harmless against an external target.
+    launchOptions: usingExternalTarget
+      ? undefined
+      : { args: ["--host-resolver-rules=MAP *.localhost 127.0.0.1"] },
   },
 
   projects: [
@@ -44,7 +63,9 @@ export default defineConfig({
     ? undefined
     : {
         command: "npm run dev",
-        url: baseURL,
+        // Node (unlike Chromium) does not resolve *.localhost on every
+        // platform, so the readiness probe uses loopback directly.
+        url: "http://127.0.0.1:3000",
         reuseExistingServer: !process.env.CI,
         timeout: 180_000,
         stdout: "pipe",
