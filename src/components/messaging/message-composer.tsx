@@ -45,7 +45,7 @@ export function MessageComposer({
         rows={2}
         placeholder={placeholder}
         aria-label="Message"
-        className="admin-focus w-full resize-y rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm text-[var(--ink-900)] placeholder:text-[var(--ink-400)]"
+        className="admin-focus w-full resize-y rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-base sm:text-sm text-[var(--ink-900)] placeholder:text-[var(--ink-400)]"
       />
       <div className="mt-2 flex items-center justify-between gap-3">
         {state.error ? (

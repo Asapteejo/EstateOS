@@ -78,7 +78,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       type="button"
       onClick={() => toggleTheme()}
       aria-pressed={dark}
-      className={`admin-interactive admin-focus inline-flex h-9 w-9 items-center justify-center rounded-full border border-[var(--line)] text-[var(--ink-600)] hover:text-[var(--ink-900)] ${className ?? ""}`}
+      className={`admin-interactive admin-focus inline-flex h-11 w-11 items-center sm:h-9 sm:w-9 justify-center rounded-full border border-[var(--line)] text-[var(--ink-600)] hover:text-[var(--ink-900)] ${className ?? ""}`}
     >
       <span className="sr-only">{dark ? "Switch to light theme" : "Switch to dark theme"}</span>
       {dark ? <SunIcon /> : <MoonIcon />}

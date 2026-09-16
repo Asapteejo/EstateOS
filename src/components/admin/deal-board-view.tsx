@@ -514,8 +514,11 @@ export function DealBoardView({
       ) : null}
 
       <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="overflow-x-auto pb-2">
-        <div className="grid min-w-[960px] gap-4 xl:grid-cols-2 3xl:grid-cols-3">
+        {/* The 960px floor is what keeps the stage columns side by side, but on
+            a phone it forced the whole board to scroll sideways inside a 335px
+            viewport. Below `md` the stages stack vertically instead. */}
+        <div className="pb-2 md:overflow-x-auto">
+        <div className="grid gap-4 md:min-w-[960px] xl:grid-cols-2 3xl:grid-cols-3">
           {visibleColumns.map((column) => (
             <Card key={column.key} className={cn("min-w-0 rounded-[32px] p-5", stageTone[column.key].columnClass)}>
               {inspect && column.key === "OVERDUE" ? (

@@ -76,7 +76,7 @@ const ICONS: Record<QuickActionIcon, LucideIcon> = {
 };
 
 const triggerClass =
-  "group relative grid h-10 w-10 cursor-pointer place-items-center rounded-[var(--radius-md)] border border-[var(--line)] bg-[var(--surface-1,#fff)] text-[var(--ink-600)] shadow-[var(--shadow-sm)] transition-[colors,transform] duration-200 hover:-translate-y-0.5 hover:border-[var(--brand-300)] hover:text-[var(--brand-700)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-500)] focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0";
+  "group relative grid h-11 w-11 cursor-pointer place-items-center sm:h-10 sm:w-10 rounded-[var(--radius-md)] border border-[var(--line)] bg-[var(--surface-1,#fff)] text-[var(--ink-600)] shadow-[var(--shadow-sm)] transition-[colors,transform] duration-200 hover:-translate-y-0.5 hover:border-[var(--brand-300)] hover:text-[var(--brand-700)] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-500)] focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:translate-y-0";
 
 const tooltipClass =
   "pointer-events-none absolute -bottom-9 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-[var(--radius-sm,6px)] bg-slate-900 px-2 py-1 text-xs font-medium text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none";

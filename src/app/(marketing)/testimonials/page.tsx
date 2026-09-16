@@ -59,8 +59,8 @@ export default async function TestimonialsPage({
             </option>
           ))}
         </Select>
-        <input name="year" defaultValue={filters.year} placeholder="Year" className="admin-focus rounded-[var(--radius-md)] border border-[var(--line)] px-3 py-2 text-sm" />
-        <input name="month" defaultValue={filters.month} placeholder="Month" className="admin-focus rounded-[var(--radius-md)] border border-[var(--line)] px-3 py-2 text-sm" />
+        <input name="year" defaultValue={filters.year} placeholder="Year" inputMode="numeric" className="admin-focus min-h-11 rounded-[var(--radius-md)] border border-[var(--line)] px-3 py-2 text-base sm:text-sm" />
+        <input name="month" defaultValue={filters.month} placeholder="Month" inputMode="numeric" className="admin-focus min-h-11 rounded-[var(--radius-md)] border border-[var(--line)] px-3 py-2 text-base sm:text-sm" />
         <button className="admin-interactive admin-focus rounded-full bg-[var(--brand-700)] px-5 py-2 text-sm font-semibold text-white" type="submit">
           Filter
         </button>

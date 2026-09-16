@@ -682,7 +682,7 @@ function ColorField({
     <Field label={label}>
       <div className="flex min-w-0 items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-white px-3 py-2 focus-within:border-[var(--brand-500)] focus-within:ring-2 focus-within:ring-[var(--brand-500)]">
         <input type="color" className="h-8 w-10 rounded-lg border-0 bg-transparent p-0" value={pickerValue} onChange={(event) => onChange(event.target.value.toUpperCase())} />
-        <input className="numeric h-9 min-w-0 flex-1 bg-transparent text-sm outline-none" value={value} onChange={(event) => onChange(event.target.value.toUpperCase())} />
+        <input className="numeric h-9 min-w-0 flex-1 bg-transparent text-base sm:text-sm outline-none" value={value} onChange={(event) => onChange(event.target.value.toUpperCase())} />
       </div>
     </Field>
   );

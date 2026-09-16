@@ -109,7 +109,7 @@ function UploadContractForm({ transactions }: { transactions: TransactionWithout
             name="file"
             accept=".pdf,application/pdf"
             required
-            className="w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm text-[var(--ink-800)] file:mr-3 file:rounded file:border-0 file:bg-[var(--sand-100)] file:px-2 file:py-0.5 file:text-xs file:font-medium"
+            className="w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white min-h-11 px-3 py-2 text-base sm:text-sm text-[var(--ink-800)] file:mr-3 file:rounded file:border-0 file:bg-[var(--sand-100)] file:px-2 file:py-0.5 file:text-xs file:font-medium"
           />
         </div>
         <div className="flex items-end">

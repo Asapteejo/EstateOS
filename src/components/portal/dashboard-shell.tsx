@@ -297,7 +297,11 @@ export async function DashboardShell({
         <div className="flex flex-col gap-4 pt-1 sm:flex-row sm:items-start sm:justify-between">
           <DashboardGreeting name={greetingName} subtitle={greetingSubtitle} />
           <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
-            <LiveClock />
+            {/* The clock is ambient detail that cost a whole row above the
+                fold on a phone; quick actions stay. */}
+            <div className="hidden sm:block">
+              <LiveClock />
+            </div>
             <QuickActions actions={quickActions} />
           </div>
         </div>
@@ -305,10 +309,14 @@ export async function DashboardShell({
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--ink-400)]">
             {area === "portal" ? "Buyer workspace" : "Company workspace"}
           </div>
-          <h1 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-[var(--ink-950)] sm:text-4xl">
+          <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-[var(--ink-950)] sm:text-4xl">
             {title}
           </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--ink-500)]">{subtitle}</p>
+          {/* Page descriptions run to three lines on a phone, pushing the
+              actual screen content further down; clamp to two there. */}
+          <p className="mt-2 line-clamp-2 max-w-3xl text-sm leading-6 text-[var(--ink-500)] sm:line-clamp-none">
+            {subtitle}
+          </p>
         </div>
         <AnnouncementBanner items={announcements} />
         <div className="tenant-content-reveal">{children}</div>

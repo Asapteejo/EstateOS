@@ -12,7 +12,7 @@ import {
 const QUICK_FORM_INITIAL: QuickFormState = { ok: false, error: null };
 
 const inputClass =
-  "admin-focus w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm text-[var(--ink-900)] placeholder:text-[var(--ink-400)]";
+  "admin-focus w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white min-h-11 px-3 py-2 text-base sm:text-sm text-[var(--ink-900)] placeholder:text-[var(--ink-400)]";
 
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -46,7 +46,7 @@ export function VisitorQuickForm({ onSuccess }: { onSuccess: () => void }) {
   return (
     <form action={formAction} className="grid gap-3">
       <input name="fullName" required placeholder="Full name *" className={inputClass} aria-label="Visitor full name" />
-      <input name="phone" placeholder="Phone" className={inputClass} aria-label="Visitor phone" />
+      <input name="phone" type="tel" autoComplete="tel" placeholder="Phone" className={inputClass} aria-label="Visitor phone" />
       <input name="hostName" placeholder="Here to see" className={inputClass} aria-label="Host name" />
       <input name="purpose" placeholder="Purpose of visit" className={inputClass} aria-label="Purpose of visit" />
       <ErrorNote message={state.error} />
@@ -66,7 +66,7 @@ export function LeadQuickForm({ onSuccess }: { onSuccess: () => void }) {
     <form action={formAction} className="grid gap-3">
       <input name="fullName" required placeholder="Full name *" className={inputClass} aria-label="Lead full name" />
       <input name="email" type="email" required placeholder="Email *" className={inputClass} aria-label="Lead email" />
-      <input name="phone" placeholder="Phone" className={inputClass} aria-label="Lead phone" />
+      <input name="phone" type="tel" autoComplete="tel" placeholder="Phone" className={inputClass} aria-label="Lead phone" />
       <textarea
         name="message"
         required
