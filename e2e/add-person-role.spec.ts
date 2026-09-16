@@ -35,10 +35,14 @@ test("Add person submits the role that was selected", async ({ page }) => {
   await page.locator("#person-lastName").fill("Finance");
   await page.locator("#person-email").fill(`e2e-finance-${Date.now()}@example.test`);
 
+  // Any POST to this route carries the form. A hydrated page sends a server
+  // action (Next-Action header, multipart body); before hydration the same
+  // form posts natively (url-encoded), so both shapes are accepted — the point
+  // is what `role` the form submitted, not which transport carried it.
   let submittedBody: string | null = null;
   await page.route("**/admin/users**", async (route) => {
     const request = route.request();
-    if (request.method() === "POST" && request.headers()["next-action"]) {
+    if (request.method() === "POST") {
       submittedBody = request.postData();
       await route.abort();
       return;
@@ -46,14 +50,16 @@ test("Add person submits the role that was selected", async ({ page }) => {
     await route.continue();
   });
 
-  const actionRequest = page.waitForRequest(
-    (request) => request.method() === "POST" && Boolean(request.headers()["next-action"]),
-  );
+  const actionRequest = page.waitForRequest((request) => request.method() === "POST");
   await page.getByRole("button", { name: "Create account" }).click();
   await actionRequest;
 
-  expect(submittedBody, "server action request was not captured").not.toBeNull();
-  // Next.js encodes useActionState form fields as multipart, optionally prefixed (e.g. "1_role").
-  const role = /name="(?:\d+_)?role"\r\n\r\n([A-Z_]+)/.exec(submittedBody ?? "")?.[1];
-  expect(role).toBe("FINANCE");
+  expect(submittedBody, "form submission was not captured").not.toBeNull();
+  const body = submittedBody ?? "";
+  // Multipart (server action, field optionally prefixed e.g. "1_role") or
+  // url-encoded (pre-hydration native submit).
+  const role =
+    /name="(?:\d+_)?role"\r\n\r\n([A-Z_]+)/.exec(body)?.[1] ??
+    /(?:^|&)(?:\d+_)?role=([A-Z_]+)/.exec(body)?.[1];
+  expect(role, `role not found in submitted body: ${body.slice(0, 300)}`).toBe("FINANCE");
 });

@@ -47,10 +47,9 @@ export default defineConfig({
     video: "off",
     // Windows (and some Linux setups) do not resolve *.localhost, so the
     // tenant host is mapped to loopback in the browser itself rather than
-    // relying on the OS resolver. Harmless against an external target.
-    launchOptions: usingExternalTarget
-      ? undefined
-      : { args: ["--host-resolver-rules=MAP *.localhost 127.0.0.1"] },
+    // relying on the OS resolver. Only *.localhost is affected, so this is
+    // inert when E2E_BASE_URL points at a deployed environment.
+    launchOptions: { args: ["--host-resolver-rules=MAP *.localhost 127.0.0.1"] },
   },
 
   projects: [
@@ -62,7 +61,12 @@ export default defineConfig({
   webServer: usingExternalTarget
     ? undefined
     : {
-        command: "npm run dev",
+        // CI serves a production build (`npm run start` with NODE_ENV=test,
+        // which keeps the dev-session bypass available) because `next dev`
+        // compiles every route on its first request — 30s+ per admin route on
+        // a CI runner, which blew the job's time budget. Locally the default
+        // stays `npm run dev` so the suite picks up edits.
+        command: process.env.E2E_SERVER_COMMAND ?? "npm run dev",
         // Node (unlike Chromium) does not resolve *.localhost on every
         // platform, so the readiness probe uses loopback directly.
         url: "http://127.0.0.1:3000",

@@ -86,10 +86,9 @@ jobs:
       # Lets the authenticated sweep mint sessions without Clerk. Safe here:
       # the database is a throwaway container, never production.
       ESTATEOS_ENABLE_DEV_BYPASS: "true"
-      NODE_ENV: development
-      # Public marketing routes resolve their tenant from the host; on
-      # localhost there is no tenant subdomain, so fall back to the seeded
-      # demo company or every public route 404s instead of rendering.
+      # NODE_ENV is deliberately NOT set here: the build below must run as a
+      # normal production build, and only the test run overrides it (see
+      # "Run E2E smoke suite").
       DEFAULT_COMPANY_SLUG: acme-realty
     steps:
       - name: Checkout
@@ -116,8 +115,21 @@ jobs:
         run: npm run db:seed
         continue-on-error: true
 
+      # Build once, then serve that build. Running the suite against `next dev`
+      # made every route compile on its first request (30s+ per admin route on
+      # a runner), which exhausted the job's time budget before the sweep
+      # finished. A production build serves each route in well under a second.
+      - name: Build
+        run: npm run build
+
+      # NODE_ENV=test keeps the dev-session bypass available on a production
+      # build (see allowDevBypass in src/lib/config.ts), so the authenticated
+      # sweep still runs instead of skipping itself.
       - name: Run E2E smoke suite
         run: npm run e2e
+        env:
+          NODE_ENV: test
+          E2E_SERVER_COMMAND: npm run start
 
       - name: Upload Playwright report
         if: failure()
