@@ -44,3 +44,9 @@ next-env.d.ts
 
 # generated local audit outputs
 artifacts/
+
+# playwright e2e output (the specs and config ARE committed)
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

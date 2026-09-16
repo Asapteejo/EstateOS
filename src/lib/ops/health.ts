@@ -9,16 +9,18 @@ import { buildSafeErrorLogContext, logError } from "@/lib/ops/logger";
 import { parseSuperadminEmails } from "@/lib/auth/superadmin";
 import { getProductionDatabaseSafetyStatus } from "@/lib/db/production-db-guard";
 import { resolveRealtimeRuntimeStatus } from "@/lib/realtime/config";
+import { EXPECTED_PRODUCTION_MIGRATIONS } from "@/lib/ops/migration-manifest";
 
-export const EXPECTED_PRODUCTION_MIGRATIONS = [
-  "0030_communication_wallet_ledger",
-  "0031_communication_topups",
-  "0032_buyer_portal_kyc_review_metadata",
-  "0033_buyer_testimonial_moderation",
-  "0034_contract_generation_mvp",
-  "0035_contract_template_version_locking",
-] as const;
+export { EXPECTED_PRODUCTION_MIGRATIONS };
 
+/**
+ * Migrations present in the repo but not yet applied to the connected
+ * database — i.e. the deployed code expects columns the database does not
+ * have. The expected list is GENERATED from prisma/migrations
+ * (scripts/generate-migration-manifest.mjs) rather than hand-maintained,
+ * because a hand-maintained list silently went stale at 0035 and let a
+ * 14-migration gap reach production as P2022 "column does not exist" 500s.
+ */
 export function getMissingExpectedMigrations(appliedMigrations: string[]) {
   const applied = new Set(appliedMigrations);
   return EXPECTED_PRODUCTION_MIGRATIONS.filter((migration) => !applied.has(migration));
