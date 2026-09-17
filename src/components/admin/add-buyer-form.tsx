@@ -113,10 +113,7 @@ export function AddBuyerButton({ hasClerkPassword }: { hasClerkPassword: boolean
             <button
               type="button"
               className="admin-focus text-xs font-medium text-[var(--brand-700)] hover:underline"
-              onClick={() => {
-                const id = setTimeout(() => setShowProfile((v) => !v), 0);
-                return () => clearTimeout(id);
-              }}
+              onClick={() => setShowProfile((v) => !v)}
             >
               {showProfile ? "− Hide profile fields" : "+ Add profile details (optional)"}
             </button>

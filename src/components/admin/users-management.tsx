@@ -109,10 +109,7 @@ function AddPersonDialog({
             name="role"
             required
             value={selectedRole}
-            onChange={(e) => {
-              const id = setTimeout(() => setSelectedRole(e.target.value as AppRole), 0);
-              return () => clearTimeout(id);
-            }}
+            onChange={(e) => setSelectedRole(e.target.value as AppRole)}
             className={`${inputCls} mt-1`}
           >
             {PROVISIONABLE_ROLES.map((r) => (

@@ -7,6 +7,7 @@ import {
   buildHealthSnapshot,
   buildRuntimeReadinessSummary,
   getMissingExpectedMigrations,
+  EXPECTED_PRODUCTION_MIGRATIONS,
 } from "@/lib/ops/health";
 
 test("health snapshot returns safe operational metadata", () => {
@@ -47,26 +48,50 @@ test("database readiness metadata stays sanitized", () => {
   assert.equal(serialized.includes("@"), false);
 });
 
-test("migration readiness reports missing production contract migrations", () => {
-  assert.deepEqual(
-    getMissingExpectedMigrations([
-      "0030_communication_wallet_ledger",
-      "0031_communication_topups",
-      "0032_buyer_portal_kyc_review_metadata",
-      "0033_buyer_testimonial_moderation",
-      "0034_contract_generation_mvp",
-    ]),
-    ["0035_contract_template_version_locking"],
+test("migration readiness reports every migration missing from the database", () => {
+  // A database with nothing applied is missing the whole manifest.
+  assert.equal(
+    getMissingExpectedMigrations([]).length,
+    EXPECTED_PRODUCTION_MIGRATIONS.length,
   );
-  assert.deepEqual(
-    getMissingExpectedMigrations([
-      "0030_communication_wallet_ledger",
-      "0031_communication_topups",
-      "0032_buyer_portal_kyc_review_metadata",
-      "0033_buyer_testimonial_moderation",
-      "0034_contract_generation_mvp",
-      "0035_contract_template_version_locking",
-    ]),
-    [],
+
+  // A database with everything applied is clean.
+  assert.deepEqual(getMissingExpectedMigrations([...EXPECTED_PRODUCTION_MIGRATIONS]), []);
+
+  // Exactly one gap is reported as exactly one missing migration.
+  const allButLast = EXPECTED_PRODUCTION_MIGRATIONS.slice(0, -1);
+  assert.deepEqual(getMissingExpectedMigrations([...allButLast]), [
+    EXPECTED_PRODUCTION_MIGRATIONS[EXPECTED_PRODUCTION_MIGRATIONS.length - 1],
+  ]);
+});
+
+/**
+ * Regression test for the production incident: the expected-migrations list
+ * was hand-maintained, stopped at 0035, and reported a false green while the
+ * database was missing 0042 — whose absent columns produced P2022
+ * "column does not exist" 500s.
+ */
+test("migration manifest covers the CMS migration that caused the P2022 incident", () => {
+  assert.ok(
+    EXPECTED_PRODUCTION_MIGRATIONS.includes("0042_site_content_cms"),
+    "0042_site_content_cms must be in the manifest or readyz cannot detect the drift that broke production.",
   );
+
+  // A database stuck at 0035 must now be reported as drifted, not healthy.
+  const stuckAt0035 = EXPECTED_PRODUCTION_MIGRATIONS.slice(
+    0,
+    EXPECTED_PRODUCTION_MIGRATIONS.indexOf("0035_contract_template_version_locking") + 1,
+  );
+  const missing = getMissingExpectedMigrations([...stuckAt0035]);
+
+  assert.ok(missing.length > 0, "A database behind the code must never report zero missing migrations.");
+  assert.ok(missing.includes("0042_site_content_cms"));
+});
+
+test("migration manifest is generated, sorted, and free of duplicates", () => {
+  const names = [...EXPECTED_PRODUCTION_MIGRATIONS];
+
+  assert.ok(names.length > 40, "Manifest looks truncated; regenerate it.");
+  assert.equal(new Set(names).size, names.length, "Duplicate migration names in the manifest.");
+  assert.deepEqual(names, [...names].sort((a, b) => a.localeCompare(b)));
 });
