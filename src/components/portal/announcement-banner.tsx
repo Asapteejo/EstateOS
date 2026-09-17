@@ -66,7 +66,7 @@ export function AnnouncementBanner({ items }: { items: AnnouncementNotice[] }) {
             type="button"
             aria-label="Dismiss announcement"
             onClick={() => dismiss(item.id)}
-            className="admin-focus grid h-7 w-7 shrink-0 place-items-center rounded-full text-[var(--ink-500)] transition-colors hover:bg-[var(--surface-1,#fff)] hover:text-[var(--ink-900)]"
+            className="admin-focus grid h-11 w-11 shrink-0 place-items-center rounded-full sm:h-7 sm:w-7 text-[var(--ink-500)] transition-colors hover:bg-[var(--surface-1,#fff)] hover:text-[var(--ink-900)]"
           >
             <X className="h-4 w-4" />
           </button>

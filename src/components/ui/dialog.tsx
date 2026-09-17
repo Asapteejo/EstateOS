@@ -132,7 +132,7 @@ export function Dialog({
           <button
             type="button"
             onClick={onClose}
-            className="admin-interactive admin-focus -mr-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--ink-500)] hover:bg-[var(--sand-100)] hover:text-[var(--ink-900)]"
+            className="admin-interactive admin-focus -mr-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--radius-sm)] text-[var(--ink-500)] hover:bg-[var(--sand-100)] hover:text-[var(--ink-900)] sm:h-9 sm:w-9"
           >
             <span className="sr-only">Close dialog</span>
             <svg
@@ -150,7 +150,14 @@ export function Dialog({
             </svg>
           </button>
         </div>
-        <div className="min-h-0 overflow-y-auto px-6 py-5">{children}</div>
+        {/* As a bottom sheet the panel runs to the screen edge, so the last
+            control would sit under the home indicator without the safe-area
+            inset. Desktop (where the panel floats) needs no extra padding. */}
+        <div
+          className="min-h-0 overflow-y-auto px-6 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-5"
+        >
+          {children}
+        </div>
       </div>
     </div>,
     document.body,
@@ -166,7 +173,14 @@ export function DialogFooter({
   className?: string;
 }) {
   return (
-    <div className={cn("mt-5 flex flex-wrap items-center justify-end gap-3", className)}>
+    // Phones stack the actions full-width (primary last, nearest the thumb);
+    // from `sm` up they return to the right-aligned desktop row.
+    <div
+      className={cn(
+        "mt-5 flex flex-col-reverse gap-3 [&>button]:w-full sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:[&>button]:w-auto",
+        className,
+      )}
+    >
       {children}
     </div>
   );

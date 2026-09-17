@@ -23,7 +23,7 @@ import type { AppRole } from "@prisma/client";
 const PROVISION_INITIAL: ProvisionUserResult | null = null;
 
 const inputCls =
-  "admin-focus w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm text-[var(--ink-900)] placeholder:text-[var(--ink-400)]";
+  "admin-focus w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white min-h-11 px-3 py-2 text-base sm:text-sm text-[var(--ink-900)] placeholder:text-[var(--ink-400)]";
 const labelCls = "block text-xs font-medium uppercase tracking-[0.12em] text-[var(--ink-500)]";
 
 const PROVISIONABLE_ROLES: Array<{ value: AppRole; label: string }> = [

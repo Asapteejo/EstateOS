@@ -8,7 +8,7 @@ import { createThreadAction, type MessageFormState } from "@/modules/messaging/a
 const INITIAL: MessageFormState = { ok: false, error: null };
 
 const inputClass =
-  "admin-focus w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm text-[var(--ink-900)] placeholder:text-[var(--ink-400)]";
+  "admin-focus w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white min-h-11 px-3 py-2 text-base sm:text-sm text-[var(--ink-900)] placeholder:text-[var(--ink-400)]";
 
 function StartButton() {
   const { pending } = useFormStatus();

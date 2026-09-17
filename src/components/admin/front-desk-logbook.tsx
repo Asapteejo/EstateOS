@@ -10,7 +10,7 @@ import { WhatsAppButton } from "@/components/shared/whatsapp-button";
 import { Select } from "@/components/ui/select";
 
 const inputClass =
-  "admin-focus w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white px-3 py-2 text-sm text-[var(--ink-900)] placeholder:text-[var(--ink-400)]";
+  "admin-focus w-full rounded-[var(--radius-md)] border border-[var(--line)] bg-white min-h-11 px-3 py-2 text-base sm:text-sm text-[var(--ink-900)] placeholder:text-[var(--ink-400)]";
 const buttonClass =
   "admin-focus inline-flex items-center justify-center gap-1.5 rounded-[var(--radius-md)] bg-[var(--brand-700)] px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--brand-800,#15803d)]";
 
@@ -45,7 +45,7 @@ export function FrontDeskLogbookView({ logbook }: { logbook: FrontDeskLogbook })
           </h2>
           <form action={logVisitorAction} className="mt-4 grid gap-3 sm:grid-cols-2">
             <input name="fullName" required placeholder="Full name *" className={`${inputClass} sm:col-span-2`} aria-label="Visitor full name" />
-            <input name="phone" placeholder="Phone" className={inputClass} aria-label="Visitor phone" />
+            <input name="phone" type="tel" autoComplete="tel" placeholder="Phone" className={inputClass} aria-label="Visitor phone" />
             <input name="hostName" placeholder="Here to see" className={inputClass} aria-label="Host name" />
             <input name="purpose" placeholder="Purpose of visit" className={`${inputClass} sm:col-span-2`} aria-label="Purpose of visit" />
             <div className="sm:col-span-2">
@@ -105,7 +105,7 @@ export function FrontDeskLogbookView({ logbook }: { logbook: FrontDeskLogbook })
           </h2>
           <form action={logCallAction} className="mt-4 grid gap-3 sm:grid-cols-2">
             <input name="callerName" required placeholder="Caller name *" className={inputClass} aria-label="Caller name" />
-            <input name="phone" placeholder="Phone" className={inputClass} aria-label="Caller phone" />
+            <input name="phone" type="tel" autoComplete="tel" placeholder="Phone" className={inputClass} aria-label="Caller phone" />
             <Select name="direction" defaultValue="INBOUND" className="w-full" aria-label="Call direction">
               <option value="INBOUND">Inbound</option>
               <option value="OUTBOUND">Outbound</option>

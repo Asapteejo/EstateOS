@@ -86,7 +86,7 @@ export function MarketingFooter({
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={label}
-                  className="admin-focus footer-link inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--line)] text-[var(--ink-600)] hover:border-[var(--brand-500)] hover:text-[var(--brand-700)]"
+                  className="admin-focus footer-link inline-flex h-11 w-11 items-center sm:h-10 sm:w-10 justify-center rounded-full border border-[var(--line)] text-[var(--ink-600)] hover:border-[var(--brand-500)] hover:text-[var(--brand-700)]"
                 >
                   <Icon className="h-4.5 w-4.5" aria-hidden="true" />
                 </a>
@@ -99,9 +99,9 @@ export function MarketingFooter({
             Explore
           </h4>
           <div className="space-y-2 text-sm text-[var(--ink-700)]">
-            <Link href="/properties" className="footer-link admin-focus block w-fit rounded">Listings</Link>
-            <Link href={buyerPortalHref} className="footer-link admin-focus block w-fit rounded">Buyer Portal</Link>
-            <Link href={adminPortalHref} className="footer-link admin-focus block w-fit rounded">Admin Dashboard</Link>
+            <Link href="/properties" className="footer-link admin-focus inline-flex min-h-11 w-fit items-center rounded sm:min-h-0">Listings</Link>
+            <Link href={buyerPortalHref} className="footer-link admin-focus inline-flex min-h-11 w-fit items-center rounded sm:min-h-0">Buyer Portal</Link>
+            <Link href={adminPortalHref} className="footer-link admin-focus inline-flex min-h-11 w-fit items-center rounded sm:min-h-0">Admin Dashboard</Link>
           </div>
         </div>
         <div className="space-y-3">
@@ -109,12 +109,12 @@ export function MarketingFooter({
             Company
           </h4>
           <div className="space-y-2 text-sm text-[var(--ink-700)]">
-            <Link href="/about" className="footer-link admin-focus block w-fit rounded">About</Link>
-            <Link href="/team" className="footer-link admin-focus block w-fit rounded">Team</Link>
+            <Link href="/about" className="footer-link admin-focus inline-flex min-h-11 w-fit items-center rounded sm:min-h-0">About</Link>
+            <Link href="/team" className="footer-link admin-focus inline-flex min-h-11 w-fit items-center rounded sm:min-h-0">Team</Link>
             {showCareers ? (
-              <Link href="/careers" className="footer-link admin-focus block w-fit rounded">Careers</Link>
+              <Link href="/careers" className="footer-link admin-focus inline-flex min-h-11 w-fit items-center rounded sm:min-h-0">Careers</Link>
             ) : null}
-            <Link href="/contact" className="footer-link admin-focus block w-fit rounded">Contact</Link>
+            <Link href="/contact" className="footer-link admin-focus inline-flex min-h-11 w-fit items-center rounded sm:min-h-0">Contact</Link>
           </div>
         </div>
       </Container>

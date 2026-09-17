@@ -62,11 +62,23 @@ export default async function PropertiesPage({
       </Reveal>
       <form className="space-y-4" method="GET">
         <Card className="space-y-4 p-5">
-          <div className="flex items-center gap-2 text-sm font-semibold text-[var(--ink-700)]">
+          {/* On a phone these six fields pushed every listing below the fold,
+              so they collapse behind a toggle and buyers see inventory first.
+              Checkbox + peer is used rather than <details> or JS so the panel
+              works server-rendered, and it is force-open from `md` up. The
+              checkbox has no name, so it is never submitted with the form. */}
+          <input type="checkbox" id="refine-listings" className="peer sr-only" />
+          <label
+            htmlFor="refine-listings"
+            className="admin-focus flex min-h-11 cursor-pointer items-center gap-2 text-sm font-semibold text-[var(--ink-700)] md:cursor-default"
+          >
             <SlidersHorizontal className="h-4 w-4 text-[var(--brand-700)]" aria-hidden />
             Refine listings
-          </div>
-          <div className="grid gap-4 lg:grid-cols-4">
+            <span className="ml-auto text-xs font-medium text-[var(--ink-500)] md:hidden">
+              Tap to {activeFilters.length > 0 ? "edit" : "filter"}
+            </span>
+          </label>
+          <div className="hidden grid-cols-1 gap-4 peer-checked:grid md:grid lg:grid-cols-4">
           <PropertyLocationSearch
             defaultLocation={filters.location}
             defaultLatitude={filters.latitude}
@@ -98,22 +110,24 @@ export default async function PropertiesPage({
             <option value="RESERVED">Reserved</option>
             <option value="SOLD">Sold</option>
           </Select>
-          <label className="flex items-center gap-3 rounded-2xl border border-[var(--line)] px-4 text-sm text-[var(--ink-700)]">
-            <input type="checkbox" name="hasPaymentPlan" value="true" defaultChecked={Boolean(filters.hasPaymentPlan)} />
+          <label className="flex min-h-11 items-center gap-3 rounded-2xl border border-[var(--line)] px-4 py-3 text-sm text-[var(--ink-700)]">
+            <input type="checkbox" name="hasPaymentPlan" value="true" className="h-5 w-5" defaultChecked={Boolean(filters.hasPaymentPlan)} />
             Payment plan available
           </label>
-          <label className="flex items-center gap-3 rounded-2xl border border-[var(--line)] px-4 text-sm text-[var(--ink-700)]">
-            <input type="checkbox" name="featured" value="true" defaultChecked={Boolean(filters.featured)} />
+          <label className="flex min-h-11 items-center gap-3 rounded-2xl border border-[var(--line)] px-4 py-3 text-sm text-[var(--ink-700)]">
+            <input type="checkbox" name="featured" value="true" className="h-5 w-5" defaultChecked={Boolean(filters.featured)} />
             Featured only
           </label>
           </div>
+          {/* Sibling of the peer checkbox so the actions collapse with the
+              fields they apply to, instead of floating above the listings. */}
+          <div className="hidden flex-wrap gap-3 peer-checked:flex md:flex">
+            <Button type="submit">Apply filters</Button>
+            <Link href="/properties">
+              <Button type="button" variant="outline">Reset</Button>
+            </Link>
+          </div>
         </Card>
-        <div className="flex flex-wrap gap-3">
-          <Button type="submit">Apply filters</Button>
-          <Link href="/properties">
-            <Button type="button" variant="outline">Reset</Button>
-          </Link>
-        </div>
       </form>
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-sm font-semibold text-[var(--ink-950)]">
