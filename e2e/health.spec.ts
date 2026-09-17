@@ -1,6 +1,19 @@
 import { expect, test } from "@playwright/test";
 
 /**
+ * These checks call the API from Node, not from the browser, so Chromium's
+ * `--host-resolver-rules` mapping for the `<tenant>.localhost` host does not
+ * apply and Node's resolver would fail on platforms that do not resolve
+ * *.localhost (Windows). The health endpoints are not tenant-specific, so the
+ * local runs talk to loopback directly; a deployed target is used unchanged.
+ */
+function healthUrl(path: string) {
+  const base = process.env.E2E_BASE_URL ?? "http://acme-realty.localhost:3000";
+  const resolved = base.includes(".localhost") ? "http://127.0.0.1:3000" : base;
+  return `${resolved.replace(/\/$/, "")}${path}`;
+}
+
+/**
  * Deployment health gates.
  *
  * The first test here is the one that matters most: it is the check that would
@@ -13,7 +26,7 @@ import { expect, test } from "@playwright/test";
  */
 
 test("database has every migration the deployed code expects", async ({ request }) => {
-  const response = await request.get("/api/readyz");
+  const response = await request.get(healthUrl("/api/readyz"));
 
   expect(
     response.status(),
@@ -34,12 +47,12 @@ test("database has every migration the deployed code expects", async ({ request 
 });
 
 test("liveness endpoint responds", async ({ request }) => {
-  const response = await request.get("/api/health");
+  const response = await request.get(healthUrl("/api/health"));
   expect(response.status()).toBe(200);
 });
 
 test("readyz never leaks credentials", async ({ request }) => {
-  const response = await request.get("/api/readyz");
+  const response = await request.get(healthUrl("/api/readyz"));
   const raw = await response.text();
 
   // Host names are fine; secrets are not.
