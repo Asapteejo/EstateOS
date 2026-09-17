@@ -100,6 +100,70 @@ async function lookupCompany(
   return null;
 }
 
+/**
+ * Development-only guidance for the single most common local confusion:
+ * `npm run dev` + http://localhost:3000 renders the PLATFORM marketing site,
+ * not a tenant site, and the log line above ("no-tenant-host-match") does not
+ * say what to do about it.
+ *
+ * The reason is deliberate and must not be softened: public pages resolve the
+ * tenant from the HOST. DEFAULT_COMPANY_SLUG is applied to authenticated areas
+ * only (see `resolvedCompany` above), so it can never leak one tenant's public
+ * site onto another host in production. Locally that means the host has to
+ * name the tenant.
+ *
+ * Logged once per host per server process so it guides without spamming, and
+ * it names the companies actually present so a missing seed is obvious.
+ */
+const loggedTenantFallbackHosts = new Set<string>();
+
+async function logLocalTenantFallbackHint(host: string | null, devTenantSlug: string | null) {
+  if (featureFlags.isProduction) {
+    return;
+  }
+
+  const key = host ?? "(no host)";
+  if (loggedTenantFallbackHosts.has(key)) {
+    return;
+  }
+  loggedTenantFallbackHosts.add(key);
+
+  let knownSlugs: string[] = [];
+  if (featureFlags.hasDatabase) {
+    try {
+      const companies = await prisma.company.findMany({
+        select: { slug: true },
+        orderBy: { createdAt: "asc" },
+        take: 5,
+      });
+      knownSlugs = companies.map((company) => company.slug);
+    } catch {
+      // The hint is best-effort; a database problem is reported elsewhere.
+    }
+  }
+
+  const example = devTenantSlug ?? knownSlugs[0] ?? "<company-slug>";
+  const nextStep =
+    knownSlugs.length === 0
+      ? "This database has no companies yet — run `npm run db:seed` first."
+      : `Companies in this database: ${knownSlugs.join(", ")}.`;
+
+  logWarn(
+    `No tenant site matched host "${key}", so the platform marketing page is being rendered. ` +
+      "Public pages resolve the tenant from the host; DEFAULT_COMPANY_SLUG applies to signed-in areas only, " +
+      "which is why plain localhost never shows a tenant site. " +
+      `${nextStep} ` +
+      `To open a tenant site locally use http://localhost:3000/?devTenant=${example} ` +
+      `(needs DEV_ACCESS_MODE=true) or http://${example}.localhost:3000.`,
+    {
+      route: "/",
+      host: key,
+      step: "tenant-host-resolution",
+      knownCompanySlugs: knownSlugs,
+    },
+  );
+}
+
 export async function resolveCompanyForTenantHint(input: {
   companySlug?: string | null;
   host?: string | null;
@@ -285,6 +349,10 @@ async function resolveTenantContextUncached(
             ? "no-tenant-host-match"
             : null,
     });
+
+    if (!resolvedCompany) {
+      await logLocalTenantFallbackHint(host, devTenantSlug);
+    }
   }
 
   if (!session) {
