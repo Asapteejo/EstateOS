@@ -122,13 +122,18 @@ jobs:
       - name: Build
         run: npm run build
 
-      # NODE_ENV=test keeps the dev-session bypass available on a production
-      # build (see allowDevBypass in src/lib/config.ts), so the authenticated
-      # sweep still runs instead of skipping itself.
+      # NODE_ENV stays "development" so the dev-session bypass is available on
+      # a production build (allowDevBypass in src/lib/config.ts) and the
+      # authenticated sweep runs instead of skipping itself.
+      #
+      # Not "test": Next deliberately skips .env.local under NODE_ENV=test, so
+      # the same command run on a developer's machine would start a server with
+      # no DATABASE_URL and report every migration missing — a confusing false
+      # failure. CI passes its database in through the job env either way.
       - name: Run E2E smoke suite
         run: npm run e2e
         env:
-          NODE_ENV: test
+          NODE_ENV: development
           E2E_SERVER_COMMAND: npm run start
 
       - name: Upload Playwright report
