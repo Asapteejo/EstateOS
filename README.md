@@ -702,8 +702,42 @@ Local demo mode is only available when `ESTATEOS_ENABLE_DEV_BYPASS=true`. It is 
 Local development keeps the central-auth architecture easy to test:
 
 - `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_PLATFORM_BASE_URL`, and `NEXT_PUBLIC_PORTAL_BASE_URL` can all stay on localhost.
-- tenant public pages can still use `DEFAULT_COMPANY_SLUG` in development without requiring multi-domain DNS.
+- `DEFAULT_COMPANY_SLUG` gives signed-in areas (`/admin`, `/portal`) a tenant without multi-domain DNS. It does **not** apply to public pages — see below.
 - central auth redirect helpers collapse back to the same localhost origin when portal and platform share the same dev host.
+
+### Opening A Tenant Site Locally
+
+`npm run dev` and then http://localhost:3000 renders the **platform** marketing
+page, not a tenant site. That is correct behavior, not a broken database:
+public pages resolve the tenant from the **host**, and `DEFAULT_COMPANY_SLUG`
+is deliberately not consulted for them, so a fallback can never serve one
+tenant's public site on another host in production.
+
+Use either of these instead (the dev server also prints this hint, naming the
+companies present in your database, whenever it falls back to the platform page):
+
+```bash
+# 1. Query parameter — needs DEV_ACCESS_MODE=true in .env.local
+http://localhost:3000/?devTenant=acme-realty
+
+# 2. Tenant host — no env flag needed; *.localhost resolves to loopback in
+#    most browsers, otherwise add "127.0.0.1 acme-realty.localhost" to your
+#    hosts file
+http://acme-realty.localhost:3000
+```
+
+Option 1 is the intended day-to-day workflow. Option 2 is the closer match to
+production, because it exercises the same host-based resolution that a real
+tenant domain uses, and it is what the E2E suite drives.
+
+If the hint reports that no companies exist, the database simply has not been
+seeded:
+
+```bash
+createdb estateos_dev          # or: psql -c "CREATE DATABASE estateos_dev"
+npm run db:migrate:deploy      # applies prisma/migrations to that database
+npm run db:seed                # creates the acme-realty demo tenant
+```
 
 ## Database Setup (Supabase)
 
