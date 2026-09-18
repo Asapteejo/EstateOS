@@ -98,7 +98,7 @@ export function MarketingFooter({
           <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--ink-500)]">
             Explore
           </h4>
-          <div className="space-y-2 text-sm text-[var(--ink-700)]">
+          <div className="flex flex-col items-start gap-1 text-sm text-[var(--ink-700)]">
             <Link href="/properties" className="footer-link admin-focus inline-flex min-h-11 w-fit items-center rounded sm:min-h-0">Listings</Link>
             <Link href={buyerPortalHref} className="footer-link admin-focus inline-flex min-h-11 w-fit items-center rounded sm:min-h-0">Buyer Portal</Link>
             <Link href={adminPortalHref} className="footer-link admin-focus inline-flex min-h-11 w-fit items-center rounded sm:min-h-0">Admin Dashboard</Link>
@@ -108,7 +108,7 @@ export function MarketingFooter({
           <h4 className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--ink-500)]">
             Company
           </h4>
-          <div className="space-y-2 text-sm text-[var(--ink-700)]">
+          <div className="flex flex-col items-start gap-1 text-sm text-[var(--ink-700)]">
             <Link href="/about" className="footer-link admin-focus inline-flex min-h-11 w-fit items-center rounded sm:min-h-0">About</Link>
             <Link href="/team" className="footer-link admin-focus inline-flex min-h-11 w-fit items-center rounded sm:min-h-0">Team</Link>
             {showCareers ? (
