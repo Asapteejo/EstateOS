@@ -20,8 +20,11 @@ export function PropertyCard({ property }: { property: PropertySummary }) {
     .filter(Boolean);
 
   return (
-    <Card className="group overflow-hidden transition-[transform,box-shadow] duration-300 ease-[var(--ease-out)] hover:-translate-y-1 hover:shadow-[var(--shadow-md)]">
-      <div className="relative h-72 overflow-hidden">
+    // Flex column + clamped text: card height used to track content length, so
+    // one verbose listing stretched every sibling in the row. The price/CTA row
+    // is pushed to the bottom (mt-auto below) so cards line up.
+    <Card className="group flex h-full flex-col overflow-hidden transition-[transform,box-shadow] duration-300 ease-[var(--ease-out)] hover:-translate-y-1 hover:shadow-[var(--shadow-md)]">
+      <div className="relative aspect-[4/3] overflow-hidden">
         <OptimizedImage
           src={property.images[0]}
           alt={property.title}
@@ -40,23 +43,23 @@ export function PropertyCard({ property }: { property: PropertySummary }) {
           ) : null}
         </div>
       </div>
-      <div className="space-y-4 p-6">
+      <div className="flex flex-1 flex-col gap-4 p-6">
         <div className="space-y-2">
-          <div className="text-sm text-[var(--ink-500)]">{property.locationSummary}</div>
-          <h3 className="font-serif text-2xl text-[var(--ink-950)]">{property.title}</h3>
-          <p className="text-sm leading-6 text-[var(--ink-600)]">{property.shortDescription}</p>
+          <div className="line-clamp-1 text-sm text-[var(--ink-500)]">{property.locationSummary}</div>
+          <h3 className="line-clamp-2 font-serif text-2xl text-[var(--ink-950)]">{property.title}</h3>
+          <p className="line-clamp-3 text-sm leading-6 text-[var(--ink-600)]">{property.shortDescription}</p>
           {/* verification.label carries internal states ("Listing hidden",
               "Verification required"). Only the verified case is shown. */}
           {property.verification.status === "VERIFIED" ? (
             <p className="text-xs font-medium text-[var(--ink-500)]">{property.verification.label}</p>
           ) : null}
         </div>
-        <div className="flex items-center justify-between text-sm text-[var(--ink-700)]">
+        <div className="flex items-center justify-between gap-3 text-sm text-[var(--ink-700)]">
           {isLand ? (
             <>
-              <span>{property.landSizeSqm ? `${property.landSizeSqm} sqm` : "Land"}</span>
-              <span>{property.numberOfPlots ? `${property.numberOfPlots} plot${property.numberOfPlots === 1 ? "" : "s"}` : "Plots"}</span>
-              <span>{landSizes.length > 0 ? landSizes.slice(0, 2).join(", ") : "Flexible sizes"}</span>
+              <span className="whitespace-nowrap">{property.landSizeSqm ? `${property.landSizeSqm} sqm` : "Land"}</span>
+              <span className="whitespace-nowrap">{property.numberOfPlots ? `${property.numberOfPlots} plot${property.numberOfPlots === 1 ? "" : "s"}` : "Plots"}</span>
+              <span className="truncate">{landSizes.length > 0 ? landSizes.slice(0, 2).join(", ") : "Flexible sizes"}</span>
             </>
           ) : (
             <>
@@ -66,7 +69,7 @@ export function PropertyCard({ property }: { property: PropertySummary }) {
             </>
           )}
         </div>
-        <div className="flex items-end justify-between">
+        <div className="mt-auto flex items-end justify-between gap-3">
           <div>
             <div className="text-xs uppercase tracking-[0.18em] text-[var(--ink-500)]">
               Starting from
