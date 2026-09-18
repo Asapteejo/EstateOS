@@ -105,69 +105,20 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
                     {siteContent.hero.subhead}
                   </p>
                 </div>
+                {/* One primary action. The secondary route (marketers) lives
+                    in its own section further down, and the header already
+                    carries the portal link — three CTAs here competed with the
+                    search, which is the actual front door. */}
                 <div className="flex flex-wrap gap-3">
                   <Magnetic>
                     <Link href={siteContent.hero.primaryCta.href}>
-                      <Button>{siteContent.hero.primaryCta.label}</Button>
+                      <Button size="lg">{siteContent.hero.primaryCta.label}</Button>
                     </Link>
                   </Magnetic>
                   <Link href={siteContent.hero.secondaryCta.href}>
-                    <Button variant="outline">{siteContent.hero.secondaryCta.label}</Button>
-                  </Link>
-                  <Link href="/team">
-                    <Button variant="ghost">View marketers</Button>
+                    <Button variant="ghost">{siteContent.hero.secondaryCta.label}</Button>
                   </Link>
                 </div>
-                {/* Property search — the front door of a real estate site.
-                    Plain GET form to /properties, matching its filter params. */}
-                <form
-                  action="/properties"
-                  method="GET"
-                  className="grid gap-3 rounded-[24px] border border-[var(--line)] bg-white/85 p-4 backdrop-blur sm:grid-cols-[1.4fr_1fr_1fr_auto]"
-                  aria-label="Search properties"
-                >
-                  <Input
-                    type="search"
-                    name="location"
-                    placeholder="City, state, or estate name…"
-                    aria-label="Location"
-                  />
-                  <Select name="propertyType" defaultValue="" aria-label="Property type" className="w-full">
-                    <option value="">Any type</option>
-                    <option value="APARTMENT">Apartment</option>
-                    <option value="DUPLEX">Duplex</option>
-                    <option value="TERRACE">Terrace</option>
-                    <option value="DETACHED">Detached</option>
-                    <option value="SEMI_DETACHED">Semi-detached</option>
-                    <option value="LAND">Land</option>
-                    <option value="COMMERCIAL">Commercial</option>
-                  </Select>
-                  <Input
-                    type="number"
-                    name="maxPrice"
-                    min="1"
-                    placeholder="Max budget (NGN)"
-                    aria-label="Maximum budget"
-                  />
-                  <Button type="submit" className="whitespace-nowrap">Search</Button>
-                </form>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                {[
-                  [siteContent.heroStats.inventoryLabel, latestInventory.total, siteContent.heroStats.inventoryNote],
-                  [siteContent.heroStats.marketersLabel, leaderboard.length, siteContent.heroStats.marketersNote],
-                  [siteContent.heroStats.trustLabel, testimonials.length, siteContent.heroStats.trustNote],
-                ].map(([label, value, note]) => (
-                  <Card key={String(label)} className="rounded-[26px] border-[var(--line)] bg-white/85 p-5 backdrop-blur">
-                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-500)]">
-                      {label}
-                    </div>
-                    <div className="mt-2 text-3xl font-semibold text-[var(--ink-950)]">
-                      {value}
-                    </div>
-                    <p className="mt-2 text-sm leading-6 text-[var(--ink-600)]">{note}</p>
-                  </Card>
-                ))}
               </div>
             </div>
             <div className="flex flex-col gap-5">
@@ -194,25 +145,89 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
                   </div>
                 </div>
               </div>
-              <Card className="rounded-[28px] border-[var(--line)] bg-white p-6">
-                <div className="space-y-2">
-                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-500)]">
-                    {siteContent.journey.heading}
-                  </div>
-                </div>
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                  {siteContent.journey.steps.map((step, index) => (
-                    <div key={step.title} className="rounded-[22px] border border-[var(--line)] bg-[var(--tenant-surface)] p-4">
-                      <div className="text-sm font-semibold text-[var(--brand-700)]">0{index + 1}</div>
-                      <div className="mt-2 text-base font-semibold text-[var(--ink-950)]">{step.title}</div>
-                      <p className="mt-2 text-sm leading-6 text-[var(--ink-600)]">{step.description}</p>
-                    </div>
-                  ))}
-                </div>
-              </Card>
             </div>
           </div>
+
+          {/* Search spans the hero's full width instead of sharing the text
+              column with the headline, which is what clipped the placeholders
+              ("City, state, or estate r", "Max budget ("). */}
+          <div className="border-t border-[var(--line)]/70 px-6 pb-8 pt-6 lg:px-10">
+            <form
+              action="/properties"
+              method="GET"
+              className="grid gap-3 rounded-[24px] border border-[var(--line)] bg-white/85 p-4 backdrop-blur md:grid-cols-[1.6fr_1fr_1fr_auto]"
+              aria-label="Search properties"
+            >
+              <Input
+                type="search"
+                name="location"
+                placeholder="City or area"
+                aria-label="Location"
+              />
+              <Select name="propertyType" defaultValue="" aria-label="Property type" className="w-full">
+                <option value="">Any type</option>
+                <option value="APARTMENT">Apartment</option>
+                <option value="DUPLEX">Duplex</option>
+                <option value="TERRACE">Terrace</option>
+                <option value="DETACHED">Detached</option>
+                <option value="SEMI_DETACHED">Semi-detached</option>
+                <option value="LAND">Land</option>
+                <option value="COMMERCIAL">Commercial</option>
+              </Select>
+              <Input
+                type="number"
+                name="maxPrice"
+                min="1"
+                placeholder="Max budget"
+                aria-label="Maximum budget"
+              />
+              <Button type="submit" className="whitespace-nowrap">Search</Button>
+            </form>
+          </div>
         </section>
+
+        {/* Trust strip — only real numbers. A brand-new tenant otherwise
+            advertised "EXPERT MARKETERS 0 / HAPPY CLIENTS 0" in large type
+            above the fold, which is worse than showing nothing. A card with a
+            zero count is dropped, and the strip disappears entirely if fewer
+            than two survive. Labels and notes stay CMS-editable. */}
+        {(() => {
+          const stats = [
+            {
+              label: siteContent.heroStats.inventoryLabel,
+              value: latestInventory.total,
+              note: siteContent.heroStats.inventoryNote,
+            },
+            {
+              label: siteContent.heroStats.marketersLabel,
+              value: leaderboard.length,
+              note: siteContent.heroStats.marketersNote,
+            },
+            {
+              label: siteContent.heroStats.trustLabel,
+              value: testimonials.length,
+              note: siteContent.heroStats.trustNote,
+            },
+          ].filter((stat) => stat.value > 0);
+
+          if (stats.length < 2) {
+            return null;
+          }
+
+          return (
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {stats.map((stat) => (
+                <Card key={String(stat.label)} className="rounded-[26px] border-[var(--line)] bg-white/85 p-5 backdrop-blur">
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-500)]">
+                    {stat.label}
+                  </div>
+                  <div className="mt-2 text-3xl font-semibold text-[var(--ink-950)]">{stat.value}</div>
+                  <p className="mt-2 text-sm leading-6 text-[var(--ink-600)]">{stat.note}</p>
+                </Card>
+              ))}
+            </div>
+          );
+        })()}
       </Container>
 
       <Container className="space-y-14">
@@ -243,6 +258,32 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
               <Button variant="outline">Meet the marketers</Button>
             </Link>
           </div>
+          </section>
+        </Reveal>
+
+        {/* How it works — moved out of the hero's 0.8fr sidebar, where three
+            cards shared ~121px each and the copy broke to one word per line.
+            A primary trust explainer earns the full measure. */}
+        <Reveal>
+          <section className="space-y-8">
+            {/* No eyebrow badge here: the CMS heading is itself the section
+                name ("How it works" by default), so a badge above it just
+                repeats the words. Typography matches SectionHeading's title. */}
+            <h2 className="max-w-2xl font-serif text-3xl text-[var(--ink-950)] sm:text-4xl">
+              {siteContent.journey.heading}
+            </h2>
+            <div className="grid gap-4 md:grid-cols-3">
+              {siteContent.journey.steps.map((step, index) => (
+                <Card
+                  key={step.title}
+                  className="flex h-full flex-col rounded-[28px] border-[var(--line)] bg-[var(--tenant-surface)] p-6"
+                >
+                  <div className="text-sm font-semibold text-[var(--brand-700)]">0{index + 1}</div>
+                  <div className="mt-3 font-serif text-xl text-[var(--ink-950)]">{step.title}</div>
+                  <p className="mt-3 text-sm leading-7 text-[var(--ink-600)]">{step.description}</p>
+                </Card>
+              ))}
+            </div>
           </section>
         </Reveal>
 
