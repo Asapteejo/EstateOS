@@ -182,7 +182,7 @@ function audienceRoleNames(audience: AnnouncementAudience): AppRole[] {
  * Fan out a published announcement to its audience over WhatsApp. Runs from a
  * background job (see the `announcement/published` Inngest function) so a large
  * recipient set never blocks the request. Each send goes through the shared
- * Twilio + wallet layer, which no-ops safely when unconfigured — so this is a
+ * Twilio + wallet layer, which no-ops safely when unconfigured, so this is a
  * best-effort broadcast that activates once WhatsApp credentials + credit exist.
  */
 export async function broadcastAnnouncementWhatsApp(

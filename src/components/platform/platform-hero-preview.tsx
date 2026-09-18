@@ -5,7 +5,7 @@ import { CheckCircle2, ReceiptText } from "lucide-react";
  *
  * A light "operator view" panel that floats on the dark hero gradient so the
  * landing page *shows* the product instead of only describing it. All data here
- * is illustrative sample UI (not real tenant data) — it exists purely to convey
+ * is illustrative sample UI (not real tenant data), it exists purely to convey
  * what the deal board and payment flow look like.
  *
  * Purely presentational and server-rendered (no client JS). Entrance motion is

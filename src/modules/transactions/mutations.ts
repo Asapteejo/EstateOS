@@ -414,8 +414,8 @@ export async function updateReservationStatusForAdmin(
       trigger: `reservation.${input.status.toLowerCase()}`,
       buildBody: (firstName) =>
         input.status === "CONVERTED"
-          ? `Hi ${firstName}, congratulations — your reservation has converted to a sale. Your team will guide you through the next steps.`
-          : `Hi ${firstName}, good news — your reservation is now confirmed. Open your portal for the details.`,
+          ? `Hi ${firstName}, congratulations, your reservation has converted to a sale. Your team will guide you through the next steps.`
+          : `Hi ${firstName}, good news, your reservation is now confirmed. Open your portal for the details.`,
       metadata: { reservationId } as Prisma.InputJsonValue,
     });
   }

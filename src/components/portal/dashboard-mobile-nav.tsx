@@ -10,8 +10,8 @@ import { Avatar } from "@/components/ui/avatar";
 /**
  * Mobile/tablet (below `lg`) navigation for the dashboard shell.
  *
- * Replaces the stacked tile grid of nav links — which previously pushed the
- * actual page content far down the screen on small viewports — with a sticky
+ * Replaces the stacked tile grid of nav links, which previously pushed the
+ * actual page content far down the screen on small viewports, with a sticky
  * top bar (company identity + menu button) plus a slide-in drawer that holds
  * the full navigation. The drawer renders the same grouped, collapsible nav
  * (SidebarNavGroups) as the desktop sidebar, so the two surfaces never drift.
@@ -101,7 +101,7 @@ export function DashboardMobileNav({
 
   return (
     <>
-      {/* Sticky top bar — this element is itself the grid item, so `sticky`
+      {/* Sticky top bar, this element is itself the grid item, so `sticky`
           pins it against the tall grid container as the page scrolls. Identity
           on the left, menu trigger on the right. Hidden on desktop (`lg`). */}
       <div className="sticky top-0 z-40 -mx-5 flex items-center justify-between gap-3 border-b border-[var(--tenant-nav-border)] bg-[var(--tenant-nav-surface)]/95 px-5 py-3 backdrop-blur supports-[backdrop-filter]:bg-[var(--tenant-nav-surface)]/80 sm:-mx-8 sm:px-8 lg:hidden">

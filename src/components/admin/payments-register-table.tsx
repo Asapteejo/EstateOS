@@ -18,7 +18,7 @@ export type PaymentRegisterRow = {
 };
 
 /**
- * Deal payment register for /admin/payments — the FINANCE team's daily
+ * Deal payment register for /admin/payments, the FINANCE team's daily
  * driver, migrated from a static bespoke table to the shared DataTable:
  * sortable columns, search across references/buyers/marketers, pagination
  * for long registers, and the receipt download link preserved as a cell.

@@ -347,9 +347,9 @@ export async function generateFeasibilityNarrative(
 
   const prompt = `You are a senior real estate development analyst. Write a 3-paragraph plain-English feasibility narrative for the project described below.
 
-Paragraph 1 — Viability summary: State whether the project is viable based on margin, ROI, and break-even cushion. Quote specific numbers.
-Paragraph 2 — Key risks and scenario triggers: Identify the 2–3 most significant risks from the warnings and downside scenario. Be specific about what numbers would change and why.
-Paragraph 3 — Recommended action with numbers: Give a direct recommendation — proceed, pause for revision, or abandon — with specific thresholds or conditions attached.
+Paragraph 1, Viability summary: State whether the project is viable based on margin, ROI, and break-even cushion. Quote specific numbers.
+Paragraph 2, Key risks and scenario triggers: Identify the 2–3 most significant risks from the warnings and downside scenario. Be specific about what numbers would change and why.
+Paragraph 3, Recommended action with numbers: Give a direct recommendation, proceed, pause for revision, or abandon, with specific thresholds or conditions attached.
 
 Use short, direct sentences. No bullet points. No headers. No markdown. Output only the three paragraphs separated by blank lines.
 
@@ -365,9 +365,9 @@ ROI: ${results.revenue.roiPercent.toFixed(1)}% | Margin: ${results.revenue.margi
 Target margin: ${form.requiredTargetProfitMarginRate}%
 Peak funding gap: ${fmt(results.phasing.peakFundingGap)}
 Payback month: ${results.phasing.paybackMonth != null ? `Month ${results.phasing.paybackMonth}` : "Not reached in plan window"}
-BASE scenario — ROI: ${baseScenario ? baseScenario.roiPercent.toFixed(1) + "%" : "n/a"}, Margin: ${baseScenario ? baseScenario.marginPercent.toFixed(1) + "%" : "n/a"}
-BEST scenario — ROI: ${bestScenario ? bestScenario.roiPercent.toFixed(1) + "%" : "n/a"}, Revenue: ${bestScenario ? fmt(bestScenario.estimatedRevenue) : "n/a"}
-WORST scenario — ROI: ${worstScenario ? worstScenario.roiPercent.toFixed(1) + "%" : "n/a"}, Margin: ${worstScenario ? worstScenario.marginPercent.toFixed(1) + "%" : "n/a"}
+BASE scenario, ROI: ${baseScenario ? baseScenario.roiPercent.toFixed(1) + "%" : "n/a"}, Margin: ${baseScenario ? baseScenario.marginPercent.toFixed(1) + "%" : "n/a"}
+BEST scenario, ROI: ${bestScenario ? bestScenario.roiPercent.toFixed(1) + "%" : "n/a"}, Revenue: ${bestScenario ? fmt(bestScenario.estimatedRevenue) : "n/a"}
+WORST scenario, ROI: ${worstScenario ? worstScenario.roiPercent.toFixed(1) + "%" : "n/a"}, Margin: ${worstScenario ? worstScenario.marginPercent.toFixed(1) + "%" : "n/a"}
 Warnings: ${results.warnings.length > 0 ? results.warnings.join("; ") : "None"}`;
 
   const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY!);

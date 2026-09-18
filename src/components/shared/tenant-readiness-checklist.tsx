@@ -18,8 +18,8 @@ const statusClasses = {
 
 /**
  * Readiness items owned by EstateOS itself (platform Paystack keys, R2 storage,
- * superadmin-only checks). A tenant admin can neither see nor action these — and
- * their action links point at /superadmin/*, which tenants cannot open — so they
+ * superadmin-only checks). A tenant admin can neither see nor action these, and
+ * their action links point at /superadmin/*, which tenants cannot open, so they
  * are hidden from the tenant audience and shown only to superadmins.
  */
 const PLATFORM_OWNERS = new Set(["Platform", "Superadmin"]);

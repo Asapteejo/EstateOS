@@ -19,7 +19,7 @@ const buttonVariants = cva(
       size: {
         default: "h-11 px-5",
         lg: "h-12 px-6",
-        // `sm` is the admin row-action size and was 36px everywhere — under the
+        // `sm` is the admin row-action size and was 36px everywhere, under the
         // 44px touch minimum. It stays 44px on phones and keeps the denser
         // 36px from `sm` up, where a mouse is doing the pointing.
         sm: "h-11 px-4 sm:h-9",
@@ -37,7 +37,7 @@ export interface ButtonProps
     VariantProps<typeof buttonVariants> {
   /**
    * When true, shows an inline spinner, marks the button busy, and prevents
-   * activation — the standard pattern for an action that is in flight.
+   * activation, the standard pattern for an action that is in flight.
    */
   loading?: boolean;
 }

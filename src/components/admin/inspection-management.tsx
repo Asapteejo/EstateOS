@@ -386,7 +386,7 @@ export function InspectionManagement({
                   {booking.phone ? (
                     <WhatsAppButton
                       phone={booking.phone}
-                      message={`Hi ${booking.fullName}, about your viewing of ${booking.propertyTitle} — looking forward to it. Let us know if you need anything.`}
+                      message={`Hi ${booking.fullName}, about your viewing of ${booking.propertyTitle}, looking forward to it. Let us know if you need anything.`}
                     />
                   ) : null}
                   <Button variant="outline" onClick={() => resetBooking(booking)} disabled={!isDirty(booking) || pendingId === booking.id}>

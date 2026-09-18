@@ -57,7 +57,7 @@ export async function PlatformHome() {
                   </h1>
                   <p className="max-w-xl text-lg leading-8 text-white/80">
                     EstateOS moves buyers from inquiry to inspection, reservation, payment, and
-                    receipt — and flags every overdue balance — so your team stops losing money to
+                    receipt, and flags every overdue balance, so your team stops losing money to
                     spreadsheets, WhatsApp threads, and manual transfer checks.
                   </p>
                 </div>
@@ -174,7 +174,7 @@ export async function PlatformHome() {
               <SectionHeading
                 eyebrow="Why EstateOS"
                 title="A cleaner way to run property sales."
-                description="See every deal, every expected payment, and every collections risk — without weakening tenant isolation."
+                description="See every deal, every expected payment, and every collections risk, without weakening tenant isolation."
               />
             </Card>
           </Reveal>
@@ -203,7 +203,7 @@ export async function PlatformHome() {
             <SectionHeading
               eyebrow="Hybrid pricing"
               title="Subscription plus transaction commission, modeled honestly."
-              description="Bill monthly or annually — or grant access by superadmin. Successful property payments still generate EstateOS commission either way."
+              description="Bill monthly or annually, or grant access by superadmin. Successful property payments still generate EstateOS commission either way."
             />
           </Reveal>
           <Reveal delay={0.06}>
@@ -221,7 +221,7 @@ export async function PlatformHome() {
                 <div className="max-w-2xl">
                   <div className="text-sm uppercase tracking-[0.22em] text-white/68">Start a pilot</div>
                   <h2 className="mt-3 font-serif text-3xl leading-tight text-white sm:text-4xl">
-                    Launch EstateOS for your sales team — on a platform that already understands deals,
+                    Launch EstateOS for your sales team, on a platform that already understands deals,
                     payments, and collections.
                   </h2>
                 </div>

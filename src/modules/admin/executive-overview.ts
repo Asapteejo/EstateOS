@@ -92,7 +92,7 @@ function emptyOverview(): ExecutiveOverview {
 
 /**
  * Company-wide snapshot for the owner: a single view spanning sales, finance, and
- * front-desk health. Composed from existing models and never throws — returns a
+ * front-desk health. Composed from existing models and never throws, returns a
  * zeroed snapshot on any failure so the landing always renders.
  */
 export async function getExecutiveOverview(context: {

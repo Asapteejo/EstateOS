@@ -30,7 +30,7 @@ export function setDarkTheme(dark: boolean) {
   try {
     localStorage.setItem(STORAGE_KEY, dark ? "dark" : "light");
   } catch {
-    // localStorage unavailable (private mode / blocked) — theme still applies for the session.
+    // localStorage unavailable (private mode / blocked), theme still applies for the session.
   }
 }
 
@@ -42,7 +42,7 @@ export function toggleTheme() {
  * Light/dark theme toggle for the operator and buyer dashboards. Flips
  * `theme-dark` on <html> (the visual change is gated behind `.app-dark-scope`,
  * so only the dashboards respond) and persists the choice. Until the user
- * makes an explicit choice, the theme follows the SYSTEM preference — applied
+ * makes an explicit choice, the theme follows the SYSTEM preference, applied
  * pre-paint by the bootstrap script in the root layout, and kept in sync here
  * if the OS preference changes while the app is open.
  */

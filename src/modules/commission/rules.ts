@@ -15,7 +15,7 @@ import { prisma } from "@/lib/db/prisma";
 import { featureFlags } from "@/lib/env";
 
 // ─── Delegate pattern (same as marketerRankingSnapshot in performance.ts) ───
-// Prisma client is not yet regenerated — access new models via typed cast.
+// Prisma client is not yet regenerated, access new models via typed cast.
 
 type RuleRecord = {
   id: string;

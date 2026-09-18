@@ -34,14 +34,14 @@ function resolveCopy(status: string | undefined, reason: string | undefined): Ac
         "Superadmin access is private and requires both an allowlisted email address and a persisted platform role.",
       reason: "Use the normal admin or buyer workspace for this account.",
       // Send tenant operators back to their own workspace, not the marketing
-      // homepage — this page is reached by an ordinary admin who simply hit a
+      // homepage, this page is reached by an ordinary admin who simply hit a
       // /superadmin URL.
       actionHref: "/admin",
       actionLabel: "Go to your dashboard",
       // The default bullets describe a SUSPENDED company, which is wrong here:
       // nothing is blocked for this user, they just aren't a platform owner.
       points: [
-        "Your company workspace is unaffected — admin, portal, and payment actions all still work.",
+        "Your company workspace is unaffected, admin, portal, and payment actions all still work.",
         "The platform owner dashboard is reserved for EstateOS staff.",
         "If you reached this by mistake, continue in your own admin dashboard.",
       ],

@@ -2,13 +2,13 @@
  * Morning briefing data aggregator.
  *
  * Gathers the four sections of the daily digest for one company:
- *   1. Overdue payments — count + total amount at risk
- *   2. Today's inspections — confirmed/rescheduled between 00:00–23:59 UTC
- *   3. Stalled deals — in-progress transactions with no activity for 7+ days
- *   4. Urgent alerts — hidden properties and KYC submissions awaiting review
+ *   1. Overdue payments, count + total amount at risk
+ *   2. Today's inspections, confirmed/rescheduled between 00:00–23:59 UTC
+ *   3. Stalled deals, in-progress transactions with no activity for 7+ days
+ *   4. Urgent alerts, hidden properties and KYC submissions awaiting review
  *
  * All queries run in parallel (Promise.all). The function is pure with respect
- * to side-effects — callers decide what to do with the result.
+ * to side-effects, callers decide what to do with the result.
  */
 
 import { endOfDay, startOfDay, subDays, differenceInDays } from "date-fns";
@@ -55,24 +55,24 @@ export interface MorningBriefingData {
   companyName: string;
   date: string; // e.g. "Tuesday, 15 April 2026"
 
-  // Section 1 — overdue payments
+  // Section 1, overdue payments
   overdueCount: number;
   overdueTotalAtRisk: string;
   overdueRows: OverduePaymentRow[];
 
-  // Section 2 — today's inspections
+  // Section 2, today's inspections
   inspectionCount: number;
   inspectionRows: InspectionRow[];
 
-  // Section 3 — stalled deals
+  // Section 3, stalled deals
   stalledCount: number;
   stalledRows: StalledDealRow[];
 
-  // Section 4 — urgent alerts (scalar counts only — no detail rows needed)
+  // Section 4, urgent alerts (scalar counts only, no detail rows needed)
   hiddenProperties: number;
   pendingKyc: number;
 
-  // Section 5 — at-risk deals (top 5 by score)
+  // Section 5, at-risk deals (top 5 by score)
   atRiskCount: number;
   atRiskRows: AtRiskDealRow[];
 }
@@ -110,7 +110,7 @@ export async function getMorningBriefingData(
         _sum: { outstandingBalance: true },
       }),
 
-      // Overdue rows — top 5, oldest due-date first
+      // Overdue rows, top 5, oldest due-date first
       prisma.transaction.findMany({
         where: { companyId, paymentStatus: "OVERDUE" },
         orderBy: { nextPaymentDueAt: "asc" },
@@ -123,7 +123,7 @@ export async function getMorningBriefingData(
         },
       }),
 
-      // Today's inspections — confirmed or rescheduled
+      // Today's inspections, confirmed or rescheduled
       prisma.inspectionBooking.findMany({
         where: {
           companyId,
@@ -139,7 +139,7 @@ export async function getMorningBriefingData(
         },
       }),
 
-      // Stalled deals — in-progress, no activity for 7+ days
+      // Stalled deals, in-progress, no activity for 7+ days
       prisma.transaction.findMany({
         where: {
           companyId,
@@ -211,7 +211,7 @@ export async function getMorningBriefingData(
   };
 
   const formattedOverdueRows: OverduePaymentRow[] = (overdueRows as OverdueRaw[]).map((row) => ({
-    reservationRef: row.reservation?.reference ?? "—",
+    reservationRef: row.reservation?.reference ?? "-",
     buyerName: `${row.user.firstName ?? ""} ${row.user.lastName ?? ""}`.trim() || "Buyer",
     outstandingBalance: formatCurrency(dec(row.outstandingBalance)),
     daysOverdue: row.nextPaymentDueAt ? differenceInDays(now, row.nextPaymentDueAt) : 0,
@@ -224,7 +224,7 @@ export async function getMorningBriefingData(
   }));
 
   const formattedStalledRows: StalledDealRow[] = (stalledRows as StalledRaw[]).map((row) => ({
-    reservationRef: row.reservation?.reference ?? "—",
+    reservationRef: row.reservation?.reference ?? "-",
     buyerName: `${row.user.firstName ?? ""} ${row.user.lastName ?? ""}`.trim() || "Buyer",
     currentStage: stageLabel(row.currentStage),
     daysSinceActivity: differenceInDays(now, row.updatedAt),
@@ -237,7 +237,7 @@ export async function getMorningBriefingData(
   };
 
   const formattedAtRiskRows: AtRiskDealRow[] = (atRiskRows as AtRiskRaw[]).map((row) => ({
-    reservationRef: row.reservation?.reference ?? "—",
+    reservationRef: row.reservation?.reference ?? "-",
     buyerName: `${row.user.firstName ?? ""} ${row.user.lastName ?? ""}`.trim() || "Buyer",
     riskScore: row.riskScore,
     topSignal: row.riskScore >= 80 ? "High risk" : row.riskScore >= 65 ? "Elevated risk" : "At risk",

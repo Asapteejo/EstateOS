@@ -54,14 +54,14 @@ import {
 
 export const notificationFunctions = [
   // ─────────────────────────────────────────────────────────────────────────
-  // 1. OPERATIONAL SWEEP — hourly cron + manual event trigger
+  // 1. OPERATIONAL SWEEP, hourly cron + manual event trigger
   //
   //    The sweep is intentionally kept as a single coordinated job rather
   //    than per-item fan-out so that the dedup mechanism in
   //    runScheduledOperationalJobs() (BackgroundJobLog) can prevent
   //    double-runs across manual API triggers and the cron.
   //
-  //    retries: 1 — the sweep records its own BackgroundJobLog so a hard
+  //    retries: 1, the sweep records its own BackgroundJobLog so a hard
   //    retry on failure is sufficient; aggressive retries would produce
   //    duplicate notifications.
   // ─────────────────────────────────────────────────────────────────────────
@@ -75,7 +75,7 @@ export const notificationFunctions = [
       ],
     },
     async ({ event, step }) => {
-      // event.data is BasicDataAny | CronEventData — cast to extract optional fields
+      // event.data is BasicDataAny | CronEventData, cast to extract optional fields
       const data = event.data as Record<string, unknown>;
       return step.run("execute-sweep", () =>
         runScheduledOperationalJobs({
@@ -90,7 +90,7 @@ export const notificationFunctions = [
   ),
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 2. WISHLIST REMINDER FAN-OUT — daily at 07:00 UTC
+  // 2. WISHLIST REMINDER FAN-OUT, daily at 07:00 UTC
   //
   //    Step 1 (find-and-expire): atomically mark expired wishlists and
   //    collect items entering the 3-day reminder window.
@@ -101,7 +101,7 @@ export const notificationFunctions = [
   //    completed steps, so re-runs of this function after a partial
   //    failure won't re-dispatch already-dispatched events.
   //
-  //    retries: 2 — if Prisma is unavailable the step will be retried
+  //    retries: 2, if Prisma is unavailable the step will be retried
   //    before giving up on the whole batch.
   // ─────────────────────────────────────────────────────────────────────────
   inngest.createFunction(
@@ -133,13 +133,13 @@ export const notificationFunctions = [
   ),
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 3. PER-ITEM WISHLIST REMINDER — event triggered
+  // 3. PER-ITEM WISHLIST REMINDER, event triggered
   //
   //    Handles one saved-property reminder: eligibility re-check (in case
   //    the buyer cancelled between fan-out and delivery), email send,
   //    in-app notification, and reminderSentAt stamp.
   //
-  //    retries: 3 — transient email delivery failures should resolve
+  //    retries: 3, transient email delivery failures should resolve
   //    within a few attempts without user impact.
   // ─────────────────────────────────────────────────────────────────────────
   inngest.createFunction(
@@ -160,7 +160,7 @@ export const notificationFunctions = [
   ),
 
   // ─────────────────────────────────────────────────────────────────────────
-  //  ANNOUNCEMENT BROADCAST — event-triggered on publish
+  //  ANNOUNCEMENT BROADCAST, event-triggered on publish
   //
   //    When an operator posts an announcement, fan out a WhatsApp message to
   //    everyone in the target audience (buyers / staff / all) who has a phone.
@@ -185,16 +185,16 @@ export const notificationFunctions = [
   ),
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 4. REVENUE RECOVERY SWEEP — daily at 09:00 UTC + manual event trigger
+  // 4. REVENUE RECOVERY SWEEP, daily at 09:00 UTC + manual event trigger
   //
   //    Walks all OVERDUE transactions and advances each one to the next
   //    escalation stage (day 1 → day 3 → day 7 → day 14) based on how
   //    long ago nextPaymentDueAt passed.
   //
-  //    Each transaction advances at most one stage per run — the
+  //    Each transaction advances at most one stage per run, the
   //    overdueReminderStage high-water mark prevents re-sends.
   //
-  //    retries: 1 — the stage field ensures idempotency; aggressive
+  //    retries: 1, the stage field ensures idempotency; aggressive
   //    retries would not produce duplicate sends but a single retry is
   //    sufficient for transient DB / email failures.
   // ─────────────────────────────────────────────────────────────────────────
@@ -218,14 +218,14 @@ export const notificationFunctions = [
   ),
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 5. MORNING BRIEFING FAN-OUT — daily at 08:00 UTC
+  // 5. MORNING BRIEFING FAN-OUT, daily at 08:00 UTC
   //
   //    Fetches every active company that has at least one ADMIN user with an
   //    email address, then fans out one "morning-briefing/company.send" event
   //    per company. Each per-company delivery is independently retried so a
   //    single bad company record can't block all briefings.
   //
-  //    retries: 1 — fan-out itself is idempotent; the child events carry the
+  //    retries: 1, fan-out itself is idempotent; the child events carry the
   //    retry burden.
   // ─────────────────────────────────────────────────────────────────────────
   inngest.createFunction(
@@ -264,13 +264,13 @@ export const notificationFunctions = [
   ),
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 6. PER-COMPANY MORNING BRIEFING — event triggered
+  // 6. PER-COMPANY MORNING BRIEFING, event triggered
   //
   //    Aggregates the four digest sections for one company and emails every
   //    ADMIN user. Two steps keep the aggregation and delivery observable
   //    and independently retried in Inngest's dashboard.
   //
-  //    retries: 2 — transient DB or Resend failures should resolve on retry
+  //    retries: 2, transient DB or Resend failures should resolve on retry
   //    without user impact.
   // ─────────────────────────────────────────────────────────────────────────
   inngest.createFunction(
@@ -325,7 +325,7 @@ export const notificationFunctions = [
   ),
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 7. PROPERTY VERIFICATION SYNC — event triggered
+  // 7. PROPERTY VERIFICATION SYNC, event triggered
   //
   //    Syncs verification states for one company (or all companies when
   //    companyId is omitted). Called from admin UI after bulk edits.

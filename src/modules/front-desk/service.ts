@@ -78,7 +78,7 @@ function relativeTime(date: Date, now: Date): string {
 
 /**
  * Front-desk operations snapshot, assembled from existing CRM data (inquiries,
- * inspection bookings, reservations). Never throws — on any failure or when the
+ * inspection bookings, reservations). Never throws, on any failure or when the
  * database is unavailable it returns a zeroed snapshot so the dashboard always
  * renders.
  */

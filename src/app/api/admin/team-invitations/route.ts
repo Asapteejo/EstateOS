@@ -23,7 +23,7 @@ const inviteSchema = z.object({
   role: z.enum(["STAFF", "ADMIN", "FINANCE", "LEGAL"] as const),
 });
 
-// ─── GET — list pending invitations ──────────────────────────────────────────
+// ─── GET, list pending invitations ──────────────────────────────────────────
 
 export async function GET() {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
@@ -58,7 +58,7 @@ export async function GET() {
   return ok({ invitations });
 }
 
-// ─── POST — create invitation ─────────────────────────────────────────────────
+// ─── POST, create invitation ─────────────────────────────────────────────────
 
 export async function POST(request: Request) {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;

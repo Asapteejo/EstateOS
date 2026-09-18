@@ -78,7 +78,7 @@ function relativeTime(date: Date, now: Date): string {
 /**
  * Accountant snapshot: cash collected, what is still outstanding/overdue, and the
  * latest successful payments. Built from existing Payment / Transaction data and
- * never throws — returns a zeroed snapshot on any failure so the page always
+ * never throws, returns a zeroed snapshot on any failure so the page always
  * renders.
  */
 export async function getFinanceOverview(context: {

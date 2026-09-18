@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
 /**
- * Accessible modal dialog primitive — the shared replacement for the bespoke
+ * Accessible modal dialog primitive, the shared replacement for the bespoke
  * per-screen modals. Behavior mirrors the dashboard drawer (the app's most
  * battle-tested overlay): body scroll lock, Escape to close, Tab focus trap,
  * focus moves into the panel on open and back to the previously focused
@@ -31,7 +31,7 @@ export function Dialog({
 }: {
   open: boolean;
   onClose: () => void;
-  /** Required for accessibility — rendered as the dialog heading. */
+  /** Required for accessibility, rendered as the dialog heading. */
   title: string;
   /** Optional supporting copy under the title. */
   description?: string;
@@ -164,7 +164,7 @@ export function Dialog({
   );
 }
 
-/** Standard footer row for dialog actions — right-aligned, gap-consistent. */
+/** Standard footer row for dialog actions, right-aligned, gap-consistent. */
 export function DialogFooter({
   children,
   className,

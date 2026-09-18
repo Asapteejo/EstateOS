@@ -219,11 +219,11 @@ export function buildPropertyVerificationPresentation(
  * Public visibility filter.
  *
  * `isPubliclyVisible` / `verificationStatus` are STORED values, written only
- * when a property is mutated — there is no sweep that ages them. The presented
+ * when a property is mutated, there is no sweep that ages them. The presented
  * status, by contrast, is recomputed from `lastVerifiedAt` on every render. A
  * listing that crossed the hide threshold therefore kept its stored "visible"
  * flag and stayed on the public site while rendering the label "Listing
- * hidden" — the policy was enforced in the UI copy but not in the query.
+ * hidden", the policy was enforced in the UI copy but not in the query.
  *
  * Passing `hideBefore` (now - hideDays) applies the same rule the presentation
  * uses, in SQL, so an unverified-for-too-long listing leaves the public site

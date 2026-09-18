@@ -790,7 +790,7 @@ export async function getTenantMarketerLeaderboard(
   // every visitor of a tenant, so it is cached across requests for 5 minutes.
   //
   // Tenant isolation: the computation runs against a context carrying ONLY the
-  // companyId. Passing the viewer's context through would be unsafe — for a
+  // companyId. Passing the viewer's context through would be unsafe, for a
   // super admin, findManyForTenant skips the companyId filter, and that
   // cross-tenant result would then be cached under this tenant's key and served
   // to all of its visitors.

@@ -16,7 +16,7 @@ import type { StoredSiteContent } from "@/modules/cms/site-content";
  * consistent across the two CMS surfaces.
  *
  * The *public render* only ever reads `getPublishedSiteContent`, which returns
- * the stored overrides (or null) and never throws — so a DB hiccup degrades to
+ * the stored overrides (or null) and never throws, so a DB hiccup degrades to
  * the company-derived fallback copy instead of breaking the marketing site.
  */
 
@@ -25,7 +25,7 @@ export type TenantSiteContentState = {
   published: StoredSiteContent;
   publishedAt: string | null;
   /**
-   * True when the content columns could not be read — in practice a database
+   * True when the content columns could not be read, in practice a database
    * that is behind the deployed code (pending migration). The editor renders
    * read-only with an explanatory banner rather than throwing.
    */
@@ -105,7 +105,7 @@ export type TenantPublicContact = {
 /**
  * Public contact details for a tenant, read from SiteSettings. Used to render the
  * tenant's own email / phone / office on the public contact page instead of
- * hardcoded placeholders. Never throws — missing fields render as omitted rows.
+ * hardcoded placeholders. Never throws, missing fields render as omitted rows.
  */
 export async function getPublicTenantContact(
   context: TenantContext,
@@ -155,7 +155,7 @@ const loadPublishedSiteContentRow = cache((companyId: string) =>
   )(),
 );
 
-/** Public render entry point. Never throws — returns null so callers fall back. */
+/** Public render entry point. Never throws, returns null so callers fall back. */
 export async function getPublishedSiteContent(
   context: TenantContext,
 ): Promise<StoredSiteContent | null> {

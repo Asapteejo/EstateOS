@@ -38,7 +38,7 @@ export function FeasibilityAiNarrative({ calculationId }: Props) {
         setNarrative((prev) => prev + decoder.decode(value, { stream: true }));
       }
     } catch {
-      setError("Network error — please try again.");
+      setError("Network error, please try again.");
     } finally {
       setLoading(false);
     }

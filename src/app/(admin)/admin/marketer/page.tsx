@@ -12,7 +12,7 @@ export default async function AdminMarketerPage() {
     <DashboardShell
       area="admin"
       title="My Dashboard"
-      subtitle="Your assigned leads and viewings — follow up fast and keep deals moving."
+      subtitle="Your assigned leads and viewings, follow up fast and keep deals moving."
     >
       <MarketerDashboardView data={data} />
     </DashboardShell>

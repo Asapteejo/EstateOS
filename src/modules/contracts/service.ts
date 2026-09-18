@@ -3,7 +3,7 @@
  *
  * Lifecycle for a signed agreement:
  *   PENDING   → admin uploaded a contract PDF and linked it to a transaction
- *   ACTIVE    → admin marked it as "sent" — buyer can now view and accept
+ *   ACTIVE    → admin marked it as "sent", buyer can now view and accept
  *   COMPLETED → buyer accepted in the portal (timestamp + IP recorded)
  *
  * All SignedAgreement queries use `as any` casts because the new schema
@@ -294,7 +294,7 @@ export async function createContract(input: {
 
 /**
  * Marks the agreement as ACTIVE (sent) and notifies the buyer via in-app
- * notification. Idempotent — calling it on an already-ACTIVE agreement
+ * notification. Idempotent, calling it on an already-ACTIVE agreement
  * returns the existing row without re-notifying.
  */
 export async function sendContract(input: {

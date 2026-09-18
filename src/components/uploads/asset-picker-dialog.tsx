@@ -8,7 +8,7 @@ import type { MediaLibraryAsset } from "@/modules/uploads/library";
 import type { UploadPurpose } from "@/modules/uploads/config";
 
 /**
- * Tenant media library picker — migrated to the shared Dialog primitive
+ * Tenant media library picker, migrated to the shared Dialog primitive
  * (portal, Escape/backdrop close, scroll lock, focus trap + restore). Assets
  * load lazily when the dialog opens, as before.
  */

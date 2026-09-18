@@ -7,7 +7,7 @@ import { Bell, CreditCard, Heart, House, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Buyer-portal bottom tab bar — mobile/tablet only (hidden at `lg`, where the
+ * Buyer-portal bottom tab bar, mobile/tablet only (hidden at `lg`, where the
  * sidebar takes over). Puts the five destinations buyers actually live in
  * within thumb reach instead of behind the drawer; the drawer stays available
  * from the top bar for the long tail. Respects the iOS/Android home-indicator

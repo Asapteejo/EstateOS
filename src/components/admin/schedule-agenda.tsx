@@ -40,7 +40,7 @@ function timeLabel(d: Date): string {
 
 /**
  * A front-desk agenda: upcoming property viewings from today onward, grouped by
- * day and ordered by time. Read-only overview — use the Bookings page to
+ * day and ordered by time. Read-only overview, use the Bookings page to
  * reschedule or change status.
  */
 export function ScheduleAgenda({ items }: { items: InspectionManagementItem[] }) {

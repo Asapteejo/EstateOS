@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Determinate (or indeterminate) progress bar for operations whose duration is
- * observable — file uploads being the primary case.
+ * observable, file uploads being the primary case.
  *
  * Pass `value` (0–100) for a real progress fill; omit it for an indeterminate
  * sweep when total work is unknown. Always provide a `label` for assistive tech.

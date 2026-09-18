@@ -15,7 +15,7 @@ export function PropertyCard({ property }: { property: PropertySummary }) {
         return null;
       }
 
-      return `${label} — ${option.price ? formatCurrency(option.price, option.currency ?? property.currency) : "Price on request"}`;
+      return `${label}: ${option.price ? formatCurrency(option.price, option.currency ?? property.currency) : "Price on request"}`;
     })
     .filter(Boolean);
 

@@ -109,7 +109,7 @@ export function resolveTenantBrandingPresentation(input: {
 }
 
 /**
- * Full branding row including the unpublished draft — admin editor only.
+ * Full branding row including the unpublished draft, admin editor only.
  * Request-scoped (React cache) but never cached across requests: saving a draft
  * does not revalidate a tag, so a shared cache would show admins stale drafts.
  */
@@ -132,7 +132,7 @@ const loadCompanyBrandingRow = cache((companyId: string) =>
 );
 
 /**
- * Published branding only — what every public page, metadata and app shell
+ * Published branding only, what every public page, metadata and app shell
  * renders. The layout, generateMetadata, the public shell and the page each ask
  * for it; before this they issued 3-5 identical queries per render.
  *  - unstable_cache (cross-request, 60s) is keyed and tagged by companyId so a

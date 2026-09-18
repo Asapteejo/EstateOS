@@ -138,7 +138,7 @@ export default async function SuperadminCompanyWalletPage({
                   <td className="px-6 py-4 font-medium text-[var(--ink-950)]">{entry.type}</td>
                   <td className={`px-6 py-4 font-semibold ${entry.amount < 0 ? "text-rose-700" : "text-emerald-700"}`}>{entry.amount > 0 ? `+${entry.amount}` : entry.amount}</td>
                   <td className={`px-6 py-4 font-semibold ${entry.balanceAfter < 0 ? "text-rose-700" : "text-emerald-700"}`}>{entry.balanceAfter}</td>
-                  <td className="px-6 py-4 text-[var(--ink-700)]">{entry.reference ?? "—"}</td>
+                  <td className="px-6 py-4 text-[var(--ink-700)]">{entry.reference ?? "-"}</td>
                   <td className="px-6 py-4 text-[var(--ink-700)]">{formatDate(entry.createdAt, "PPP p")}</td>
                 </tr>
               ))}

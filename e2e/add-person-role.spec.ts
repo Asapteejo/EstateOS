@@ -17,7 +17,7 @@ test("Add person submits the role that was selected", async ({ page }) => {
   const url = page.url();
   test.skip(
     !url.includes("/admin") || url.includes("/sign-in") || url.includes("/auth/"),
-    "Dev bypass unavailable (production or flag off) — skipping.",
+    "Dev bypass unavailable (production or flag off), skipping.",
   );
 
   await page.goto("/admin/users");
@@ -37,7 +37,7 @@ test("Add person submits the role that was selected", async ({ page }) => {
 
   // Any POST to this route carries the form. A hydrated page sends a server
   // action (Next-Action header, multipart body); before hydration the same
-  // form posts natively (url-encoded), so both shapes are accepted — the point
+  // form posts natively (url-encoded), so both shapes are accepted, the point
   // is what `role` the form submitted, not which transport carried it.
   let submittedBody: string | null = null;
   await page.route("**/admin/users**", async (route) => {

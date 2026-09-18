@@ -1,6 +1,6 @@
 // Fails (exit 1) if the target database has migrations that have not been applied,
 // or has drifted from the Prisma schema. Run this against a database BEFORE serving
-// application code that depends on the latest schema — it is the guard that would
+// application code that depends on the latest schema, it is the guard that would
 // have caught the production "column does not exist" error.
 //
 // Usage (reads DATABASE_URL/DIRECT_URL from the environment):

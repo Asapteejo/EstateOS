@@ -23,7 +23,7 @@ function intervalSuffix(interval: string) {
  * Shared pricing block for the platform marketing site (landing + /platform/pricing).
  *
  * Adds the things a buyer actually needs to decide: a concrete what's-included
- * list, the annual saving made explicit (derived from the real plan amounts —
+ * list, the annual saving made explicit (derived from the real plan amounts,
  * not invented), and a CTA on every card. The annual plan is highlighted as the
  * best value when a monthly counterpart exists to compare against.
  */

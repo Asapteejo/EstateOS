@@ -208,7 +208,7 @@ export async function createInspectionBooking(
       propertyId: booking.propertyId,
       inquiryId: booking.inquiryId,
     } as Prisma.InputJsonValue,
-    emailSubject: `New inspection request — ${property.title}`,
+    emailSubject: `New inspection request, ${property.title}`,
     emailHtml: renderOperatorInspectionAlert({
       buyerName: booking.fullName,
       propertyTitle: property.title,

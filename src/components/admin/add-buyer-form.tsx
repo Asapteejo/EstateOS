@@ -53,7 +53,7 @@ export function AddBuyerButton({ hasClerkPassword }: { hasClerkPassword: boolean
 
   function handleResultClose() {
     // Reset action state by closing and reopening the dialog won't work, but
-    // we simply close everything — the result has been shown.
+    // we simply close everything, the result has been shown.
     handleClose();
   }
 

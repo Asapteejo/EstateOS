@@ -28,7 +28,7 @@ import { cn } from "@/lib/utils";
 /**
  * Buyer portal navigation, grouped the same way the operator sidebar is: a
  * few scannable clusters instead of a flat 15-link list. Grouping here is
- * presentation-only — every buyer sees every section.
+ * presentation-only, every buyer sees every section.
  */
 const portalNavGroups: SidebarNavGroup[] = [
   {
@@ -115,7 +115,7 @@ export async function DashboardShell({
 
   // getAppSession reads request cookies (dynamic) and is never cached.
   // Presentation, session, and announcements are mutually independent (all
-  // derive from `tenant`), so resolve all three concurrently — one round trip
+  // derive from `tenant`), so resolve all three concurrently, one round trip
   // instead of three sequential ones on every authenticated page load.
   const [presentation, appSession, announcements] = await Promise.all([
     loadPresentation(),
@@ -138,7 +138,7 @@ export async function DashboardShell({
   // message count all depend only on profileTenant/notification ids, so fetch
   // the three concurrently rather than sequentially. The notification count is
   // per-user and changes frequently, so it is cached only very briefly (15s)
-  // and keyed by companyId + userId (tenant- and user-scoped) — enough to
+  // and keyed by companyId + userId (tenant- and user-scoped), enough to
   // absorb rapid re-navigation without showing a materially stale badge.
   const [portalUserRows, unreadNotificationCount, messagesUnreadCount] = await Promise.all([
     area === "portal" && featureFlags.hasDatabase && profileTenant.userId && profileTenant.companyId
@@ -278,7 +278,7 @@ export async function DashboardShell({
           />
         </div>
       </aside>
-      {/* Mobile bottom tab bar — buyers only; the drawer covers the long tail. */}
+      {/* Mobile bottom tab bar, buyers only; the drawer covers the long tail. */}
       {area === "portal" ? (
         <PortalBottomNav
           unreadNotificationCount={unreadNotificationCount}

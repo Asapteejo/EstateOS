@@ -5,13 +5,13 @@
  * so the UI can render progress without fetching anything itself.
  *
  * Steps (in display order):
- *   1. Workspace created        — always complete
- *   2. Company profile          — logoUrl set + supportEmail set
- *   3. Branding published       — publishedBrandingConfig written at least once
- *   4. First property listed    — Property row exists for this company
- *   5. Team member added        — TeamMember row exists for this company
- *   6. Payment account linked   — CompanyPaymentProviderAccount row exists
- *   7. First deal created       — Transaction row exists for this company
+ *   1. Workspace created       , always complete
+ *   2. Company profile         , logoUrl set + supportEmail set
+ *   3. Branding published      , publishedBrandingConfig written at least once
+ *   4. First property listed   , Property row exists for this company
+ *   5. Team member added       , TeamMember row exists for this company
+ *   6. Payment account linked  , CompanyPaymentProviderAccount row exists
+ *   7. First deal created      , Transaction row exists for this company
  */
 
 import { prisma } from "@/lib/db/prisma";

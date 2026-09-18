@@ -4,7 +4,7 @@ import { SimpleDataTable } from "@/components/ui/simple-data-table";
 /**
  * Titled table card. Same external API as before (title + string columns +
  * string rows, all serializable from server components), but the internals
- * now run on the shared TanStack DataTable — so every consumer (Audit Logs,
+ * now run on the shared TanStack DataTable, so every consumer (Audit Logs,
  * Documents, Transactions) gains column sorting, an optional search box, and
  * pagination for long lists instead of one unbounded static table.
  */

@@ -8,7 +8,7 @@ import type { ReactNode } from "react";
  * Wraps page content in a subtle, GPU-friendly enter transition.
  *
  * Designed to live inside `app/template.tsx`, which Next.js re-mounts on every
- * navigation — so the enter animation replays on each route change without any
+ * navigation, so the enter animation replays on each route change without any
  * pathname bookkeeping for the animation itself.
  *
  * Dashboard surfaces (portal / admin / superadmin) are intentionally skipped:

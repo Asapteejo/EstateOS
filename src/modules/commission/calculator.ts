@@ -1,7 +1,7 @@
 /**
  * Marketer commission calculator and recorder.
  *
- * calculateCommissionAmount() is a pure function — no I/O.
+ * calculateCommissionAmount() is a pure function, no I/O.
  * recordMarketerCommission() persists one MarketerCommission row per payment.
  * getMarketerCommissionTotals() returns a Map used by the performance dashboard.
  */
@@ -28,7 +28,7 @@ function getCommissionDelegate(): CommissionDelegate | null {
 // ─── Calculation ──────────────────────────────────────────────────────────
 
 /**
- * Pure function — returns the commission amount in the same currency as the rule.
+ * Pure function, returns the commission amount in the same currency as the rule.
  * FLAT: fixed amount regardless of payment size.
  * PERCENTAGE: percentage of the payment amount, rounded to 2dp.
  */
@@ -63,7 +63,7 @@ export async function recordMarketerCommission(input: {
   const delegate = delegateInput ?? getCommissionDelegate();
   if (!delegate) return;
 
-  // @unique on paymentId — ignore duplicate (idempotent webhook re-delivery)
+  // @unique on paymentId, ignore duplicate (idempotent webhook re-delivery)
   try {
     await delegate.create({
       data: {
@@ -78,7 +78,7 @@ export async function recordMarketerCommission(input: {
       },
     });
   } catch (err: unknown) {
-    // P2002 = unique constraint violation — commission already recorded for this payment
+    // P2002 = unique constraint violation, commission already recorded for this payment
     if (
       err instanceof Error &&
       "code" in err &&

@@ -57,7 +57,7 @@ function normalizePaystackStatus(status?: string): PaymentStatus {
   return status === "success" ? "SUCCESS" : "FAILED";
 }
 
-/** Prisma P2002 — unique constraint violation (concurrent duplicate webhook). */
+/** Prisma P2002, unique constraint violation (concurrent duplicate webhook). */
 function isUniqueConstraintError(error: unknown) {
   return (
     typeof error === "object" &&
@@ -378,7 +378,7 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
           },
         });
       } catch (error) {
-        // Concurrent duplicate delivery lost the unique-index race — treat
+        // Concurrent duplicate delivery lost the unique-index race, treat
         // exactly like the fast-path dedup above.
         if (isUniqueConstraintError(error)) {
           return { duplicate: true, companyId: company.id, providerEventId };
@@ -422,7 +422,7 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
         })
       : null;
 
-  // Idempotency guards — see resolveReconciliationStatus for the rules.
+  // Idempotency guards, see resolveReconciliationStatus for the rules.
   // Receipt/commission/settlement upserts stay unconditional below: they are
   // keyed by paymentId and idempotent, so a re-delivery can self-heal a
   // partially failed first attempt without double-applying money mutations.
@@ -590,7 +590,7 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
       transactionUpdate = await prisma.$transaction(async (tx) => {
       let updatedTransactionId = payment.transactionId;
       let updatedTransactionStage: string | null = null;
-      // Captured inside the tx, dispatched AFTER commit — never run external
+      // Captured inside the tx, dispatched AFTER commit, never run external
       // WhatsApp/Twilio I/O inside a database transaction.
       let paymentConfirmedBuyerUserId: string | null = null;
       let persistedReceipt: {
@@ -894,7 +894,7 @@ export async function reconcilePaystackWebhook(rawPayload: PaystackWebhookPayloa
       });
     } catch (error) {
       // A concurrent duplicate delivery lost the webhookEvent unique-index
-      // race — the ENTIRE transaction (balance, receipt, notifications)
+      // race, the ENTIRE transaction (balance, receipt, notifications)
       // rolled back atomically. Report it as the duplicate it is.
       if (isUniqueConstraintError(error)) {
         return { duplicate: true, companyId: company.id, providerEventId };

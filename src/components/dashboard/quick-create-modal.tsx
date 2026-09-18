@@ -3,7 +3,7 @@
 import { Dialog } from "@/components/ui/dialog";
 
 /**
- * Quick-create modal — now a thin wrapper over the shared Dialog primitive
+ * Quick-create modal, now a thin wrapper over the shared Dialog primitive
  * (portal to document.body, Escape/backdrop close, body scroll lock, focus
  * trap + focus restore). Kept as a named export so the quick-action call
  * sites don't change.

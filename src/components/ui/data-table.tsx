@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 /**
- * Shared data table built on TanStack Table (headless) — the replacement for
+ * Shared data table built on TanStack Table (headless), the replacement for
  * the bespoke `<table>` implementations across the admin screens. One
  * consistent look (tokens, sticky header, hover states) and one consistent
  * behavior set (client-side sorting, optional search, optional pagination)
@@ -54,7 +54,7 @@ export function DataTable<TData>({
   onRowClick?: (row: TData) => void;
   className?: string;
   /**
-   * Drops the table's own border/radius/shadow chrome — for embedding inside
+   * Drops the table's own border/radius/shadow chrome, for embedding inside
    * an existing Card (e.g. DataTableCard) without double borders.
    */
   frameless?: boolean;
@@ -118,7 +118,7 @@ export function DataTable<TData>({
       ) : null}
 
       {/* Phone layout: one card per row. A table narrower than the viewport is
-          unreadable on a phone — these screens were 775-973px wide inside a
+          unreadable on a phone, these screens were 775-973px wide inside a
           333px column, i.e. three screens of sideways scrolling. The first
           column becomes the card heading and the rest become label/value
           pairs, so the same columns stay legible in a single vertical scroll.

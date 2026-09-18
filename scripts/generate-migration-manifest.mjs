@@ -9,7 +9,7 @@
  * live database against a list of expected migrations. That list used to be
  * hand-maintained and silently went stale: it stopped at 0035 while the repo
  * grew to 0049, so readyz reported `migrations: ok` while production was
- * missing 14 migrations — including 0042, whose absent columns produced a
+ * missing 14 migrations, including 0042, whose absent columns produced a
  * P2022 "column does not exist" 500 in production.
  *
  * A generated manifest cannot go stale. `--check` fails CI when someone adds
@@ -47,7 +47,7 @@ function readMigrationNames() {
 function renderManifest(names) {
   const entries = names.map((name) => `  ${JSON.stringify(name)},`).join("\n");
 
-  return `// GENERATED FILE — DO NOT EDIT BY HAND.
+  return `// GENERATED FILE, DO NOT EDIT BY HAND.
 // Regenerate with: node scripts/generate-migration-manifest.mjs
 //
 // Every migration directory in prisma/migrations, used by the readiness

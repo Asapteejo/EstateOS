@@ -22,7 +22,7 @@ export async function sendDraftReplyAction(
       html: `<p style="white-space:pre-wrap">${draftText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`,
     });
 
-    // Sending a reply is a follow-up action — update lastFollowedUpAt on any
+    // Sending a reply is a follow-up action, update lastFollowedUpAt on any
     // active transaction belonging to this inquiry's buyer.
     if (inquiryId && featureFlags.hasDatabase) {
       const inquiry = await prisma.inquiry.findFirst({

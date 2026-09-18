@@ -40,7 +40,7 @@ function toNumber(value: unknown): number {
 }
 
 function shortDate(value: Date | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return "-";
   return new Date(value).toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" });
 }
 
@@ -51,7 +51,7 @@ function generateInvoiceNumber(): string {
   return `INV-${stamp}-${suffix}`;
 }
 
-/** Create an invoice. Never throws — returns a structured result. */
+/** Create an invoice. Never throws, returns a structured result. */
 export async function createInvoice(
   context: TenantContext,
   input: CreateInvoiceInput,

@@ -54,7 +54,7 @@ export function InquiryForm({ propertyId }: { propertyId?: string }) {
         <div>
           <h3 className="text-lg font-semibold text-[var(--ink-950)]">Inquiry received</h3>
           <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[var(--ink-500)]">
-            Thanks — our team will reach out shortly. Need to add something? Send another below.
+            Thanks, our team will reach out shortly. Need to add something? Send another below.
           </p>
         </div>
         <Button variant="outline" onClick={() => setSubmitted(false)}>

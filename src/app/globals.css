@@ -55,7 +55,7 @@
   --radius-xl: 1.5rem;
   --radius-2xl: 1.75rem;
   --transition-fast: 160ms ease;
-  /* Layered elevation scale — softer, deeper, and more modern. Two stacked
+  /* Layered elevation scale, softer, deeper, and more modern. Two stacked
      shadows per tier give surfaces genuine depth instead of a flat drop. */
   --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
   --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.05);
@@ -716,7 +716,7 @@ html {
 }
 
 /* ----------------------------------------------------------------------------
-   Dark mode — operator + buyer dashboards (system-aware).
+   Dark mode, operator + buyer dashboards (system-aware).
 
    First visit follows prefers-color-scheme; an explicit toggle choice is
    persisted and wins thereafter. `theme-dark` is toggled on <html>; the visual
@@ -761,7 +761,7 @@ html.theme-dark .app-dark-scope {
   --text-secondary: #b1bccd;
   --text-tertiary: #96a1b4;
   --brand-100: #12362c;
-  /* Semantic status tints — dark, translucent versions so tone-colored cards
+  /* Semantic status tints, dark, translucent versions so tone-colored cards
      and banners stay legible (light text on a dark tint, not a pastel block). */
   --success-50: rgba(34, 197, 94, 0.14);
   --success-200: rgba(34, 197, 94, 0.32);
@@ -794,7 +794,7 @@ html.theme-dark .app-dark-scope {
 
 /* Remap hardcoded white surfaces inside the dashboard subtree. Translucent
    white overlays (bg-white/40 etc.) and white-on-dark text are intentionally
-   left alone — they read correctly on dark. */
+   left alone, they read correctly on dark. */
 html.theme-dark .app-dark-scope .admin-surface,
 html.theme-dark .app-dark-scope .admin-empty-surface,
 html.theme-dark .app-dark-scope .admin-table-shell {
@@ -850,8 +850,8 @@ html.theme-dark .app-dark-scope :is(.border-red-200, .border-rose-200) {
   border-color: rgba(244, 63, 94, 0.3);
 }
 
-/* Translucent white surfaces (bg-white/40..95) — filter bars, sidebar chips,
-   the search trigger, nav buttons — read as bright patches in dark mode. Remap
+/* Translucent white surfaces (bg-white/40..95), filter bars, sidebar chips,
+   the search trigger, nav buttons, read as bright patches in dark mode. Remap
    the surface-weight ones to a subtle elevation. The faint overlays
    (bg-white/5..15) are intentionally left alone; they read fine on dark. */
 html.theme-dark .app-dark-scope :is(
@@ -873,7 +873,7 @@ html.theme-dark .app-dark-scope :is(.admin-skeleton, .skeleton)::after {
 
 /* Extended status palette incl. opacity variants. The deal-board stage columns
    use pastel surfaces like bg-orange-50/80, bg-sky-50/80, bg-amber-50/80 with
-   matching borders/text — these must become dark tints + light status text. */
+   matching borders/text, these must become dark tints + light status text. */
 html.theme-dark .app-dark-scope :is(
   .bg-emerald-50\/70, .bg-emerald-50\/80, .bg-emerald-50\/90,
   .bg-green-50\/70, .bg-green-50\/80, .bg-teal-50, .bg-teal-50\/80, .bg-teal-100
@@ -919,8 +919,8 @@ html.theme-dark .app-dark-scope :is(.border-teal-200) {
   border-color: rgba(16, 185, 129, 0.3);
 }
 
-/* Darkest status text shades (-900/-950) — used in warning/alert headings like
-   the KYC "complete your profile" card — must also flip to a light, legible
+/* Darkest status text shades (-900/-950), used in warning/alert headings like
+   the KYC "complete your profile" card, must also flip to a light, legible
    variant, not stay near-black on a dark tinted surface. */
 html.theme-dark .app-dark-scope :is(.text-amber-900, .text-amber-950, .text-orange-900, .text-orange-950, .text-yellow-900) {
   color: #fcd34d;

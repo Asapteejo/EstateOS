@@ -3,7 +3,7 @@
  *
  * Centralizes ALL editable text of a tenant's public marketing site behind
  * one typed shape with sensible, company-derived fallbacks. Components read
- * from the resolved object, never from hardcoded strings — every tenant can
+ * from the resolved object, never from hardcoded strings, every tenant can
  * make the site sound like *their* company without touching code.
  *
  * Coverage: SEO metadata, hero (copy + stat cards + side panel), the
@@ -48,7 +48,7 @@ export type TenantSiteContent = {
     title: string;
     body: string;
   };
-  /** "How it works" — the three-step buyer journey. */
+  /** "How it works", the three-step buyer journey. */
   journey: {
     heading: string;
     steps: [JourneyStep, JourneyStep, JourneyStep];
@@ -63,7 +63,7 @@ export type TenantSiteContent = {
     title: string;
     intro: string;
   };
-  /** Careers page — hideable for companies that aren't hiring. */
+  /** Careers page, hideable for companies that aren't hiring. */
   careers: {
     visible: boolean;
     eyebrow: string;
@@ -179,7 +179,7 @@ export function resolveTenantSiteContent(args: {
 
   const fallback: TenantSiteContent = {
     seo: {
-      title: `${companyName} — Verified property listings`,
+      title: `${companyName} | Verified property listings`,
       description:
         trimmedDescription ||
         `Browse verified listings from ${companyName}, book inspections, and buy your next property with confidence.`,
@@ -188,13 +188,13 @@ export function resolveTenantSiteContent(args: {
       eyebrow: "Trusted property transactions",
       headline: `Find your next home with ${companyName}.`,
       subhead:
-        "Browse verified listings, book inspections with our team, and move from first viewing to keys in hand — with clear pricing and no surprises.",
+        "Browse verified listings, book inspections with our team, and move from first viewing to keys in hand, with clear pricing and no surprises.",
       primaryCta: { label: "View properties", href: "/properties" },
       secondaryCta: { label: "Start purchase", href: startPurchaseHref },
     },
     heroStats: {
       inventoryLabel: "Homes available",
-      inventoryNote: "Every listing is verified by our team before it goes live — no stale or hidden inventory.",
+      inventoryNote: "Every listing is verified by our team before it goes live. No stale or hidden inventory.",
       marketersLabel: "Expert marketers",
       marketersNote: "Meet the people who will walk you from first viewing to handover.",
       trustLabel: "Happy clients",
@@ -221,7 +221,7 @@ export function resolveTenantSiteContent(args: {
         {
           title: "Move in with peace of mind",
           description:
-            "Track payments, sign your documents, and collect your keys — all in one place.",
+            "Track payments, sign your documents, and collect your keys, all in one place.",
         },
       ],
     },
@@ -235,7 +235,7 @@ export function resolveTenantSiteContent(args: {
       marketers: {
         title: "Meet the team moving deals forward",
         description:
-          "Our marketers guide you from first viewing to handover — pick one and start a conversation.",
+          "Our marketers guide you from first viewing to handover. Pick one and start a conversation.",
       },
       testimonials: {
         eyebrow: "Testimonials",
@@ -260,12 +260,12 @@ export function resolveTenantSiteContent(args: {
         {
           title: "Real ownership",
           description:
-            "Your work directly helps families find and secure their homes — you see the impact of every deal you close.",
+            "Your work directly helps families find and secure their homes. You see the impact of every deal you close.",
         },
         {
           title: "Trust by default",
           description:
-            "We win by making property transactions feel safe and transparent — for buyers and for the people who work with us.",
+            "We win by making property transactions feel safe and transparent, for buyers and for the people who work with us.",
         },
         {
           title: "Room to grow",
@@ -275,12 +275,12 @@ export function resolveTenantSiteContent(args: {
       ],
       ctaHeading: "Want to work with us?",
       ctaBody:
-        "Tell us how you'd like to contribute — as a marketer, agent, or partner — and we'll get back to you.",
+        "Tell us how you'd like to contribute, as a marketer, agent, or partner, and we'll get back to you.",
       ctaLabel: "Introduce yourself",
     },
     contact: {
       hours: "Mon – Fri, 9:00 – 17:00",
-      note: "Prefer WhatsApp? Message us any time — we usually reply within the hour.",
+      note: "Prefer WhatsApp? Message us any time. We usually reply within the hour.",
     },
     social: {
       facebook: "",
@@ -293,7 +293,7 @@ export function resolveTenantSiteContent(args: {
     footer: {
       tagline:
         trimmedDescription ||
-        `${companyName} — verified listings, honest guidance, and a property journey you can track from start to finish.`,
+        `${companyName}: verified listings, honest guidance, and a property journey you can track from start to finish.`,
     },
   };
 

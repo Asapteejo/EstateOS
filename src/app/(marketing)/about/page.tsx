@@ -15,7 +15,7 @@ const VALUES: { icon: LucideIcon; title: string; body: string }[] = [
   {
     icon: Eye,
     title: "Clarity",
-    body: "Listing discovery, transaction progress, payments, and documents stay visible and structured — for buyers and the team alike.",
+    body: "Listing discovery, transaction progress, payments, and documents stay visible and structured, for buyers and the team alike.",
   },
   {
     icon: Zap,

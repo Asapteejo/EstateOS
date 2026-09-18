@@ -10,7 +10,7 @@ import { THEME_INIT_SCRIPT } from "@/lib/security/csp";
 import "./globals.css";
 
 // Web-loaded, self-hosted fonts (next/font downloads + serves them from our own
-// origin at build time — no external CDN, so CSP `font-src 'self'` already
+// origin at build time, no external CDN, so CSP `font-src 'self'` already
 // covers them). These replace the previous Windows/Office-only font assumptions
 // (Aptos / Baskerville Old Face) that failed to load on Mac, iOS, Android, and
 // Linux. `display: "swap"` + next/font's automatic size-adjusted fallback keep
@@ -72,7 +72,7 @@ export default function RootLayout({
     <html lang="en" data-scroll-behavior="smooth" className={`${fontSans.variable} ${fontSerif.variable}`}>
       <body>
         {/* Pre-hydration theme bootstrap. The text lives in @/lib/security/csp
-            because the enforced CSP authorizes it by SHA-256 hash — keeping the
+            because the enforced CSP authorizes it by SHA-256 hash, keeping the
             script and its hash in one module (verified by csp.test.ts) means
             editing one without the other fails tests instead of breaking prod. */}
         <script

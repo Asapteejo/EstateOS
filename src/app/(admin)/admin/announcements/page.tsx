@@ -15,7 +15,7 @@ export default async function AdminAnnouncementsPage() {
     <DashboardShell
       area="admin"
       title="Announcements"
-      subtitle="Broadcast notices to your buyers — shown at the top of their portal until dismissed or expired."
+      subtitle="Broadcast notices to your buyers, shown at the top of their portal until dismissed or expired."
     >
       <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
         <AnnouncementComposer />

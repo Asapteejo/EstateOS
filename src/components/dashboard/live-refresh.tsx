@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
  * An honest "Live" indicator that also DOES the refreshing. It periodically calls
  * router.refresh() so server-rendered data (recent payments, balances, logs)
  * updates without a manual reload. Polling pauses while the tab is hidden to
- * avoid wasted work, and resumes — with an immediate refresh — when the tab is
+ * avoid wasted work, and resumes, with an immediate refresh, when the tab is
  * focused again. The dot pulses continuously; during an actual refresh the chip
  * shows a brief "Updating…" state so the label reflects real activity.
  */

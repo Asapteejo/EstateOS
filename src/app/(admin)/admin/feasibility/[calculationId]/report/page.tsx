@@ -81,7 +81,7 @@ export default async function AdminFeasibilityReportPage({
       }
       aiNarrative = chunks.join("");
     } catch {
-      // non-critical — omit from report if generation fails
+      // non-critical, omit from report if generation fails
     }
   }
 

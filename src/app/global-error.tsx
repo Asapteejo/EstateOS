@@ -11,7 +11,7 @@ import { captureException } from "@/lib/sentry";
  * `global-error.tsx` only renders when the ROOT layout itself throws, which
  * means the app's normal layout, providers, and (critically) globals.css are
  * NOT applied. It must therefore render its own <html>/<body> and rely on inline
- * styles only — design tokens/Tailwind classes are unavailable here. Styling is
+ * styles only, design tokens/Tailwind classes are unavailable here. Styling is
  * kept intentionally minimal and on-brand (the same sand/ink palette values used
  * in globals.css) so it still reads as part of the product.
  *

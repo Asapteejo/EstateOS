@@ -70,7 +70,7 @@ function DecisionBadge({
       });
       onStatusChange(calculationId, next);
     } catch {
-      // silent — stale UI at worst
+      // silent, stale UI at worst
     }
   }
 
@@ -167,7 +167,7 @@ function EmptyState({ onNew }: { onNew: () => void }) {
         </div>
         <h2 className="text-xl font-semibold text-[var(--ink-950)]">No feasibility projects yet</h2>
         <p className="mt-3 text-sm leading-6 text-[var(--ink-500)]">
-          The feasibility calculator helps land developers and real estate companies underwrite new projects — sizing land efficiency, modelling delivery cost, setting pricing targets, and stress-testing returns across scenarios before committing capital.
+          The feasibility calculator helps land developers and real estate companies underwrite new projects, sizing land efficiency, modelling delivery cost, setting pricing targets, and stress-testing returns across scenarios before committing capital.
         </p>
         <p className="mt-3 text-sm leading-6 text-[var(--ink-500)]">
           Use it before acquiring a site, pitching to investors, or setting a pricing strategy for a new estate.
