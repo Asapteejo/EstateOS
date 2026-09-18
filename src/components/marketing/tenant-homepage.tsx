@@ -73,7 +73,13 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
     featuredInventory.items.length > 0
       ? featuredInventory.items.slice(0, 3)
       : latestInventory.items.slice(0, 3);
-  const heroImageUrl = presentation.branding.heroImageUrl;
+  // Photography is what makes a property site feel premium, and a tenant that
+  // has not uploaded a hero image was shipping a plain grey gradient. Fall back
+  // to the first featured listing's photo so no tenant launches without one.
+  const heroImageUrl =
+    presentation.branding.heroImageUrl ??
+    featuredProperties.find((property) => property.images[0])?.images[0] ??
+    null;
   const startPurchaseHref = buildAuthRedirect(runtimeConfig, {
     returnTo: "/portal",
     tenantSlug: tenant.companySlug,
@@ -134,7 +140,12 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
                 ) : null}
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,17,27,0.08),rgba(7,17,27,0.58))]" />
                 <div className="relative flex h-full flex-col justify-end gap-4 p-6 text-white">
-                  <Badge className="w-fit bg-white/14 text-white">{siteContent.heroPanel.badge}</Badge>
+                  {/* Plain label rather than a Badge: this string includes the
+                      company name, so long names wrapped to two lines inside a
+                      pill built for one and broke its rounded shape. */}
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/80">
+                    {siteContent.heroPanel.badge}
+                  </div>
                   <div className="space-y-2">
                     <h2 className="max-w-md font-serif text-3xl leading-tight">
                       {siteContent.heroPanel.title}
@@ -215,15 +226,18 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
           }
 
           return (
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            // Plain columns divided by hairlines rather than three bordered,
+            // shadowed cards: the strip already sits inside a bordered section,
+            // and stacked outlines read as clutter rather than as quality.
+            <div className="mt-10 grid gap-8 border-t border-[var(--line)] pt-8 sm:grid-cols-2 lg:grid-cols-3">
               {stats.map((stat) => (
-                <Card key={String(stat.label)} className="rounded-[26px] border-[var(--line)] bg-white/85 p-5 backdrop-blur">
+                <div key={String(stat.label)}>
                   <div className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--ink-500)]">
                     {stat.label}
                   </div>
-                  <div className="mt-2 text-3xl font-semibold text-[var(--ink-950)]">{stat.value}</div>
-                  <p className="mt-2 text-sm leading-6 text-[var(--ink-600)]">{stat.note}</p>
-                </Card>
+                  <div className="numeric mt-3 text-4xl font-semibold text-[var(--ink-950)]">{stat.value}</div>
+                  <p className="mt-2 text-sm leading-7 text-[var(--ink-600)]">{stat.note}</p>
+                </div>
               ))}
             </div>
           );
@@ -272,16 +286,15 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
             <h2 className="max-w-2xl font-serif text-3xl text-[var(--ink-950)] sm:text-4xl">
               {siteContent.journey.heading}
             </h2>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-x-10 gap-y-10 md:grid-cols-3">
               {siteContent.journey.steps.map((step, index) => (
-                <Card
-                  key={step.title}
-                  className="flex h-full flex-col rounded-[28px] border-[var(--line)] bg-[var(--tenant-surface)] p-6"
-                >
-                  <div className="text-sm font-semibold text-[var(--brand-700)]">0{index + 1}</div>
-                  <div className="mt-3 font-serif text-xl text-[var(--ink-950)]">{step.title}</div>
+                <div key={step.title} className="border-t-2 border-[var(--brand-700)]/25 pt-5">
+                  <div className="numeric text-sm font-semibold tracking-[0.18em] text-[var(--brand-700)]">
+                    0{index + 1}
+                  </div>
+                  <div className="mt-3 font-serif text-2xl leading-snug text-[var(--ink-950)]">{step.title}</div>
                   <p className="mt-3 text-sm leading-7 text-[var(--ink-600)]">{step.description}</p>
-                </Card>
+                </div>
               ))}
             </div>
           </section>

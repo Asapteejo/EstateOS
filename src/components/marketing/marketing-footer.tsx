@@ -110,6 +110,7 @@ export function MarketingFooter({
           </h4>
           <div className="flex flex-col items-start gap-1 text-sm text-[var(--ink-700)]">
             <Link href="/about" className="footer-link admin-focus inline-flex min-h-11 w-fit items-center rounded sm:min-h-0">About</Link>
+            <Link href="/how-it-works" className="footer-link admin-focus inline-flex min-h-11 w-fit items-center rounded sm:min-h-0">How it works</Link>
             <Link href="/team" className="footer-link admin-focus inline-flex min-h-11 w-fit items-center rounded sm:min-h-0">Team</Link>
             {showCareers ? (
               <Link href="/careers" className="footer-link admin-focus inline-flex min-h-11 w-fit items-center rounded sm:min-h-0">Careers</Link>
