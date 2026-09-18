@@ -100,6 +100,62 @@ test("homepage shows the property search and a working listings link", async ({ 
   expect(page.url()).toContain("location=Lekki");
 });
 
+test("footer navigation links stack instead of running together", async ({ page }) => {
+  await page.goto("/");
+
+  // Regression: the links were given `inline-flex` for a 44px tap target while
+  // their container still relied on `space-y-*` (a margin between BLOCK boxes).
+  // Inline-level boxes flow onto one line, so the footer rendered
+  // "ListingsBuyer PortalAdmin Dashboard". Each link must start its own line.
+  // Compared per column: separate footer columns sit side by side on desktop,
+  // so links in different columns share a line legitimately.
+  const result = await page.evaluate(() => {
+    const groups = new Map<Element, Array<{ text: string; top: number; left: number; height: number }>>();
+    for (const link of document.querySelectorAll("footer a")) {
+      const parent = link.parentElement;
+      if (!parent) continue;
+      const rect = link.getBoundingClientRect();
+      if (rect.width === 0) continue;
+      const entry = {
+        text: (link.textContent || "").trim(),
+        top: Math.round(rect.top),
+        left: Math.round(rect.left),
+        height: Math.round(rect.height),
+      };
+      groups.set(parent, [...(groups.get(parent) ?? []), entry]);
+    }
+
+    const collisions: string[] = [];
+    let linkCount = 0;
+    let shortest = Infinity;
+    for (const entries of groups.values()) {
+      if (entries.length < 2) continue;
+      linkCount += entries.length;
+      for (const entry of entries) {
+        shortest = Math.min(shortest, entry.height);
+        const sibling = entries.find(
+          (other) => other !== entry && Math.abs(other.top - entry.top) < 4,
+        );
+        if (sibling) collisions.push(`${entry.text} + ${sibling.text}`);
+      }
+    }
+    return { collisions: [...new Set(collisions)], linkCount, shortest };
+  });
+
+  expect(result.linkCount, "expected grouped footer navigation links").toBeGreaterThan(2);
+  expect(
+    result.collisions,
+    "footer links in the same column share a line — inline-level boxes in a non-flex container again",
+  ).toEqual([]);
+
+  // The 44px tap target applies on phones only: above `sm` the links
+  // deliberately return to desktop density (sm:min-h-0).
+  const viewportWidth = page.viewportSize()?.width ?? 0;
+  if (viewportWidth < 640) {
+    expect(result.shortest, "footer link lost its 44px touch target on mobile").toBeGreaterThanOrEqual(44);
+  }
+});
+
 test("tenant site content renders copy rather than blank sections", async ({ page }) => {
   await page.goto("/");
 

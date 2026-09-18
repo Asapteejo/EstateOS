@@ -215,13 +215,46 @@ export function buildPropertyVerificationPresentation(
   };
 }
 
-export function buildPublicPropertyVerificationWhere() {
-  return {
+/**
+ * Public visibility filter.
+ *
+ * `isPubliclyVisible` / `verificationStatus` are STORED values, written only
+ * when a property is mutated — there is no sweep that ages them. The presented
+ * status, by contrast, is recomputed from `lastVerifiedAt` on every render. A
+ * listing that crossed the hide threshold therefore kept its stored "visible"
+ * flag and stayed on the public site while rendering the label "Listing
+ * hidden" — the policy was enforced in the UI copy but not in the query.
+ *
+ * Passing `hideBefore` (now - hideDays) applies the same rule the presentation
+ * uses, in SQL, so an unverified-for-too-long listing leaves the public site
+ * whether or not anything has written to the row since.
+ */
+export function buildPublicPropertyVerificationWhere(options?: { hideBefore?: Date | null }) {
+  const stored = {
     isPubliclyVisible: true,
     verificationStatus: {
       in: ["VERIFIED", "STALE"],
     },
   };
+
+  if (!options?.hideBefore) {
+    return stored;
+  }
+
+  return {
+    ...stored,
+    // `gte` also excludes rows that were never verified (NULL).
+    lastVerifiedAt: { gte: options.hideBefore },
+  };
+}
+
+/** Cutoff before which a listing counts as hidden, for the public query. */
+export async function resolvePublicVisibilityCutoff(
+  companyId?: string | null,
+  now = new Date(),
+) {
+  const thresholds = await getVerificationThresholdsForCompany(companyId);
+  return subDays(now, thresholds.hideDays);
 }
 
 export function buildPropertyVerificationUpdateInput(

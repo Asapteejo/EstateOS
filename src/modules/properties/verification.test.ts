@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildPropertyVerificationPresentation,
   buildPropertyVerificationUpdateInput,
+  buildPublicPropertyVerificationWhere,
   computeVerificationStatus,
   normalizeVerificationThresholds,
   updateVerificationState,
@@ -128,4 +129,43 @@ test("verification status uses tenant-specific fresh and hide windows", () => {
   );
 
   assert.equal(status, "HIDDEN");
+});
+
+test("public visibility filter falls back to the stored flags without a cutoff", () => {
+  const where = buildPublicPropertyVerificationWhere();
+
+  assert.deepEqual(where, {
+    isPubliclyVisible: true,
+    verificationStatus: { in: ["VERIFIED", "STALE"] },
+  });
+});
+
+test("public visibility filter drops listings that aged past the hide window", () => {
+  // The stored flags are only written when a property is mutated, so a listing
+  // that crossed the hide threshold kept `isPubliclyVisible: true` and stayed
+  // public while rendering "Listing hidden". The cutoff applies the same rule
+  // the presentation uses, in the query.
+  const thresholds = normalizeVerificationThresholds({ freshDays: 5, staleDays: 10, hideDays: 12 });
+  const hideBefore = new Date(now.getTime() - thresholds.hideDays * 24 * 60 * 60 * 1000);
+  const where = buildPublicPropertyVerificationWhere({ hideBefore }) as {
+    lastVerifiedAt?: { gte: Date };
+  };
+
+  assert.deepEqual(where.lastVerifiedAt, { gte: hideBefore });
+
+  // A listing last verified before the cutoff is exactly the one the
+  // presentation would label "Listing hidden".
+  const agedOut = new Date("2026-03-20T00:00:00.000Z");
+  assert.equal(agedOut < hideBefore, true);
+  assert.equal(
+    computeVerificationStatus({ lastVerifiedAt: agedOut }, thresholds, now),
+    "HIDDEN",
+  );
+
+  const stillPublic = new Date("2026-03-25T00:00:00.000Z");
+  assert.equal(stillPublic >= hideBefore, true);
+  assert.notEqual(
+    computeVerificationStatus({ lastVerifiedAt: stillPublic }, thresholds, now),
+    "HIDDEN",
+  );
 });
