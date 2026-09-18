@@ -11,9 +11,9 @@ import type { TenantSiteContent } from "@/modules/cms/site-content";
 import type { TenantSiteContentState } from "@/modules/cms/site-content-service";
 
 /**
- * Full-site CMS editor: every piece of public marketing copy — SEO, hero
+ * Full-site CMS editor: every piece of public marketing copy, SEO, hero
  * (+ stat cards + side panel), the buyer journey, section headings, about,
- * contact extras, social links, footer — with draft → publish control.
+ * contact extras, social links, footer, with draft → publish control.
  * Blank fields fall back to smart company-derived defaults (shown as
  * placeholders), so tenants only override what they want to change.
  */
@@ -292,7 +292,7 @@ export function SiteContentManagement({
     router.refresh();
   }
 
-  // The content columns could not be read — almost always a database that is
+  // The content columns could not be read, almost always a database that is
   // behind the deployed code. Explain it instead of showing a broken editor.
   if (state.unavailable) {
     return (

@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Styled native select — the shared replacement for the ~34 bespoke `<select>`
+ * Styled native select, the shared replacement for the ~34 bespoke `<select>`
  * elements across the app. Deliberately built on the NATIVE element: it is the
  * most accessible, mobile-friendly picker there is (iOS/Android render their
  * platform pickers), needs no JS, and works inside plain server-rendered

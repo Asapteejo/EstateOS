@@ -68,7 +68,7 @@ test("migration readiness reports every migration missing from the database", ()
 /**
  * Regression test for the production incident: the expected-migrations list
  * was hand-maintained, stopped at 0035, and reported a false green while the
- * database was missing 0042 — whose absent columns produced P2022
+ * database was missing 0042, whose absent columns produced P2022
  * "column does not exist" 500s.
  */
 test("migration manifest covers the CMS migration that caused the P2022 incident", () => {

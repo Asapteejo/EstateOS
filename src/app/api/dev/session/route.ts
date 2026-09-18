@@ -48,7 +48,7 @@ export async function GET(request: Request) {
   if (role && ALLOWED_ROLES.has(role as DemoSessionRole)) {
     // Set the role cookie first. The demo session's roles come from code, not the
     // database, so switching roles in dev must not depend on the DB-provisioning
-    // step below succeeding — otherwise a transient write hiccup silently leaves
+    // step below succeeding, otherwise a transient write hiccup silently leaves
     // the previous role in place.
     response.cookies.set(DEV_SESSION_COOKIE, role, {
       httpOnly: true,

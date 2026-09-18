@@ -54,7 +54,7 @@ export function publishRealtimeEvent(
 
   getRealtimeBus().emit("platform-event", event);
   // Cross-instance signal for conditional polling: bump the per-company and
-  // platform change counters in Redis. Fire-and-forget — publishing an event
+  // platform change counters in Redis. Fire-and-forget, publishing an event
   // must never fail or slow down the mutation that triggered it (the bump
   // catches internally and degrades to blind polling on the client).
   void bumpChangeCounters(event.companyId);

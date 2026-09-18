@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 /**
- * Shared data table built on TanStack Table (headless) — the replacement for
+ * Shared data table built on TanStack Table (headless), the replacement for
  * the bespoke `<table>` implementations across the admin screens. One
  * consistent look (tokens, sticky header, hover states) and one consistent
  * behavior set (client-side sorting, optional search, optional pagination)
@@ -54,7 +54,7 @@ export function DataTable<TData>({
   onRowClick?: (row: TData) => void;
   className?: string;
   /**
-   * Drops the table's own border/radius/shadow chrome — for embedding inside
+   * Drops the table's own border/radius/shadow chrome, for embedding inside
    * an existing Card (e.g. DataTableCard) without double borders.
    */
   frameless?: boolean;

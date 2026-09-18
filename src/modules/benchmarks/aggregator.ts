@@ -13,7 +13,7 @@
  * Platform distributions are computed by running the same aggregations
  * across ALL companies simultaneously, grouping by companyId, and deriving
  * per-company values before extracting quartiles. No individual company
- * identity is surfaced — only anonymised distribution statistics.
+ * identity is surfaced, only anonymised distribution statistics.
  *
  * Minimum thresholds prevent thin-data workspaces from skewing benchmarks:
  *   - Conversion rate:  company must have ≥ 5 inquiries in the window
@@ -176,7 +176,7 @@ export async function getBenchmarkReport(companyId: string): Promise<BenchmarkRe
 
   const windowStart = subDays(new Date(), BENCHMARK_WINDOW_DAYS);
 
-  // Run all 10 queries in parallel — 5 tenant-scoped, 5 platform-wide.
+  // Run all 10 queries in parallel, 5 tenant-scoped, 5 platform-wide.
   const [
     tenantInquiryCount,
     tenantReservationCount,

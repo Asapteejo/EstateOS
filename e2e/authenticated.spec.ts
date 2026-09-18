@@ -97,7 +97,7 @@ async function assertRouteHealthy(page: Page, route: string) {
 
   expect(
     response?.status() ?? 0,
-    `${route} returned a server error — this is the signature of a missing migration or a broken query.`,
+    `${route} returned a server error, this is the signature of a missing migration or a broken query.`,
   ).toBeLessThan(500);
 
   const body = (await page.locator("body").innerText()).toLowerCase();
@@ -113,7 +113,7 @@ async function assertRouteHealthy(page: Page, route: string) {
 test.describe("operator surfaces", () => {
   test.beforeEach(async ({ page }) => {
     const signedIn = await signInAs(page, "admin");
-    test.skip(!signedIn, "Dev bypass unavailable (production or flag off) — skipping.");
+    test.skip(!signedIn, "Dev bypass unavailable (production or flag off), skipping.");
   });
 
   for (const route of ADMIN_ROUTES) {
@@ -132,7 +132,7 @@ test.describe("operator surfaces", () => {
     // environment it means migrations are pending and must be applied.
     expect(
       body,
-      "Site content editor is in its degraded state — the database is missing migrations. Run `npm run db:migrate:deploy`.",
+      "Site content editor is in its degraded state, the database is missing migrations. Run `npm run db:migrate:deploy`.",
     ).not.toContain("Site content unavailable");
 
     await expect(page.getByText("Search & SEO")).toBeVisible();
@@ -142,7 +142,7 @@ test.describe("operator surfaces", () => {
 test.describe("buyer portal", () => {
   test.beforeEach(async ({ page }) => {
     const signedIn = await signInAs(page, "buyer");
-    test.skip(!signedIn, "Dev bypass unavailable (production or flag off) — skipping.");
+    test.skip(!signedIn, "Dev bypass unavailable (production or flag off), skipping.");
   });
 
   for (const route of PORTAL_ROUTES) {

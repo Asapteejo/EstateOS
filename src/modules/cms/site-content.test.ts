@@ -118,7 +118,7 @@ test("social links must be https and whatsapp must be E.164", () => {
     }).success,
     true,
   );
-  // Blank socials are fine — they simply hide the icon.
+  // Blank socials are fine, they simply hide the icon.
   assert.equal(siteContentSchema.safeParse({ social: { facebook: "" } }).success, true);
 });
 

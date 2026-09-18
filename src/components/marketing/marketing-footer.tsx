@@ -5,7 +5,7 @@ import { Container } from "@/components/shared/container";
 import { Logo } from "@/components/shared/logo";
 import type { TenantSiteContent } from "@/modules/cms/site-content";
 
-// Facebook, Instagram, LinkedIn were removed from lucide-react — minimal inline SVGs
+// Facebook, Instagram, LinkedIn were removed from lucide-react, minimal inline SVGs
 function FacebookIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -35,7 +35,7 @@ function LinkedinIcon({ className }: { className?: string }) {
 type SocialLinks = TenantSiteContent["social"];
 
 /**
- * Tenant site footer. Tagline and social links come from the tenant CMS —
+ * Tenant site footer. Tagline and social links come from the tenant CMS,
  * icons render only for the profiles the company actually filled in.
  * WhatsApp is stored as a phone number and linked via wa.me.
  */

@@ -110,7 +110,7 @@ export function CommandPalette({
     };
   }, [openPalette, close]);
 
-  // Open side-effects only (focus, scroll lock, focus restore) — no setState.
+  // Open side-effects only (focus, scroll lock, focus restore), no setState.
   useEffect(() => {
     if (!open) {
       return;

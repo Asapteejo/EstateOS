@@ -190,7 +190,7 @@ const transactionSelect = Prisma.validator<Prisma.TransactionFindManyArgs>()({
     followUpNote: true,
     lastFollowedUpAt: true,
     nextFollowUpAt: true,
-    // riskScore is added after prisma generate — cast via any below
+    // riskScore is added after prisma generate, cast via any below
     updatedAt: true,
     user: {
       select: {
@@ -720,7 +720,7 @@ export async function getAdminDealBoard(context: TenantContext): Promise<DealBoa
 
   const companyId = context.companyId;
 
-  // riskScore is a new schema field not yet in generated Prisma types — fetch
+  // riskScore is a new schema field not yet in generated Prisma types, fetch
   // transactions separately with an `as any` cast and run both in parallel.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const txPromise = (prisma.transaction.findMany as (args: any) => Promise<any[]>)({

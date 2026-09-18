@@ -55,7 +55,7 @@ export function SidebarNavGroups({
           }
         }
       } catch {
-        // Storage unavailable (private mode etc.) — stay expanded.
+        // Storage unavailable (private mode etc.), stay expanded.
       }
     }, 0);
     return () => clearTimeout(id);
@@ -108,7 +108,7 @@ export function SidebarNavGroups({
     );
   };
 
-  // A single group renders as a plain list — no header, nothing to collapse.
+  // A single group renders as a plain list, no header, nothing to collapse.
   if (groups.length <= 1) {
     return (
       <nav className="flex min-w-0 flex-col gap-1" aria-label="Workspace navigation">

@@ -122,7 +122,7 @@ export async function runRevenueRecoverySweep(input?: {
       where: { id: { in: uniqueCompanyIds } },
       select: { id: true, name: true },
     }),
-    // ADMIN users — same UserRole pattern used by getTenantOperatorRecipients
+    // ADMIN users, same UserRole pattern used by getTenantOperatorRecipients
     prisma.user.findMany({
       where: {
         companyId: { in: uniqueCompanyIds },
@@ -233,7 +233,7 @@ export async function runRevenueRecoverySweep(input?: {
 
     // ── Stage-specific escalations ────────────────────────────────────────
     if (targetStage === STAGE_DAY_1 || targetStage === STAGE_DAY_3) {
-      // Operator in-app notification only — no extra email at these stages
+      // Operator in-app notification only, no extra email at these stages
       const operators = await getTenantOperatorRecipients(tx.companyId);
       await notifyManyUsers(operators, {
         companyId: tx.companyId,

@@ -11,7 +11,7 @@ import {
 } from "@/lib/realtime/change-counter";
 
 /**
- * Conditional-polling version check — the cheap replacement for blind
+ * Conditional-polling version check, the cheap replacement for blind
  * 30-second router.refresh() polling. Returns the current change counter for
  * the caller's surface (one Redis GET). Clients re-render only when the
  * number moves. Auth mirrors /api/realtime/stream: the company id comes from

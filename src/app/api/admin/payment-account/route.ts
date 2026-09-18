@@ -17,7 +17,7 @@ import {
 } from "@/lib/rate-limit";
 export const runtime = "nodejs";
 
-// ─── GET — fetch existing account ────────────────────────────────────────────
+// ─── GET, fetch existing account ────────────────────────────────────────────
 
 export async function GET() {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
@@ -39,7 +39,7 @@ export async function GET() {
   return ok({ account, paystackConfigured: featureFlags.hasPaystack });
 }
 
-// ─── POST — create subaccount ─────────────────────────────────────────────────
+// ─── POST, create subaccount ─────────────────────────────────────────────────
 
 export async function POST(request: Request) {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;
@@ -116,7 +116,7 @@ export async function POST(request: Request) {
   }
 }
 
-// ─── PATCH — update existing subaccount ───────────────────────────────────────
+// ─── PATCH, update existing subaccount ───────────────────────────────────────
 
 export async function PATCH(request: Request) {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;

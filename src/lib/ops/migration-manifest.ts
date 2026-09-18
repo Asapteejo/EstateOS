@@ -1,4 +1,4 @@
-// GENERATED FILE — DO NOT EDIT BY HAND.
+// GENERATED FILE, DO NOT EDIT BY HAND.
 // Regenerate with: node scripts/generate-migration-manifest.mjs
 //
 // Every migration directory in prisma/migrations, used by the readiness

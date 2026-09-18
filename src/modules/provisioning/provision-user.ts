@@ -112,7 +112,7 @@ async function resolveActorName(actorUserId: string): Promise<string> {
 }
 
 export async function provisionCompanyUser(input: ProvisionUserInput): Promise<ProvisionUserResult> {
-  // 1. Role gating — enforce on every call, not just in the UI
+  // 1. Role gating, enforce on every call, not just in the UI
   const allowed = allowedRolesForActor(input.actorRoles);
   if (!allowed.includes(input.role)) {
     return { ok: false, error: `Your role does not permit creating a ${input.role} account.` };
@@ -134,7 +134,7 @@ export async function provisionCompanyUser(input: ProvisionUserInput): Promise<P
   });
   if (!company) return { ok: false, error: "Company not found." };
 
-  // 4. Email uniqueness — User.email is globally unique in the schema
+  // 4. Email uniqueness, User.email is globally unique in the schema
   const globalExisting = await prisma.user.findFirst({
     where: { email: { equals: email, mode: "insensitive" } },
     select: { id: true, companyId: true },
@@ -281,7 +281,7 @@ async function provisionWithPassword(args: {
   const { input, email, firstName, lastName } = args;
   const password = generatePassword();
 
-  // Create Clerk account with password — never log or store the password after this
+  // Create Clerk account with password, never log or store the password after this
   const { clerkClient } = await import("@clerk/nextjs/server");
   const client = await clerkClient();
   let clerkUserId: string;
@@ -354,13 +354,13 @@ async function provisionWithPassword(args: {
     try {
       await client.users.deleteUser(clerkUserId);
     } catch {
-      // Cleanup failed — the orphaned Clerk user must be removed manually
+      // Cleanup failed, the orphaned Clerk user must be removed manually
     }
     const message = err instanceof Error ? err.message : "Failed to create user record.";
     return { ok: false, error: message };
   }
 
-  // Audit log — the password is intentionally omitted
+  // Audit log, the password is intentionally omitted
   await writeAuditLog({
     companyId: input.companyId,
     actorUserId: input.actorUserId,
@@ -371,6 +371,6 @@ async function provisionWithPassword(args: {
     payload: { email, role: input.role, delivery: "password", clerkUserId },
   });
 
-  // Return password for one-time UI display only — never persisted
+  // Return password for one-time UI display only, never persisted
   return { ok: true, userId, delivery: "password", email, password };
 }

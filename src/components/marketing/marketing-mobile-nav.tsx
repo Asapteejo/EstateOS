@@ -8,8 +8,8 @@ type MarketingNavLink = { href: string; label: string };
 /**
  * Mobile/tablet (below `lg`) navigation for the tenant public site header.
  *
- * Implemented as an absolute-positioned dropdown anchored to the trigger —
- * matching the platform marketing header's mobile menu — rather than a fixed
+ * Implemented as an absolute-positioned dropdown anchored to the trigger,
+ * matching the platform marketing header's mobile menu, rather than a fixed
  * full-screen drawer. This is deliberate: `MarketingHeader` uses
  * `backdrop-blur-xl`, and an ancestor with `backdrop-filter` becomes the
  * containing block for `position: fixed` descendants, which would clip a fixed

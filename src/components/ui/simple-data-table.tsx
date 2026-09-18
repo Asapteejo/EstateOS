@@ -6,7 +6,7 @@ import { DataTable, type ColumnDef } from "@/components/ui/data-table";
 
 /**
  * Client bridge for server components that hold plain string tables
- * (columns: string[], rows: string[][]) — the DataTableCard shape used by
+ * (columns: string[], rows: string[][]), the DataTableCard shape used by
  * Audit Logs, Documents, and Transactions. Server pages can't construct
  * TanStack ColumnDefs (cell renderers aren't serializable), so this wrapper
  * takes the serializable shape and builds index-accessor columns client-side.

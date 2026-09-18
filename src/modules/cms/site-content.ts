@@ -3,7 +3,7 @@
  *
  * Centralizes ALL editable text of a tenant's public marketing site behind
  * one typed shape with sensible, company-derived fallbacks. Components read
- * from the resolved object, never from hardcoded strings — every tenant can
+ * from the resolved object, never from hardcoded strings, every tenant can
  * make the site sound like *their* company without touching code.
  *
  * Coverage: SEO metadata, hero (copy + stat cards + side panel), the
@@ -48,7 +48,7 @@ export type TenantSiteContent = {
     title: string;
     body: string;
   };
-  /** "How it works" — the three-step buyer journey. */
+  /** "How it works", the three-step buyer journey. */
   journey: {
     heading: string;
     steps: [JourneyStep, JourneyStep, JourneyStep];
@@ -63,7 +63,7 @@ export type TenantSiteContent = {
     title: string;
     intro: string;
   };
-  /** Careers page — hideable for companies that aren't hiring. */
+  /** Careers page, hideable for companies that aren't hiring. */
   careers: {
     visible: boolean;
     eyebrow: string;

@@ -15,7 +15,7 @@ const schema = z.object({
   customDomain: z.string().trim().optional().nullable().or(z.literal("")),
 });
 
-// ─── PATCH — save custom domain ──────────────────────────────────────────────
+// ─── PATCH, save custom domain ──────────────────────────────────────────────
 
 export async function PATCH(request: Request) {
   let tenant: Awaited<ReturnType<typeof requireAdminSession>>;

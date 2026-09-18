@@ -10,7 +10,7 @@ import { DataTable, type ColumnDef } from "@/components/ui/data-table";
  * sortable columns, search, pagination. The server page flattens service rows
  * into these serializable shapes and passes the server actions down as props
  * (Next serializes action references), so the send/regenerate forms keep
- * working exactly as before — just inside table cells.
+ * working exactly as before, just inside table cells.
  */
 
 type ServerAction = (formData: FormData) => void | Promise<void>;

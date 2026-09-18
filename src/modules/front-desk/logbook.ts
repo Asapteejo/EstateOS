@@ -66,14 +66,14 @@ export async function getLogbookTodayCounts(
     ]);
     return { visitorsToday, callsToday };
   } catch {
-    // Tables not migrated yet — treat as zero rather than failing the caller.
+    // Tables not migrated yet, treat as zero rather than failing the caller.
     return { visitorsToday: 0, callsToday: 0 };
   }
 }
 
 /**
  * Full front-desk logbook (recent visitors + calls and today's counts). Never
- * throws — if the Visitor/CallLog tables have not been migrated yet it returns an
+ * throws, if the Visitor/CallLog tables have not been migrated yet it returns an
  * empty logbook so the page renders cleanly until the migration is applied.
  */
 export async function getFrontDeskLogbook(context: {

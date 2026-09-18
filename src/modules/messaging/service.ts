@@ -146,7 +146,7 @@ export async function getThread(
     });
     if (!thread) return null;
 
-    // Mark read for the viewing side (best effort — never blocks the render).
+    // Mark read for the viewing side (best effort, never blocks the render).
     try {
       await prisma.messageThread.update({
         where: { id: thread.id },
@@ -156,7 +156,7 @@ export async function getThread(
       /* non-fatal */
     }
 
-    // Only the team view exposes the buyer's phone (for click-to-chat) — buyers
+    // Only the team view exposes the buyer's phone (for click-to-chat), buyers
     // don't need their own number surfaced here.
     let buyerPhone: string | null = null;
     if (viewer === "team") {
@@ -303,7 +303,7 @@ export async function sendMessage(input: {
 
       // 2) WhatsApp (via the shared Twilio + wallet layer). This no-ops safely
       //    when the buyer has no phone, Twilio is unconfigured, or the company's
-      //    messaging wallet is out of credit — so it's safe to always attempt.
+      //    messaging wallet is out of credit, so it's safe to always attempt.
       try {
         const buyer = await prisma.user.findUnique({
           where: { id: thread.buyerUserId },

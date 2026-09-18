@@ -50,7 +50,7 @@ export function LiveSurfaceSync({ channel, surface = "admin" }: LiveSurfaceSyncP
     // /api/realtime/version endpoint (one Redis GET server-side) and only
     // call router.refresh() when the change counter actually moved. Falls
     // back to the old blind refresh when the counter backplane is
-    // unavailable (no Redis) or the endpoint errors — shouldRefreshRealtime
+    // unavailable (no Redis) or the endpoint errors, shouldRefreshRealtime
     // still rate-limits blind refreshes to the 30s cadence.
     const versionSearch = new URLSearchParams({
       channel,
@@ -95,12 +95,12 @@ export function LiveSurfaceSync({ channel, surface = "admin" }: LiveSurfaceSyncP
         }
         if (payload.data.version !== lastVersion) {
           lastVersion = payload.data.version;
-          // A real change was detected — refresh promptly (short debounce
+          // A real change was detected, refresh promptly (short debounce
           // floor rather than the 30s blind-poll spacing).
           refresh(REALTIME_CHANGE_REFRESH_MIN_INTERVAL_MS);
         }
       } catch {
-        // Endpoint unreachable — degrade to blind refresh (rate-limited).
+        // Endpoint unreachable, degrade to blind refresh (rate-limited).
         refresh();
       }
     };

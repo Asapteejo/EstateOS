@@ -10,7 +10,7 @@ import { THEME_INIT_SCRIPT } from "@/lib/security/csp";
 import "./globals.css";
 
 // Web-loaded, self-hosted fonts (next/font downloads + serves them from our own
-// origin at build time — no external CDN, so CSP `font-src 'self'` already
+// origin at build time, no external CDN, so CSP `font-src 'self'` already
 // covers them). These replace the previous Windows/Office-only font assumptions
 // (Aptos / Baskerville Old Face) that failed to load on Mac, iOS, Android, and
 // Linux. `display: "swap"` + next/font's automatic size-adjusted fallback keep

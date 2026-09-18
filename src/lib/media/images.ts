@@ -20,7 +20,7 @@ export function isRelativeAssetUrl(value: string) {
 }
 
 /**
- * Hosts the next/image optimizer is allowed to fetch from — must stay in sync
+ * Hosts the next/image optimizer is allowed to fetch from, must stay in sync
  * with images.remotePatterns in next.config.ts. NEXT_PUBLIC_R2_PUBLIC_HOST is
  * inlined at build time from R2_PUBLIC_BASE_URL, so tenant media on the
  * public R2 domain gets real optimization (AVIF/WebP, resizing) instead of

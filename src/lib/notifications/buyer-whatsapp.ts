@@ -7,7 +7,7 @@ import { sendWhatsAppMessage } from "@/lib/notifications/whatsapp";
  * Best-effort WhatsApp notification to a buyer. Looks up their phone + first
  * name, then dispatches through the shared Twilio + wallet layer, which no-ops
  * safely when the buyer has no phone, Twilio is unconfigured, or the company's
- * messaging wallet is out of credit. Never throws — callers can fire-and-forget.
+ * messaging wallet is out of credit. Never throws, callers can fire-and-forget.
  */
 export async function notifyBuyerWhatsApp(input: {
   companyId: string;

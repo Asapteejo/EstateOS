@@ -31,7 +31,7 @@ export type MarketerRankingRow = {
 /**
  * Ranked marketer list for /admin/marketers, on the shared DataTable. Raw
  * numbers stay numbers (revenue, score, deals…) so column sorting is numeric
- * — the CEO can re-rank by monthly revenue or commission with one click —
+ *, the CEO can re-rank by monthly revenue or commission with one click,
  * while cells format for display. Default order is the service's rank.
  */
 export function MarketerRankingTable({ rows }: { rows: MarketerRankingRow[] }) {

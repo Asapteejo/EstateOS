@@ -27,7 +27,7 @@ const isAuthAccessRoute = createRouteMatcher(["/auth/access(.*)"]);
  * Nonce-based CSP, enforced in production.
  *
  * The nonce is forwarded on the REQUEST via the `content-security-policy`
- * header — Next.js reads the nonce from there and stamps it onto its own
+ * header, Next.js reads the nonce from there and stamps it onto its own
  * inline/bootstrap scripts and /_next chunk tags. The same policy is then set
  * on the RESPONSE so the browser enforces it. See src/lib/security/csp.ts for
  * the policy itself and the browser-generation fallback strategy.

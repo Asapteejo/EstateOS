@@ -20,7 +20,7 @@ function readDismissed(): string[] {
 /**
  * Dismissible broadcast banner shown at the top of the dashboard (buyer portal
  * or operator workspace). Dismissal is persisted in localStorage so a notice a
- * user has closed stays closed across navigation and reloads — until the
+ * user has closed stays closed across navigation and reloads, until the
  * operator unpublishes it or it expires (both drop it server-side).
  */
 export function AnnouncementBanner({ items }: { items: AnnouncementNotice[] }) {

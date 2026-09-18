@@ -7,7 +7,7 @@ export const REALTIME_REFRESH_INTERVAL_MS = 30_000;
 /**
  * Minimum spacing between refreshes triggered by an actual version change.
  * Shorter than the blind interval on purpose: when we KNOW something changed,
- * re-render promptly — the floor only debounces event bursts.
+ * re-render promptly, the floor only debounces event bursts.
  */
 export const REALTIME_CHANGE_REFRESH_MIN_INTERVAL_MS = 5_000;
 

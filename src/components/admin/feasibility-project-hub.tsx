@@ -70,7 +70,7 @@ function DecisionBadge({
       });
       onStatusChange(calculationId, next);
     } catch {
-      // silent — stale UI at worst
+      // silent, stale UI at worst
     }
   }
 

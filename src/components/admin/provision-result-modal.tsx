@@ -11,7 +11,7 @@ import type { ProvisionUserResult } from "@/modules/provisioning/provision-user"
  * One-time credential display after operator-provisioned account creation.
  * For invite delivery: shows confirmation with the recipient email.
  * For password delivery: shows the temporary password with copy-to-clipboard
- * and a prominent "shown once" warning — the password is never stored.
+ * and a prominent "shown once" warning, the password is never stored.
  */
 export function ProvisionResultDialog({
   result,

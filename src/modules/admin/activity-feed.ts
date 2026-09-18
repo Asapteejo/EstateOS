@@ -51,7 +51,7 @@ async function safeSource<T>(fn: () => Promise<T[]>): Promise<T[]> {
 /**
  * A read-only, company-wide "what's happening" feed for the owner/CEO: recent
  * visitors, leads, payments, buyer messages, and reservations merged into one
- * time-ordered timeline. Reinforces the oversight model — the owner monitors
+ * time-ordered timeline. Reinforces the oversight model, the owner monitors
  * activity here rather than doing the operational entry work.
  */
 export async function getOwnerActivityFeed(ctx: Ctx): Promise<ActivityItem[]> {

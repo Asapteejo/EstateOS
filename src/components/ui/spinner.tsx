@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
  * that already conveys busy state (e.g. a Button with `aria-busy`), so it stays
  * purely decorative and is not double-announced.
  *
- * Stays spinning under `prefers-reduced-motion` — a loading spinner is
+ * Stays spinning under `prefers-reduced-motion`, a loading spinner is
  * functional feedback, not decorative motion (see `.spinner` in globals.css).
  */
 export function Spinner({

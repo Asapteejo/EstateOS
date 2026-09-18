@@ -34,7 +34,7 @@ function resolveCopy(status: string | undefined, reason: string | undefined): Ac
         "Superadmin access is private and requires both an allowlisted email address and a persisted platform role.",
       reason: "Use the normal admin or buyer workspace for this account.",
       // Send tenant operators back to their own workspace, not the marketing
-      // homepage — this page is reached by an ordinary admin who simply hit a
+      // homepage, this page is reached by an ordinary admin who simply hit a
       // /superadmin URL.
       actionHref: "/admin",
       actionLabel: "Go to your dashboard",

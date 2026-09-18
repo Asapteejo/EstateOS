@@ -13,7 +13,7 @@ import { PREMIUM_EASE } from "@/components/shared/page-transition";
  * hijacking). Honors `prefers-reduced-motion` by collapsing to a plain fade and
  * animates only transform/opacity, so there is no layout shift.
  *
- * Intended for marketing pages only — dashboards stay calm.
+ * Intended for marketing pages only, dashboards stay calm.
  */
 export function Reveal({
   children,

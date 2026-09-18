@@ -47,7 +47,7 @@ export function computeRiskScore(input: {
   failedPaymentCount: number;
   /** Timestamp of the last admin follow-up, or null if never followed up. */
   lastFollowedUpAt: Date | null;
-  /** updatedAt of the Transaction row — proxy for last stage change. */
+  /** updatedAt of the Transaction row, proxy for last stage change. */
   transactionUpdatedAt: Date;
   /** Override "now" for testing. */
   now?: Date;

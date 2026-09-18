@@ -51,7 +51,7 @@ function generateInvoiceNumber(): string {
   return `INV-${stamp}-${suffix}`;
 }
 
-/** Create an invoice. Never throws — returns a structured result. */
+/** Create an invoice. Never throws, returns a structured result. */
 export async function createInvoice(
   context: TenantContext,
   input: CreateInvoiceInput,

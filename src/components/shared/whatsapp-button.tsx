@@ -5,7 +5,7 @@ import { buildWhatsAppHref } from "@/modules/team/contact";
 /**
  * Click-to-chat WhatsApp button. Opens wa.me for the given phone with an
  * optional prefilled message so an operator can message a buyer from their own
- * WhatsApp — no credentials or wallet required. Renders nothing if the phone is
+ * WhatsApp, no credentials or wallet required. Renders nothing if the phone is
  * missing/invalid.
  */
 export function WhatsAppButton({

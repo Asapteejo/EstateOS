@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Validation for tenant-authored marketing copy — the full public site:
+ * Validation for tenant-authored marketing copy, the full public site:
  * SEO, hero (+ stat cards + side panel), buyer journey, section headings,
  * about, contact extras, social links, footer.
  *

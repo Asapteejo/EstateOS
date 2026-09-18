@@ -1,5 +1,5 @@
 /**
- * Content-Security-Policy — ENFORCED, nonce-based.
+ * Content-Security-Policy, ENFORCED, nonce-based.
  *
  * History: the CSP shipped as `Content-Security-Policy-Report-Only` from
  * next.config.ts (static headers) starting 2026-06 so real traffic could be
@@ -35,7 +35,7 @@
 
 /**
  * Pre-hydration theme bootstrap. Runs before paint so users who chose the
- * dark theme — or whose SYSTEM is dark and who haven't chosen anything —
+ * dark theme, or whose SYSTEM is dark and who haven't chosen anything,
  * don't get a light-mode flash. An explicit stored choice ("dark"/"light")
  * always wins over prefers-color-scheme. Rendered in src/app/layout.tsx.
  *
@@ -129,14 +129,14 @@ export function buildContentSecurityPolicy(options: {
     // Web/Service workers (Mapbox GL spawns blob: workers).
     "worker-src 'self' blob:",
     "child-src 'self' blob:",
-    // Media (audio/video) — self + blob + R2 objects (presigned, public
+    // Media (audio/video), self + blob + R2 objects (presigned, public
     // bucket domains, and the configured tenant media domain).
     `media-src 'self' blob: https://*.r2.cloudflarestorage.com https://*.r2.dev${mediaHostSource}`,
     // App manifest.
     "manifest-src 'self'",
     // Form submissions only to our own origin (+ Paystack redirect target, defensively).
     "form-action 'self' https://checkout.paystack.com",
-    // Who may frame us — mirrors the X-Frame-Options: SAMEORIGIN header.
+    // Who may frame us, mirrors the X-Frame-Options: SAMEORIGIN header.
     "frame-ancestors 'self'",
     // Restrict <base> and disallow plugins.
     "base-uri 'self'",

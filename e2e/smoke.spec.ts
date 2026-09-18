@@ -72,7 +72,7 @@ for (const route of PUBLIC_ROUTES) {
     // A 5xx is the exact signature of the production incident.
     expect(
       response?.status() ?? 0,
-      `${route} returned a server error — check the server logs for the underlying exception.`,
+      `${route} returned a server error, check the server logs for the underlying exception.`,
     ).toBeLessThan(500);
 
     const body = (await page.locator("body").innerText()).toLowerCase();
@@ -145,7 +145,7 @@ test("footer navigation links stack instead of running together", async ({ page 
   expect(result.linkCount, "expected grouped footer navigation links").toBeGreaterThan(2);
   expect(
     result.collisions,
-    "footer links in the same column share a line — inline-level boxes in a non-flex container again",
+    "footer links in the same column share a line, inline-level boxes in a non-flex container again",
   ).toEqual([]);
 
   // The 44px tap target applies on phones only: above `sm` the links

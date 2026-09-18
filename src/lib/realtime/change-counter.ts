@@ -2,12 +2,12 @@ import { redis } from "@/lib/cache/redis";
 import { buildSafeErrorLogContext, logWarn } from "@/lib/ops/logger";
 
 /**
- * Cross-instance change counters — the backplane for CONDITIONAL polling.
+ * Cross-instance change counters, the backplane for CONDITIONAL polling.
  *
  * Every published realtime event bumps a per-company counter (and the
  * platform counter for the superadmin surface) in Upstash Redis. Dashboards
  * poll the tiny /api/realtime/version endpoint (one Redis GET) and call
- * router.refresh() ONLY when the counter moved — instead of blindly
+ * router.refresh() ONLY when the counter moved, instead of blindly
  * re-rendering every 30s. Correct across serverless instances by
  * construction, unlike the in-process EventEmitter bus.
  *

@@ -19,7 +19,7 @@ import type { QuickAction } from "@/components/dashboard/quick-actions";
 /**
  * Sidebar clusters, in canonical display order. Grouping ~30 flat links into
  * labeled sections keeps the operator sidebar scannable as the surface grows;
- * every item belongs to exactly one group. Grouping is presentation-only —
+ * every item belongs to exactly one group. Grouping is presentation-only,
  * route guards (rolesForAdminPath) are unaffected.
  */
 export const ADMIN_NAV_GROUPS = [
@@ -44,7 +44,7 @@ export type AdminNavItem = {
   roles: AppRole[];
   /**
    * Front-desk / hands-on operational tools (data entry, check-ins). These are
-   * hidden from the owner/CEO's oversight nav — the owner monitors this activity
+   * hidden from the owner/CEO's oversight nav, the owner monitors this activity
    * through the Executive Overview and Analytics rather than doing the entry work
    * themselves. Owners retain direct route access (see rolesForAdminPath); this
    * flag only curates the sidebar so the CEO gets an oversight-first cockpit,
@@ -102,7 +102,7 @@ export function canAccessAdminItem(roles: AppRole[], item: AdminNavItem): boolea
 /**
  * The nav items a given set of roles SEES in the sidebar, in canonical order.
  * Operational (front-desk) tools are shown only to the roles that actually do
- * that work — never to the owner purely by virtue of full-admin — so the CEO
+ * that work, never to the owner purely by virtue of full-admin, so the CEO
  * gets an oversight-first cockpit. Access itself is unaffected: rolesForAdminPath
  * still lets the owner open any section directly.
  */
@@ -123,7 +123,7 @@ export type NavGroup = {
 /**
  * Groups the visible nav items into ordered sidebar clusters, dropping empty
  * groups (a FINANCE-only user sees only Workspace + Finance + …). Items are
- * [label, href] tuples — the shape the sidebar/drawer components consume.
+ * [label, href] tuples, the shape the sidebar/drawer components consume.
  */
 export function groupedAdminNav(roles: AppRole[]): NavGroup[] {
   const visible = filterAdminNav(roles);
