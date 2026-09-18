@@ -31,15 +31,13 @@ export function PropertyCard({ property }: { property: PropertySummary }) {
         />
         <div className="absolute left-4 top-4 flex flex-wrap gap-2">
           <Badge className="bg-white/90">{property.status}</Badge>
-          <Badge
-            className={
-              property.verification.tone === "success"
-                ? "bg-emerald-100 text-emerald-800"
-                : "bg-amber-100 text-amber-800"
-            }
-          >
-            {property.verification.status === "VERIFIED" ? "Verified" : "Stale"}
-          </Badge>
+          {/* Only the positive state is public. "Stale" and "Hidden" are
+              operator vocabulary from the verification workflow; to a buyer
+              they read as a warning about the company, on a site whose pitch
+              is verified listings. Absence says nothing, which is correct. */}
+          {property.verification.status === "VERIFIED" ? (
+            <Badge className="bg-emerald-100 text-emerald-800">Verified</Badge>
+          ) : null}
         </div>
       </div>
       <div className="space-y-4 p-6">
@@ -47,7 +45,11 @@ export function PropertyCard({ property }: { property: PropertySummary }) {
           <div className="text-sm text-[var(--ink-500)]">{property.locationSummary}</div>
           <h3 className="font-serif text-2xl text-[var(--ink-950)]">{property.title}</h3>
           <p className="text-sm leading-6 text-[var(--ink-600)]">{property.shortDescription}</p>
-          <p className="text-xs font-medium text-[var(--ink-500)]">{property.verification.label}</p>
+          {/* verification.label carries internal states ("Listing hidden",
+              "Verification required"). Only the verified case is shown. */}
+          {property.verification.status === "VERIFIED" ? (
+            <p className="text-xs font-medium text-[var(--ink-500)]">{property.verification.label}</p>
+          ) : null}
         </div>
         <div className="flex items-center justify-between text-sm text-[var(--ink-700)]">
           {isLand ? (
