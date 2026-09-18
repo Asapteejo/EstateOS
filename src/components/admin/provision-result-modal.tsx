@@ -71,7 +71,7 @@ export function ProvisionResultDialog({
           <div className="space-y-3">
             <div className="rounded-[var(--radius-lg)] border border-[var(--danger-200,#fecaca)] bg-[var(--danger-50,#fef2f2)] px-4 py-3">
               <p className="text-sm font-semibold text-[var(--danger-700,#b91c1c)]">
-                Shown once — copy it now
+                Shown once, copy it now
               </p>
               <p className="mt-0.5 text-xs text-[var(--danger-600,#dc2626)]">
                 This password will not be displayed again. Hand it directly to the person and

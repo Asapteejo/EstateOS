@@ -15,7 +15,7 @@ export default async function AdminInvoicesPage() {
     <DashboardShell
       area="admin"
       title="Invoices"
-      subtitle="Issue property invoices buyers can download or print — branded with your company details."
+      subtitle="Issue property invoices buyers can download or print, branded with your company details."
     >
       <div className="space-y-6">
         <InvoiceCreateForm />

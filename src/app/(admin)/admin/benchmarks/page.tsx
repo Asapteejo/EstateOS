@@ -75,7 +75,7 @@ function BenchmarkBar({
   if (band.sampleSize < 3) {
     return (
       <p className="text-xs text-[var(--ink-400)]">
-        Platform data unavailable — not enough agencies in distribution yet.
+        Platform data unavailable, not enough agencies in distribution yet.
       </p>
     );
   }
@@ -181,7 +181,7 @@ function MetricComparisonPanel({
             Percentile
           </div>
           <div className="mt-1 text-xl font-semibold text-[var(--ink-500)]">
-            {band.sampleSize >= 3 ? `${band.tenantPercentileRank}th` : "—"}
+            {band.sampleSize >= 3 ? `${band.tenantPercentileRank}th` : "-"}
           </div>
         </div>
       </div>
@@ -361,7 +361,7 @@ export default async function AdminBenchmarksPage() {
       value:
         report.topPropertyTypes[0]?.type
           ? report.topPropertyTypes[0].type.replaceAll("_", " ").toLowerCase()
-          : "—",
+          : "-",
       hint:
         report.topPropertyTypes[0]
           ? `${report.topPropertyTypes[0].tenantDealCount} deal${report.topPropertyTypes[0].tenantDealCount === 1 ? "" : "s"} · ${formatCurrency(report.topPropertyTypes[0].tenantRevenue)} revenue`
@@ -373,7 +373,7 @@ export default async function AdminBenchmarksPage() {
     <DashboardShell
       area="admin"
       title="Performance benchmarks"
-      subtitle={`How your agency compares to anonymised platform averages — ${BENCHMARK_WINDOW_DAYS}-day rolling window.`}
+      subtitle={`How your agency compares to anonymised platform averages, ${BENCHMARK_WINDOW_DAYS}-day rolling window.`}
     >
       {/* Anonymisation notice */}
       <AdminStateBanner
@@ -436,7 +436,7 @@ export default async function AdminBenchmarksPage() {
               <li className="flex gap-2">
                 <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--ink-950)]" />
                 <span>
-                  <strong className="text-[var(--ink-900)]">Conversion rate</strong> — above
+                  <strong className="text-[var(--ink-900)]">Conversion rate</strong>, above
                   the median means your team qualifies and closes buyer interest more
                   effectively than most.
                 </span>
@@ -444,7 +444,7 @@ export default async function AdminBenchmarksPage() {
               <li className="flex gap-2">
                 <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--ink-950)]" />
                 <span>
-                  <strong className="text-[var(--ink-900)]">Deal velocity</strong> — lower
+                  <strong className="text-[var(--ink-900)]">Deal velocity</strong>, lower
                   is better. Faster closures reduce buyer drop-off risk and improve cash
                   collection.
                 </span>
@@ -452,7 +452,7 @@ export default async function AdminBenchmarksPage() {
               <li className="flex gap-2">
                 <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--ink-950)]" />
                 <span>
-                  <strong className="text-[var(--ink-900)]">Default rate</strong> — lower
+                  <strong className="text-[var(--ink-900)]">Default rate</strong>, lower
                   is better. A high default rate signals collection problems or over-stretched
                   buyers.
                 </span>
@@ -461,7 +461,7 @@ export default async function AdminBenchmarksPage() {
                 <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--brand-300)]" />
                 <span>
                   The shaded bar is the <strong className="text-[var(--ink-900)]">
-                  interquartile range</strong> — the middle 50% of all agencies. Being
+                  interquartile range</strong>, the middle 50% of all agencies. Being
                   inside the band is normal; above p75 is strong performance.
                 </span>
               </li>

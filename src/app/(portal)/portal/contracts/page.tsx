@@ -72,7 +72,7 @@ function ContractCard({ contract }: { contract: BuyerContractRow }) {
             {contract.document.fileName}
           </p>
           <p className="mt-0.5 text-xs text-[var(--ink-500)]">
-            Sent {contract.sentAt ? formatDate(contract.sentAt, "PP") : "—"}
+            Sent {contract.sentAt ? formatDate(contract.sentAt, "PP") : "-"}
           </p>
         </div>
         <a

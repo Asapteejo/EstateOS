@@ -15,7 +15,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "EstateOS",
     short_name: "EstateOS",
     description:
-      "Property buying, payments, inspections, and documents — your real estate workspace.",
+      "Property buying, payments, inspections, and documents, your real estate workspace.",
     start_url: "/portal",
     scope: "/",
     display: "standalone",

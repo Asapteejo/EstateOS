@@ -40,7 +40,7 @@ function toNumber(value: unknown): number {
 }
 
 function shortDate(value: Date | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return "-";
   return new Date(value).toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" });
 }
 

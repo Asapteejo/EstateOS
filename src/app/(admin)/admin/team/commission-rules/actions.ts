@@ -21,7 +21,7 @@ export async function createCommissionRuleAction(formData: FormData) {
   const propertyId = (formData.get("propertyId") as string | null)?.trim() || null;
 
   if (!name || !feeType || !["FLAT", "PERCENTAGE"].includes(feeType)) {
-    return; // basic guard — real validation happens client-side
+    return; // basic guard, real validation happens client-side
   }
 
   const flatAmount =

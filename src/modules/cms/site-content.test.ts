@@ -181,7 +181,7 @@ test("journey accepts at most three steps and bounded copy", () => {
         heading: "How buying works",
         steps: [{ title: "Find", description: "Browse verified homes." }],
       },
-      seo: { title: "Acme Realty — Homes in Lekki", description: "Verified homes in Lekki." },
+      seo: { title: "Acme Realty, Homes in Lekki", description: "Verified homes in Lekki." },
     }).success,
     true,
   );

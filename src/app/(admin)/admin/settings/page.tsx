@@ -45,7 +45,7 @@ export default async function AdminSettingsPage() {
       title="Settings"
       subtitle="Manage tenant branding, defaults, payment display rules, and public staff visibility without developer intervention."
     >
-      {/* Domain card — top priority */}
+      {/* Domain card, top priority */}
       {readiness ? (
         <TenantReadinessChecklist
           title="Tenant readiness"

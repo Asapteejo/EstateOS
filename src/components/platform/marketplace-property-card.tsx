@@ -20,7 +20,7 @@ export function MarketplacePropertyCard({
         return null;
       }
 
-      return `${label} — ${option.price ? formatCurrency(option.price, option.currency ?? property.currency) : "Price on request"}`;
+      return `${label}: ${option.price ? formatCurrency(option.price, option.currency ?? property.currency) : "Price on request"}`;
     })
     .filter(Boolean);
 

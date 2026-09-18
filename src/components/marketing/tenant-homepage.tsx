@@ -113,7 +113,7 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
                 </div>
                 {/* One primary action. The secondary route (marketers) lives
                     in its own section further down, and the header already
-                    carries the portal link — three CTAs here competed with the
+                    carries the portal link, three CTAs here competed with the
                     search, which is the actual front door. */}
                 <div className="flex flex-wrap gap-3">
                   <Magnetic>
@@ -197,7 +197,7 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
           </div>
         </section>
 
-        {/* Trust strip — only real numbers. A brand-new tenant otherwise
+        {/* Trust strip, only real numbers. A brand-new tenant otherwise
             advertised "EXPERT MARKETERS 0 / HAPPY CLIENTS 0" in large type
             above the fold, which is worse than showing nothing. A card with a
             zero count is dropped, and the strip disappears entirely if fewer
@@ -275,7 +275,7 @@ export async function TenantHomepage({ tenant }: { tenant: TenantContext }) {
           </section>
         </Reveal>
 
-        {/* How it works — moved out of the hero's 0.8fr sidebar, where three
+        {/* How it works, moved out of the hero's 0.8fr sidebar, where three
             cards shared ~121px each and the copy broke to one word per line.
             A primary trust explainer earns the full measure. */}
         <Reveal>

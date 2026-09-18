@@ -26,7 +26,7 @@ export function ExecutiveOverviewBoard({ overview }: { overview: ExecutiveOvervi
           <div>
             <h2 className="text-sm font-semibold text-[var(--ink-950)]">Company pulse</h2>
             <p className="text-xs text-[var(--ink-500)]">
-              Live across sales, finance, and the front desk — refreshes automatically.
+              Live across sales, finance, and the front desk, refreshes automatically.
             </p>
           </div>
         </div>

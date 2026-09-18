@@ -278,7 +278,7 @@ export async function DashboardShell({
           />
         </div>
       </aside>
-      {/* Mobile bottom tab bar — buyers only; the drawer covers the long tail. */}
+      {/* Mobile bottom tab bar, buyers only; the drawer covers the long tail. */}
       {area === "portal" ? (
         <PortalBottomNav
           unreadNotificationCount={unreadNotificationCount}

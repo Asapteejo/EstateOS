@@ -236,7 +236,7 @@ export function PaymentAccountSetup() {
             { label: "Business name", value: account.displayName },
             {
               label: "Bank",
-              value: String(meta?.["bankName"] ?? "—"),
+              value: String(meta?.["bankName"] ?? "-"),
             },
             {
               label: "Account number",
@@ -248,7 +248,7 @@ export function PaymentAccountSetup() {
             },
             {
               label: "Subaccount code",
-              value: account.subaccountCode ?? "—",
+              value: account.subaccountCode ?? "-",
               mono: true,
             },
             {

@@ -305,7 +305,7 @@ export function SiteContentManagement({
             Your site editor is temporarily unavailable.
           </h2>
           <p className="mt-3 text-sm leading-7 text-[var(--ink-700)]">
-            Your public website is still online and is showing its default copy — visitors are
+            Your public website is still online and is showing its default copy, visitors are
             unaffected. The editor needs a pending database update before your saved content can
             be loaded.
           </p>
@@ -333,7 +333,7 @@ export function SiteContentManagement({
             </h2>
             <p className="mt-3 text-sm leading-7 text-[var(--ink-600)]">
               Every section of your public website is editable here. Changes stay in draft until
-              you publish. Any field left blank uses a smart default derived from your company —
+              you publish. Any field left blank uses a smart default derived from your company,
               shown as the placeholder.
             </p>
             <div className="mt-4 text-xs font-medium text-[var(--ink-500)]">
@@ -417,7 +417,7 @@ export function SiteContentManagement({
       <Section
         eyebrow="Hero stat cards"
         title="The three number cards under your headline"
-        description="Numbers are live (listings, marketers, testimonials) — you edit the labels and supporting lines."
+        description="Numbers are live (listings, marketers, testimonials), you edit the labels and supporting lines."
       >
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Card 1 label (listings count)">
@@ -501,32 +501,32 @@ export function SiteContentManagement({
       >
         <div className="grid gap-4">
           <div className="grid gap-4 md:grid-cols-3">
-            <Field label="Featured — eyebrow">
+            <Field label="Featured, eyebrow">
               <TextInput value={draft.featuredEyebrow} onChange={update("featuredEyebrow")} placeholder={fallback.sections.featured.eyebrow} />
             </Field>
-            <Field label="Featured — title">
+            <Field label="Featured, title">
               <TextInput value={draft.featuredTitle} onChange={update("featuredTitle")} placeholder={fallback.sections.featured.title} />
             </Field>
-            <Field label="Featured — description">
+            <Field label="Featured, description">
               <TextInput value={draft.featuredDescription} onChange={update("featuredDescription")} placeholder={fallback.sections.featured.description} />
             </Field>
           </div>
           <div className="grid gap-4 md:grid-cols-2">
-            <Field label="Marketers — title">
+            <Field label="Marketers, title">
               <TextInput value={draft.marketersTitle} onChange={update("marketersTitle")} placeholder={fallback.sections.marketers.title} />
             </Field>
-            <Field label="Marketers — description">
+            <Field label="Marketers, description">
               <TextInput value={draft.marketersDescription} onChange={update("marketersDescription")} placeholder={fallback.sections.marketers.description} />
             </Field>
           </div>
           <div className="grid gap-4 md:grid-cols-3">
-            <Field label="Testimonials — eyebrow">
+            <Field label="Testimonials, eyebrow">
               <TextInput value={draft.testimonialsEyebrow} onChange={update("testimonialsEyebrow")} placeholder={fallback.sections.testimonials.eyebrow} />
             </Field>
-            <Field label="Testimonials — title">
+            <Field label="Testimonials, title">
               <TextInput value={draft.testimonialsTitle} onChange={update("testimonialsTitle")} placeholder={fallback.sections.testimonials.title} />
             </Field>
-            <Field label="Testimonials — description">
+            <Field label="Testimonials, description">
               <TextInput value={draft.testimonialsDescription} onChange={update("testimonialsDescription")} placeholder={fallback.sections.testimonials.description} />
             </Field>
           </div>
@@ -554,7 +554,7 @@ export function SiteContentManagement({
       <Section
         eyebrow="Careers"
         title="Your Careers page"
-        description="Present your company to marketers, agents, and partners — or hide the page entirely if you're not hiring."
+        description="Present your company to marketers, agents, and partners, or hide the page entirely if you're not hiring."
       >
         <div className="grid gap-4">
           <label className="flex w-fit cursor-pointer items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border-subtle,var(--line))] bg-[var(--sand-50)] px-4 py-3">

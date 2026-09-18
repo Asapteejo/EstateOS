@@ -64,7 +64,7 @@ export async function POST(
 
   const propertyContext = inquiry.property
     ? `Property enquired about: "${inquiry.property.title}"${inquiry.property.shortDescription ? `\nProperty summary: ${inquiry.property.shortDescription}` : ""}`
-    : "General inquiry — no specific property selected.";
+    : "General inquiry, no specific property selected.";
 
   const genAI = new GoogleGenerativeAI(env.GEMINI_API_KEY!);
   const model = genAI.getGenerativeModel({
@@ -76,10 +76,10 @@ Guidelines:
 - Acknowledge their specific inquiry and the property if applicable
 - Be helpful and express genuine interest in assisting them
 - Propose a clear next step (e.g. schedule a viewing or call)
-- Keep it concise — 150 to 200 words
+- Keep it concise, 150 to 200 words
 - Sign off as "The ${companyName} Team"
 
-Output only the email body text starting with "Dear [Name]," — no subject line, no extra commentary.`,
+Output only the email body text starting with "Dear [Name],", no subject line, no extra commentary.`,
   });
 
   const prompt = `Buyer name: ${inquiry.fullName}

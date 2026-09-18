@@ -41,7 +41,7 @@ function resolveCopy(status: string | undefined, reason: string | undefined): Ac
       // The default bullets describe a SUSPENDED company, which is wrong here:
       // nothing is blocked for this user, they just aren't a platform owner.
       points: [
-        "Your company workspace is unaffected — admin, portal, and payment actions all still work.",
+        "Your company workspace is unaffected, admin, portal, and payment actions all still work.",
         "The platform owner dashboard is reserved for EstateOS staff.",
         "If you reached this by mistake, continue in your own admin dashboard.",
       ],

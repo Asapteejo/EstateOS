@@ -15,7 +15,7 @@ export default async function AdminUsersPage() {
     <DashboardShell
       area="admin"
       title="Users"
-      subtitle="Manage staff accounts for your company — view profiles, suspend access, or remove accounts."
+      subtitle="Manage staff accounts for your company, view profiles, suspend access, or remove accounts."
     >
       <UsersManagement users={users} hasClerkPassword={featureFlags.hasClerkPassword} />
     </DashboardShell>

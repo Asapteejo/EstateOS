@@ -22,7 +22,7 @@ export default async function AdminMarketplacePage() {
     <DashboardShell
       area="admin"
       title="Marketplace listings"
-      subtitle="Control which of your verified properties appear in the cross-company EstateOS marketplace. Only publicly visible, verified or stale properties are eligible — toggle opt-in per property."
+      subtitle="Control which of your verified properties appear in the cross-company EstateOS marketplace. Only publicly visible, verified or stale properties are eligible, toggle opt-in per property."
     >
       <AdminToolbar>
         <div className="flex flex-wrap items-center gap-3">
@@ -40,7 +40,7 @@ export default async function AdminMarketplacePage() {
 
       <AdminPanel
         title="Property opt-in"
-        description="Enable marketplace listing per property. Only eligible properties (publicly visible with verified or stale verification) will actually appear — others are accepted but held until they pass the gate."
+        description="Enable marketplace listing per property. Only eligible properties (publicly visible with verified or stale verification) will actually appear, others are accepted but held until they pass the gate."
         className="px-0 py-0"
       >
         {properties.length > 0 ? (
@@ -76,7 +76,7 @@ export default async function AdminMarketplacePage() {
                             {property.title}
                           </div>
                           <div className="text-xs text-[var(--ink-500)]">
-                            {property.locationSummary ?? "—"}
+                            {property.locationSummary ?? "-"}
                           </div>
                         </div>
                       </td>

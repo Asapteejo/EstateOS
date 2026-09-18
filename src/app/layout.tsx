@@ -72,7 +72,7 @@ export default function RootLayout({
     <html lang="en" data-scroll-behavior="smooth" className={`${fontSans.variable} ${fontSerif.variable}`}>
       <body>
         {/* Pre-hydration theme bootstrap. The text lives in @/lib/security/csp
-            because the enforced CSP authorizes it by SHA-256 hash — keeping the
+            because the enforced CSP authorizes it by SHA-256 hash, keeping the
             script and its hash in one module (verified by csp.test.ts) means
             editing one without the other fails tests instead of breaking prod. */}
         <script

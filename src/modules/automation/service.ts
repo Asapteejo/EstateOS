@@ -195,7 +195,7 @@ export async function runOperationalAutomationSweep(input?: { companyId?: string
         transactionId: transaction.id,
         href: "/admin/payments",
       } as Prisma.InputJsonValue,
-      emailSubject: `Payment overdue — ${reservationRef}`,
+      emailSubject: `Payment overdue, ${reservationRef}`,
       emailHtml: renderOperatorPaymentOverdueAlert({
         reservationRef,
         outstandingBalance: formattedBalance,

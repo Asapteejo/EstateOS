@@ -458,7 +458,7 @@ export async function createInquiry(
       propertyId: inquiry.propertyId,
       snippet: buildSnippet(parsed.message),
     } as Prisma.InputJsonValue,
-    emailSubject: `New inquiry — ${inquiry.property?.title ?? inquiry.fullName}`,
+    emailSubject: `New inquiry, ${inquiry.property?.title ?? inquiry.fullName}`,
     emailHtml: renderOperatorInquiryAlert({
       buyerName: inquiry.fullName,
       propertyTitle: inquiry.property?.title,

@@ -23,7 +23,7 @@ export default async function AdminSiteContentPage() {
     <DashboardShell
       area="admin"
       title="Site content"
-      subtitle="Edit your public site copy — hero, calls to action, footer, and about — with draft preview and manual publish. Blank fields use a smart default."
+      subtitle="Edit your public site copy, hero, calls to action, footer, and about, with draft preview and manual publish. Blank fields use a smart default."
     >
       <SiteContentManagement state={state} fallback={fallback} />
     </DashboardShell>

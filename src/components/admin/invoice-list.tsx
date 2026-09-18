@@ -57,7 +57,7 @@ export function InvoiceList({
         accessorKey: "propertyTitle",
         header: "Property",
         cell: ({ row }) => (
-          <span className="text-[var(--ink-600)]">{row.original.propertyTitle ?? "—"}</span>
+          <span className="text-[var(--ink-600)]">{row.original.propertyTitle ?? "-"}</span>
         ),
       },
       {

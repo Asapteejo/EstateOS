@@ -123,7 +123,7 @@ export function renderPaymentConfirmedEmail(data: {
   amount: string;
   companyName: string;
 }): { subject: string; html: string } {
-  const subject = "Payment confirmed — receipt issued";
+  const subject = "Payment confirmed: receipt issued";
   const body = [
     h1("Payment confirmed"),
     p(`Hi <strong>${esc(data.buyerName)}</strong>, your payment has been received and confirmed.`),
@@ -201,7 +201,7 @@ export function renderInspectionBookedEmail(data: {
   propertyTitle: string;
   companyName: string;
 }): { subject: string; html: string } {
-  const subject = `Inspection request received — ${data.propertyTitle}`;
+  const subject = `Inspection request received, ${data.propertyTitle}`;
   const body = [
     h1("Inspection request received"),
     p(`Hi <strong>${esc(data.fullName)}</strong>, we've received your request to inspect <strong>${esc(data.propertyTitle)}</strong>.`),
@@ -222,7 +222,7 @@ export function renderInquiryReceivedEmail(data: {
   companyName: string;
 }): { subject: string; html: string } {
   const subject = data.propertyTitle
-    ? `Inquiry received — ${data.propertyTitle}`
+    ? `Inquiry received, ${data.propertyTitle}`
     : "We received your inquiry";
 
   const context = data.propertyTitle
@@ -249,7 +249,7 @@ export function renderPaymentOverdueEmail(data: {
   outstandingBalance: string;
   companyName: string;
 }): { subject: string; html: string } {
-  const subject = "Payment overdue — action required";
+  const subject = "Payment overdue: action required";
   const body = [
     h1("Payment overdue"),
     p(`Hi <strong>${esc(data.buyerName)}</strong>, a payment on your reservation is now overdue.`),
@@ -357,7 +357,7 @@ export function renderWishlistReminderEmail(data: {
     cta("View property", data.propertyUrl),
     divider(),
     note(
-      "If you no longer wish to pursue this property, no action is needed — your interest will expire automatically.",
+      "If you no longer wish to pursue this property, no action is needed. Your interest will expire automatically.",
     ),
   ].join("");
 
@@ -382,8 +382,8 @@ export function renderOverdueBuyerEmail(data: {
 }): { subject: string; html: string } {
   const urgent = data.daysOverdue >= 7;
   const subject = urgent
-    ? `Urgent: Payment overdue ${data.daysOverdue} days — ${data.reservationRef}`
-    : `Reminder: Payment overdue — ${data.reservationRef}`;
+    ? `Urgent: Payment overdue ${data.daysOverdue} days, ${data.reservationRef}`
+    : `Reminder: Payment overdue, ${data.reservationRef}`;
 
   const intro = data.daysOverdue === 1
     ? "This is a friendly reminder that a payment on your reservation was due yesterday."
@@ -421,7 +421,7 @@ export function renderMarketerEscalationEmail(data: {
   whatsAppHref: string | null;
   companyName: string;
 }): { subject: string; html: string } {
-  const subject = `Action required: ${data.buyerName} — ${data.reservationRef} overdue ${data.daysOverdue} days`;
+  const subject = `Action required: ${data.buyerName}, ${data.reservationRef} overdue ${data.daysOverdue} days`;
   const body = [
     h1("Deal escalated to you"),
     p(`Hi <strong>${esc(data.marketerName)}</strong>,`),
@@ -467,7 +467,7 @@ export function renderOwnerEscalationEmail(data: {
   }
 
   const body = [
-    h1("Revenue at risk — immediate attention needed"),
+    h1("Revenue at risk: immediate attention needed"),
     p(`Hi <strong>${esc(data.ownerName)}</strong>,`),
     p(`The following deal has been overdue for <strong>${data.daysOverdue} days</strong> and has not been resolved. Your direct intervention may be required.`),
     detailTable(rows),
@@ -563,8 +563,8 @@ export function renderMorningBriefingEmail(data: {
 }): { subject: string; html: string } {
   const hasUrgent = data.overdueCount > 0 || data.stalledCount > 0 || data.hiddenProperties > 0 || data.atRiskCount > 0;
   const subject = hasUrgent
-    ? `Morning briefing — ${data.overdueCount} overdue, ${data.atRiskCount} at risk — ${data.date}`
-    : `Morning briefing — ${data.date}`;
+    ? `Morning briefing, ${data.overdueCount} overdue, ${data.atRiskCount} at risk, ${data.date}`
+    : `Morning briefing, ${data.date}`;
 
   const alertRows: string[][] = [];
   if (data.overdueCount > 0) alertRows.push([`${data.overdueCount} overdue payment${data.overdueCount === 1 ? "" : "s"}`, `${data.overdueTotalAtRisk} at risk`]);
@@ -575,7 +575,7 @@ export function renderMorningBriefingEmail(data: {
 
   const body = [
     h1("Daily briefing"),
-    p(`Good morning <strong>${esc(data.recipientName)}</strong> — here's your summary for <strong>${esc(data.date)}</strong>.`),
+    p(`Good morning <strong>${esc(data.recipientName)}</strong>, here's your summary for <strong>${esc(data.date)}</strong>.`),
 
     // Stat cards
     statGrid([

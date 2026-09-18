@@ -94,7 +94,7 @@ function UploadContractForm({ transactions }: { transactions: TransactionWithout
               const buyer = [tx.user.firstName, tx.user.lastName].filter(Boolean).join(" ") || "Buyer";
               return (
                 <option key={tx.id} value={tx.id}>
-                  {ref} — {buyer} — {tx.property.title}
+                  {ref}, {buyer}, {tx.property.title}
                 </option>
               );
             })}

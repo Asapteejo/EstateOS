@@ -23,7 +23,7 @@ export function Conversation({
         </div>
         <WhatsAppButton
           phone={thread.buyerPhone}
-          message={`Hi ${thread.buyerName}, regarding "${thread.subject}" —`}
+          message={`Hi ${thread.buyerName}, regarding "${thread.subject}":`}
         />
       </div>
 

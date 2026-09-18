@@ -145,7 +145,7 @@ async function logLocalTenantFallbackHint(host: string | null, devTenantSlug: st
   const example = devTenantSlug ?? knownSlugs[0] ?? "<company-slug>";
   const nextStep =
     knownSlugs.length === 0
-      ? "This database has no companies yet — run `npm run db:seed` first."
+      ? "This database has no companies yet, run `npm run db:seed` first."
       : `Companies in this database: ${knownSlugs.join(", ")}.`;
 
   logWarn(

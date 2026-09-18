@@ -16,7 +16,7 @@ const INSIDE = [
   {
     icon: ShieldCheck,
     title: "How we protect buyers",
-    body: "Our verification, documentation, and payment process — so you know exactly how your money and paperwork are handled.",
+    body: "Our verification, documentation, and payment process, so you know exactly how your money and paperwork are handled.",
   },
   {
     icon: FileText,
@@ -32,7 +32,7 @@ export default function BrochurePage() {
         <SectionHeading
           eyebrow="Brochure"
           title="Get the full company brochure."
-          description="A clear, printable overview of our properties, process, and the safeguards that protect every buyer — ideal to share with family or advisors before you decide."
+          description="A clear, printable overview of our properties, process, and the safeguards that protect every buyer, ideal to share with family or advisors before you decide."
         />
       </Reveal>
 

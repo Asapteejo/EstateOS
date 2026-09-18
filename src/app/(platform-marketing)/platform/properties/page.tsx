@@ -74,7 +74,7 @@ export default async function MarketplacePage({
               ) : (
                 "top agencies"
               )}{" "}
-              across Nigeria — all on one platform.
+              across Nigeria, all on one platform.
             </p>
           </div>
 
@@ -231,7 +231,7 @@ export default async function MarketplacePage({
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-[var(--sand-300)]">
             EstateOS agencies can opt any verified listing into the marketplace from
-            their admin dashboard — zero extra cost.
+            their admin dashboard, zero extra cost.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-4">
             <Link href="/app/onboarding">

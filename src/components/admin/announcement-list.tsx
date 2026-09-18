@@ -22,7 +22,7 @@ export function AnnouncementList({ rows }: { rows: AnnouncementRow[] }) {
             <Megaphone className="h-5 w-5" />
           </span>
           <p className="text-sm font-medium text-[var(--ink-700)]">No announcements yet.</p>
-          <p className="text-sm text-[var(--ink-500)]">Posted broadcasts will appear here — publish or unpublish anytime.</p>
+          <p className="text-sm text-[var(--ink-500)]">Posted broadcasts will appear here, publish or unpublish anytime.</p>
         </div>
       </section>
     );

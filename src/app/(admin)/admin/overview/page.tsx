@@ -24,7 +24,7 @@ export default async function AdminOverviewPage() {
     <DashboardShell
       area="admin"
       title="Executive Overview"
-      subtitle="Company-wide health across sales, finance, and the front desk — at a glance."
+      subtitle="Company-wide health across sales, finance, and the front desk, at a glance."
     >
       <ExecutiveOverviewBoard overview={overview} />
       <OwnerActivityFeed items={activity} />

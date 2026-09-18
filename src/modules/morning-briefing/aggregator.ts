@@ -211,7 +211,7 @@ export async function getMorningBriefingData(
   };
 
   const formattedOverdueRows: OverduePaymentRow[] = (overdueRows as OverdueRaw[]).map((row) => ({
-    reservationRef: row.reservation?.reference ?? "—",
+    reservationRef: row.reservation?.reference ?? "-",
     buyerName: `${row.user.firstName ?? ""} ${row.user.lastName ?? ""}`.trim() || "Buyer",
     outstandingBalance: formatCurrency(dec(row.outstandingBalance)),
     daysOverdue: row.nextPaymentDueAt ? differenceInDays(now, row.nextPaymentDueAt) : 0,
@@ -224,7 +224,7 @@ export async function getMorningBriefingData(
   }));
 
   const formattedStalledRows: StalledDealRow[] = (stalledRows as StalledRaw[]).map((row) => ({
-    reservationRef: row.reservation?.reference ?? "—",
+    reservationRef: row.reservation?.reference ?? "-",
     buyerName: `${row.user.firstName ?? ""} ${row.user.lastName ?? ""}`.trim() || "Buyer",
     currentStage: stageLabel(row.currentStage),
     daysSinceActivity: differenceInDays(now, row.updatedAt),
@@ -237,7 +237,7 @@ export async function getMorningBriefingData(
   };
 
   const formattedAtRiskRows: AtRiskDealRow[] = (atRiskRows as AtRiskRaw[]).map((row) => ({
-    reservationRef: row.reservation?.reference ?? "—",
+    reservationRef: row.reservation?.reference ?? "-",
     buyerName: `${row.user.firstName ?? ""} ${row.user.lastName ?? ""}`.trim() || "Buyer",
     riskScore: row.riskScore,
     topSignal: row.riskScore >= 80 ? "High risk" : row.riskScore >= 65 ? "Elevated risk" : "At risk",
