@@ -19,6 +19,7 @@ import { properties as demoProperties, getPropertyBySlug } from "@/modules/prope
 import {
   buildPropertyVerificationPresentation,
   buildPublicPropertyVerificationWhere,
+  resolvePublicVisibilityCutoff,
 } from "@/modules/properties/verification";
 import type { PropertySummary } from "@/types/domain";
 
@@ -208,13 +209,20 @@ export function buildPublicPropertyWhere(
   context: TenantContext,
   where?: Record<string, unknown>,
   _now = new Date(),
+  /**
+   * now - hideDays. Supplied by the public entry points so a listing that has
+   * aged past the hide threshold leaves the site even though its stored
+   * visibility flag was never rewritten. Omitted, the filter falls back to the
+   * stored flags alone.
+   */
+  hideBefore?: Date | null,
 ) {
   void _now;
 
   return scopeTenantWhere(context, {
     AND: [
       where ?? {},
-      buildPublicPropertyVerificationWhere(),
+      buildPublicPropertyVerificationWhere({ hideBefore }),
     ],
     status: {
       in: [...PUBLIC_PROPERTY_STATUSES],
@@ -241,6 +249,7 @@ export function buildPublicPropertyFilterWhere(
   context: TenantContext,
   filters: PublicPropertyFilters,
   now = new Date(),
+  hideBefore?: Date | null,
 ) {
   const andFilters: Array<Record<string, unknown>> = [];
 
@@ -336,6 +345,7 @@ export function buildPublicPropertyFilterWhere(
     context,
     andFilters.length > 0 ? { AND: andFilters } : undefined,
     now,
+    hideBefore,
   );
 }
 
@@ -427,7 +437,8 @@ export async function getPublicProperties(
     };
   }
 
-  const where = buildPublicPropertyFilterWhere(context, resolvedFilters);
+  const hideBefore = await resolvePublicVisibilityCutoff(context.companyId);
+  const where = buildPublicPropertyFilterWhere(context, resolvedFilters, new Date(), hideBefore);
   const skip = (resolvedFilters.page - 1) * PAGE_SIZE;
   const radiusSearch = hasRadiusPropertySearch(resolvedFilters);
 
@@ -597,7 +608,12 @@ export async function getPublicPropertyDetailBySlug(
     prisma.property as ScopedFindFirstDelegate,
     context,
     {
-      where: buildPublicPropertyWhere(context, { slug }),
+      where: buildPublicPropertyWhere(
+        context,
+        { slug },
+        new Date(),
+        await resolvePublicVisibilityCutoff(context.companyId),
+      ),
       select: {
         id: true,
         slug: true,
@@ -800,9 +816,12 @@ export async function getPublicBrochureByPropertySlug(
     prisma.property as ScopedFindFirstDelegate,
     context,
     {
-      where: buildPublicPropertyWhere(context, {
-        slug,
-      }),
+      where: buildPublicPropertyWhere(
+        context,
+        { slug },
+        new Date(),
+        await resolvePublicVisibilityCutoff(context.companyId),
+      ),
       select: {
         brochureDocumentId: true,
       },
